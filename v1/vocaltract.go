@@ -38,16 +38,16 @@
 // 2019-02
 // This is a port to golang of the C++ Gnuspeech port by Marcelo Y. Matuda
 
-package trmcontrolv1
+package v1
 
 import (
 	"errors"
 	"fmt"
+	"github.com/emer/gospeech/trm"
 	"math"
 	"strings"
 
 	"github.com/emer/auditory/sound"
-	"github.com/emer/auditory/trm"
 	"github.com/emer/etable/etable"
 	"github.com/emer/etable/etensor"
 	"github.com/go-audio/audio"
@@ -81,7 +81,7 @@ type TractParams struct {
 	ThroatVol    float64
 	VtlOff       float64
 	MixOff       float64
-	WaveForm     trm.WaveForm
+	WaveForm     int32
 	NoiseMod     bool
 }
 

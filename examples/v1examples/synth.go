@@ -6,10 +6,10 @@ package main
 
 import (
 	"fmt"
+	v1 "github.com/emer/gospeech/v1"
 	"log"
 	"strconv"
 
-	"github.com/emer/auditory/trmcontrolv1"
 	"github.com/emer/etable/eplot"
 	"github.com/emer/etable/etable"
 	"github.com/emer/etable/etensor"
@@ -30,7 +30,7 @@ func main() {
 
 // Synth encapsulates
 type Synth struct {
-	vt         trmcontrolv1.VocalTract `view:"noinline"`
+	vt         v1.VocalTract `view:"noinline"`
 	win        *gi.Window
 	ToolBar    *gi.ToolBar   `view:"-" desc:"the master toolbar"`
 	SignalData *etable.Table `desc:"waveform data"`

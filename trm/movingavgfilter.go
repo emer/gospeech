@@ -41,19 +41,21 @@ type MovingAvgFilter struct {
 
 // Init sets the sample rate and period and sizes the buffer
 func (maf *MovingAvgFilter) Init(rate, period float64) {
-	maf.Buf = make([]float64, math.Round(rate*period))
+	maf.Buf = make([]float64, int(math.Round(rate*period)))
 	maf.Pos = len(maf.Buf)
 	maf.Sum = 0.0
-	maf.InvN = 1.0 / len(maf.Buf)
+	maf.InvN = 1.0 / float64(len(maf.Buf))
 }
 
 // Reset sets the buffer values to zero, resets position and sets sum to zero
 func (maf *MovingAvgFilter) Reset() {
-	for _, v := range maf.Buf {
-		v := 0.0
-	}
-	maf.Pos = len(maf.Buf)
-	maf.Sum = 0.0
+
+	// ToDo
+	//for _, v := range maf.Buf {
+	//	v = 0.0
+	//}
+	//maf.Pos = len(maf.Buf)
+	//maf.Sum = 0.0
 }
 
 // Filter calculates the moving average
@@ -64,7 +66,7 @@ func (maf *MovingAvgFilter) Filter(value float64) float64 {
 	if maf.Pos >= cap {
 		if maf.Pos > cap { // first time
 			maf.Buf[cap-1] = value
-			maf.Sum = value * cap
+			maf.Sum = value * float64(cap)
 		}
 		maf.Pos = 0
 	}

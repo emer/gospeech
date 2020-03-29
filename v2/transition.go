@@ -25,7 +25,7 @@
 // 2019-02
 // This is a port to golang of the C++ Gnuspeech port by Marcelo Y. Matuda{
 
-package trmcontrolv2
+package v2
 
 import "github.com/goki/ki/kit"
 
