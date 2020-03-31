@@ -259,7 +259,7 @@ func (seq *Sequence) SetIntonationParams(pitch, pretonicRange, pretonicLift, ton
 	seq.FixedIntonationParams[6] = tonicMovement
 }
 
-func (seq *Sequence) SetRadiusCoefs(values []float64 {
+func (seq *Sequence) SetRadiusCoefs(values []float64) {
 	for i := 0; i < 8; i++ { // TRM::Tube::TOTAL_REGIONS
 		seq.RadiusCoef[i] = values[i]
 	}

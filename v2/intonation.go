@@ -28,14 +28,14 @@
 package v2
 
 type IntonationPt struct {
-	SemiTone float64 `desc:"value of the intonation in semitones"`
-	Offset   float64 `desc:"points are timed wrt a beat + this offset"`
-	Slope    float64 `desc:"Slope of point"`
-	RuleIdx  int     `desc:"Index of posture which is the focus of this point"`
-	Events   []Event `desc:"Current events"`
+	SemiTone float64  `desc:"value of the intonation in semitones"`
+	Offset   float64  `desc:"points are timed wrt a beat + this offset"`
+	Slope    float64  `desc:"Slope of point"`
+	RuleIdx  int      `desc:"Index of posture which is the focus of this point"`
+	Sequence Sequence `desc:"Current events"`
 }
 
-func (ip *Intonation) Defaults() {
+func (ip *IntonationPt) Defaults() {
 	ip.SemiTone = 0.0
 	ip.Offset = 0.0
 	ip.Slope = 0.0
@@ -44,15 +44,15 @@ func (ip *Intonation) Defaults() {
 
 func (ip *IntonationPt) Init(events []Event) {
 	for _, e := range events {
-		ip.Events = append(ip.Events, e)
+		ip.Sequence.Events = append(ip.Sequence.Events, e)
 	}
 }
 
 func (ip *IntonationPt) AbsTime() float64 {
-	time := ip.Events.GetBeat(ip.RuleIdx)
+	time := ip.Sequence.GetBeatAtIndex(ip.RuleIdx)
 	return time + ip.Offset
 }
 
 func (ip *IntonationPt) BeatTime() float64 {
-	return ip.Events.GetBeat(ip.RuleIdx)
+	return ip.Sequence.GetBeatAtIndex(ip.RuleIdx)
 }

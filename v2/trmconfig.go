@@ -25,7 +25,7 @@
 // 2019-02
 // This is a port to golang of the C++ Gnuspeech port by Marcelo Y. Matuda
 
-package main
+package v2
 
 import (
 	"encoding/json"
@@ -62,15 +62,19 @@ type TrmConfig struct {
 	ApertureRadius    float64 `desc:"aperture scl. radius (3.05 - 12 cm)"`
 
 	// ToDo: nose sections should be a lookup
-	NoseRadii [6]float64 `desc:"fixed nose radii (0 - 3 cm)"`
+	NoseRadii []float64 `desc:"fixed nose radii (0 - 3 cm)"`
 	// ToDo: also shouldn't be hardcoded
-	RadiusCoefs          [8]float64
+	RadiusCoefs          []float64
 	GlobalRadiusCoef     float64
 	GlobalNoseRadiusCoef float64
 }
 
-func (trm *TrmConfig) Defaults() {
-
+// NewTrmConfig creates and returns a TrmConfig struct after making slices for NoseRadii and RadiusCoefs
+func NewTrmConfig() *TrmConfig {
+	tc := TrmConfig{}
+	tc.NoseRadii = make([]float64, 6)   // ToDo: don't hard code
+	tc.RadiusCoefs = make([]float64, 8) // ToDo: don't hard code
+	return &tc
 }
 
 // Load will be passed data/en/trm_control_model.config or equivalent file

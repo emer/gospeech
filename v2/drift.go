@@ -27,6 +27,8 @@
 
 package v2
 
+import "math"
+
 const InitialSeed = 0.7892347
 const Factor = 377.0
 
@@ -40,12 +42,12 @@ type Drift struct {
 }
 
 func (dg *Drift) Defaults() {
-	Deviation = 0.0
-	Offset = 0.0
-	Seed = InitialSeed
-	A0 = 0.0
-	B1 = 0.0
-	PrvSample = 0.0
+	dg.Deviation = 0.0
+	dg.Offset = 0.0
+	dg.Seed = InitialSeed
+	dg.A0 = 0.0
+	dg.B1 = 0.0
+	dg.PrvSample = 0.0
 }
 
 // Setup sets the params - deviation value around 1 should be good,
@@ -65,7 +67,7 @@ func (dg *Drift) SetUp(deviation, sr, lpcutoff float64) {
 	}
 
 	// set the filter coefficients
-	dg.A0 = (lowpassCutoff * 2.0) / sr
+	dg.A0 = (lpcutoff * 2.0) / sr
 	dg.B1 = 1.0 - dg.A0
 
 	// clear the previous sample memory
@@ -75,13 +77,13 @@ func (dg *Drift) SetUp(deviation, sr, lpcutoff float64) {
 // Drift returns one sample of the drift signal
 func (dg *Drift) Drift() float64 {
 	// create random number between 0 and 1
-	temp := dg.Seed * factor
-	dg.Seed = temp - int(temp) // save for next invocation
+	temp := dg.Seed * Factor
+	dg.Seed = math.Floor(temp) // save for next invocation
 
 	// create random signal with range -deviation to +deviation
 	temp = (dg.Seed * dg.Deviation) - dg.Offset
 
 	// lowpass filter the random signal (output is saved for next time)
-	dg.PrvSample = (dg.A0 * temp) + (dg.B1 * dg.prvSample)
+	dg.PrvSample = (dg.A0 * temp) + (dg.B1 * dg.PrvSample)
 	return dg.PrvSample
 }

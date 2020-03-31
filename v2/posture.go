@@ -27,7 +27,9 @@
 
 package v2
 
-import "errors"
+import (
+	"log"
+)
 
 type Posture struct {
 	Name         string
@@ -37,29 +39,21 @@ type Posture struct {
 	Comment      string
 }
 
-func (pos *Posture) Posture(nm string, paramN, symN int) error {
-	pos.Name = nm
+func NewPosture(nm string, paramN, symN int) *Posture {
+	np := Posture{}
+	np.Name = nm
 	if paramN == 0 || symN == 0 {
-		return errors.New("paramN and symN must be > 0")
+		log.Println("paramN and symN must be > 0")
+		return nil
 	}
-	pos.ParamTargets = make([]float64, paramN)
-	pos.SymTargets = make([]float64, symN)
+	np.ParamTargets = make([]float64, paramN)
+	np.SymTargets = make([]float64, symN)
 
 	var cat Category
 	cat.Name = nm
 	cat.Native = true
-	pos.Categories = append(pos.Categories, cat)
-
-	return nil
-}
-
-func (pos *Posture) IsPosture(cat *Category) bool {
-	for i := 0; i < len(pos.Categories); i++ {
-		if cat == pos.Categories[i] {
-			return true
-		}
-	}
-	return false
+	np.Categories = append(np.Categories, cat)
+	return &np
 }
 
 func (pos *Posture) PostureTry(nm string) *Category {
@@ -72,13 +66,12 @@ func (pos *Posture) PostureTry(nm string) *Category {
 }
 
 func (pos *Posture) Copy(newNm string) *Posture {
-	np := Posture
-	np.Posture(newNm, len(pos.ParamTargets), len(pos.SymTargets))
+	np := NewPosture(newNm, len(pos.ParamTargets), len(pos.SymTargets))
 	for _, c := range pos.Categories {
 		if !c.Native {
 			np.Categories = append(np.Categories, c)
 		}
 	}
 	np.Comment = pos.Comment
-	return &np
+	return np
 }

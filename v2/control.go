@@ -38,15 +38,16 @@ const resonanceConfigFn = "/trm.config"
 const voiceFilePrefix = "/voice_"
 
 type Control struct {
-	Model           *Model
-	Events          Events
-	ModelConfig     ModelConfig
-	ResonanceConfig TrmConfig
+	Model       *Model
+	Sequence    Sequence
+	ModelConfig ModelConfig
+	TrmConfig   TrmConfig
 }
 
 func (ctrl *Control) Init(path string, model *Model) {
 	ctrl.Model = model
-	ctrl.Events.Init(path, model)
+	ctrl.Model = model
+	ctrl.Sequence.Init(path, model)
 	ctrl.LoadConfigs("")
 }
 
@@ -59,24 +60,24 @@ func (ctrl *Control) LoadConfigs(path string) {
 
 	voiceConfigPath := path + voiceFilePrefix + ".config"
 
-	ctrl.ResonanceConfig.Load(resonanceConfigPath, voiceConfigPath)
+	ctrl.TrmConfig.Load(resonanceConfigPath, voiceConfigPath)
 }
 
 func (ctrl *Control) InitUtterance() {
-	rc := ctrl.ResonanceConfig
+	rc := NewTrmConfig()
 	mc := ctrl.ModelConfig
 	if rc.OutputRate != 22050.0 && rc.OutputRate != 44100.0 {
 		rc.OutputRate = 44100.0
 	}
-	if rc.VtlOffset+vc.TractLength < 15.9 {
-		rc.outputRate = 44100.0
+	if rc.VtlOffset+rc.VocalTractLength < 15.9 {
+		rc.OutputRate = 44100.0
 	}
 
-	ctrl.Events.PitchMean = ctrl.ModelConfig.pitchOffset + rc.referenceGlottalPitch
-	ctrl.Events.SetGlobalTempo(mc.Tempo)
-	setIntonation(mc.Intonation)
-	ctrl.Events.SetUpDriftGenerator(mc.DriftDeviation, mc.ControlRate, mc.DriftLowpassCutoff)
-	ctrl.Events.SetRadiusCoef(rc.radiusCoef)
+	ctrl.Sequence.PitchMean = ctrl.ModelConfig.PitchOffset + rc.RefGlottalPitch
+	ctrl.Sequence.GlobalTempo = mc.Tempo
+	ctrl.SetIntonation(mc.Intonation)
+	ctrl.Sequence.Drift.SetUp(mc.DriftDeviation, mc.ControlRate, mc.DriftLowCutoff)
+	ctrl.Sequence.SetRadiusCoefs(rc.RadiusCoefs)
 
 	trmParamStream<<
 		rc.outputRate<<'\n'<<
@@ -108,10 +109,10 @@ func (ctrl *Control) InitUtterance() {
 
 // Chunks are separated by /c.
 // There is always one /c at the begin and another at the end of the string.
-func (ctrl *Control) CalcChunks(text string) {
+func (ctrl *Control) CalcChunks(text string) int {
 	tmp := 0
 	idx := 0
-	for text[idx] != "0" {
+	for text[idx] != '0' {
 		if (text[idx] == '/') && (text[idx+1] == 'c') {
 			tmp++
 			idx += 2
@@ -129,7 +130,7 @@ func (ctrl *Control) CalcChunks(text string) {
 // NextChunk returns the position of the next /c (the position of the /).
 func (ctrl *Control) NextChunk(text string) int {
 	idx := 0
-	for text[idx] != "0" {
+	for text[idx] != '0' {
 		if (text[idx] == '/') && (text[idx+1] == 'c') {
 			return idx
 		} else {
@@ -140,46 +141,46 @@ func (ctrl *Control) NextChunk(text string) int {
 }
 
 // ValidPosture
-func (ctrl *Control) ValidPosture(token string) int {
-	i, err := strconv.Atoi(token[0])
+func (ctrl *Control) ValidPosture(token string) bool {
+	i, err := strconv.Atoi(string(token[0]))
 	if err != nil {
-		return -1
+		return false
 	}
 
 	if i >= 0 && i <= 9 {
-		return 1
+		return true
 	} else {
 		return ctrl.Model.Postures.PostureTry(token) != nil
 	}
 }
 
 // SetIntonation
-func (ctrl *Control) SetIntonation(intonation int) {
-	ctrl.Events.SetMicroIntonation(0)
-	ctrl.Events.SetMacroIntonation(0)
-	ctrl.Events.SetSmoothIntonation(0) // Macro and not smooth is not working.
-	ctrl.Events.SetDrift(0)
-	ctrl.Events.SetTgUseRandom(false)
+func (ctrl *Control) SetIntonation(intonation int64) {
+	ctrl.Sequence.MicroFlag = 0
+	ctrl.Sequence.MacroFlag = 0
+	ctrl.Sequence.SmoothInton = 0 // Macro and not smooth is not working.
+	ctrl.Sequence.DriftFlag = 0
+	ctrl.Sequence.TgUseRandom = false
 
 	if bitflag.Has(intonation, int(IntonationMicro)) {
-		ctrl.Events.SetMicroIntonation(1)
+		ctrl.Sequence.MicroFlag = 1
 	}
 
 	if bitflag.Has(intonation, int(IntonationMacro)) {
-		ctrl.Events.SetMacroIntonation(1)
-		ctrl.Events.SetSmoothIntonation(1) // Macro and not smooth is not working.
+		ctrl.Sequence.MacroFlag = 1
+		ctrl.Sequence.SmoothInton = 1 // Macro and not smooth is not working.
 	}
 
 	// Macro and not smooth is not working.
 	// if bitflag.Has(intonation, int(IntonationSmooth)) {
-	// 	ctrl.Events.SetSmoothIntonation(1)
+	// 	ctrl.Sequence.SetSmoothIntonation(1)
 	// }
 
 	if bitflag.Has(intonation, int(IntonationDrift)) {
-		ctrl.Events.SetDrift(1)
+		ctrl.Sequence.DriftFlag = 1
 	}
 
 	if bitflag.Has(intonation, int(IntonationRandom)) {
-		ctrl.Events.SetTgUseRandom(true)
+		ctrl.Sequence.TgUseRandom = true
 	}
 }
