@@ -29,19 +29,11 @@ package v2
 
 import "github.com/goki/ki/kit"
 
-type PointOrSlope struct {	
-	
-}
-
-func (pos *PointOrSlope) IsSlopeRatio() {
-	
-}
-
-// TransitionType 
+// TransitionType
 type TransitionType int
 
 const (
-	// TransInvalid restricts the list of symbols to the active file
+	// TransInvalid
 	TransInvalid TransitionType = iota
 
 	// TransDiPhone
@@ -49,10 +41,10 @@ const (
 
 	// TransTriPhone
 	TransTriPhone
-	
+
 	// TransTetraPhone
 	TransTetraPhone
-	
+
 	TransTypeN
 )
 
@@ -60,59 +52,96 @@ const (
 
 var Kit_TransitionType = kit.Enums.AddEnum(TransTypeN, kit.NotBitFlag, nil)
 
+type PointSlope interface {
+}
+
+type PointOrSlope struct {
+}
+
+type Point struct {
+	PointOrSlope
+	TType     TransitionType
+	Value     float64
+	isPhantom bool
+
+	// If timeExpression is not empty, time = timeExpression, otherwise time = freeTime.
+	timeExpr *Equation
+	FreeTime float64 `desc:"millisecons""`
+}
+
+func (pt *Point) NewPoint() {
+	pt.TType = TransInvalid
+	pt.Value = 0.0
+	pt.isPhantom = false
+	pt.FreeTime = 0.0
+	pt.timeExpr = &Equation{}
+}
+
+type Slope struct {
+	Slope       float64
+	DisplayTime float64
+}
+
+func (slp *Slope) Defaults() {
+	slp.Slope = 0.0
+	slp.DisplayTime = 0.0
+}
+
+type SlopeRatio struct {
+	Points []Point
+	Slopes []Slope
+}
+
 // Transition
 type Transition struct {
-	
+	Name      string
+	TType     TransitionType
+	Special   bool
+	PtSlpList []interface{}
 }
 
 //
-func(trn *Transition) SlopeRatio::totalSlopeUnits() float64
-{
+func (trn *Transition) NUnits() float64 {
 	temp := 0.0
-	for (const auto& slope : slopeList) {
-		temp += slope->slope
+	for _, s := range trn.PtSlpList {
+		temp += s.Slope
 	}
 	return temp
 }
 
-//
-func(trn *Transition) GetPointTime(point, model *Model) float64
-{
-	if (!point.timeExpression) {
-		return point.freeTime
+// PointTime
+func PointTime(pt Point, model *Model) float64 {
+	if pt.timeExpr != nil {
+		return pt.FreeTime
 	} else {
-		return model.evalEquationFormula(*point.timeExpression)
+		return pt.timeExpr.EvalFormula(model.FormulaSymbols)
 	}
 }
 
-//
-func(trn *Transition) getPointData(const Transition::Point& point, const Model& model,
-				double& time, double& value)
-{
-	if (!point.timeExpression) {
-		time = point.freeTime
+// PointData
+func PointData(pt Point, model *Model) (time, value float64) {
+	if pt.timeExpr != nil {
+		time = pt.FreeTime
 	} else {
-		time = model.evalEquationFormula(*point.timeExpression)
+		time = pt.timeExpr.EvalFormula(model.FormulaSymbols)
 	}
-
-	value = point.value
+	value = pt.Value
+	return time, value
 }
 
-//
-func(trn *Transition) getPointData(const Transition::Point& point, const Model& model,
-				double baseline, double delta, double min, double max,
-				double& time, double& value)
-{
-	if (!point.timeExpression) {
-		time = point.freeTime
+// PointDataMinMax
+func PointDataMinMax(pt Point, model *Model, baseline, delta, min, max float64) (time, value float64) {
+	if pt.timeExpr != nil {
+		time = pt.FreeTime
 	} else {
-		time = model.evalEquationFormula(*point.timeExpression)
+		time = pt.timeExpr.EvalFormula(model.FormulaSymbols)
 	}
 
-	value = baseline + ((point.value / 100.0) * delta)
-	if (value < min) {
+	value = baseline + (value/100.0)*delta
+	if value < min {
 		value = min
-	} else if (value > max) {
+	} else if value > max {
 		value = max
 	}
+	return time, value
 }

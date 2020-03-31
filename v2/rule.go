@@ -286,7 +286,7 @@ func (pars *Parse) Parse() *Node {
 }
 
 // EvalExpr
-func (r *Rule) EvalExpr(tempos float64, postures *[]Posture, model *Model, syms *float64) {
+func (r *Rule) EvalExpr(tempos []float64, postures *[]Posture, model *Model, syms *float64) {
 	var localTempos []float64
 
 	model.Formula.Clear()

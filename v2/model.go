@@ -27,17 +27,15 @@
 
 package v2
 
-import ()
-
 type Model struct {
 	Categories []Category
 	Params     []Param
-	//	//Codes []Code
-	//	//Postures []Posture
-	//	//Rules []Rule
-	//	//EquationGrps []EquationGrp
-	//	//TransitionGrps []TransitionGrp
-	//	//TransitionGrpsSp []TransitionGrp
+	Codes            []Code
+	Postures         []Posture
+	Rules            []Rule
+	EquationGrps     []EquationGrp
+	TransitionGrps   []TransitionGrp
+	TransitionGrpsSp []TransitionGrp
 	Formula Formula
 }
 

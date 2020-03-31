@@ -28,22 +28,60 @@
 package v2
 
 import (
+	"github.com/goki/ki/kit"
+	"log"
 	"math"
 	"os"
 )
 
-const diphone = 2
-const triphone = 3
-const tetraphone = 4
+// PhoneType
+type PhoneType int
+
+const (
+	// DiPhone
+	DiPhone PhoneType = 2
+
+	// TriPhone
+	TriPhone
+
+	// TetraPhone
+	TetraPhone
+
+	PhoneTypeN
+)
+
+//go:generate stringer -type=PhoneType
+
+var Kit_PhoneType = kit.Enums.AddEnum(PhoneTypeN, kit.NotBitFlag, nil)
+
+// ToneType
+type ToneType int
+
+const (
+	// DiPhone
+	ToneStatement ToneType = iota
+
+	// TriPhone
+	ToneExclamation
+
+	// TetraPhone
+	ToneQuestion
+
+	// ToneContinuation
+	ToneContinuation
+
+	// ToneSemicolon
+	ToneSemicolon
+
+	ToneTypeN
+)
+
+//go:generate stringer -type=ToneType
+
+var Kit_ToneType = kit.Enums.AddEnum(ToneTypeN, kit.NotBitFlag, nil)
 
 const intonationConfigFileName = "/intonation"
 const eps = 1.0e-6
-
-// const toneStatement = 0
-// const toneExclamation = 1
-// const toneQuestion = 2
-// const toneContinuation = 3
-// const toneSemicolon = 4
 
 var invalidEvent = math.Inf(1) // positive infinity
 
@@ -95,7 +133,7 @@ type Foot struct {
 	Tempo  float64
 	Start  int
 	End    int
-	Marked int
+	Marked bool
 	Last   int
 }
 
@@ -105,14 +143,14 @@ func (ft *Foot) Defaults( {
 	ft.Tempo = 1.0
 	ft.Start = 0
 	ft.End = 0
-	ft.Marked = 0
+	ft.Marked = false
 	ft.Last = 0
 }
 
 type ToneGroup struct {
 	StartFoot int
 	EndFoot   int
-	Type      int
+	Type      ToneType
 }
 
 func (tn *ToneGroup) Defaults( {
@@ -463,30 +501,32 @@ func (seq *Sequence) SetZeroRef(nv int) {
 	}
 }
 
-func (seq *Sequence) SlopeRatioEvents(evIdx int, slopeRatio SlopeRatio, baseline, paramDelta, min, max float64) {
+func (seq *Sequence) SlopeRatioEvents(evIdx int, slopeRatio SlopeRatio, baseline, paramDelta, min, max float64) float64 {
 	sum := 0.0
 	var pointTime float64
 	var pointValue float64
 
-	Transition.GetPointData(*slopeRatio.pointList.front(), seq.Model, &pointTime, &pointValue)
+	pointTime, pointValue = Transition.PointData(slopeRatio.Points[0], seq.Model)
 	baseTime := pointTime;
 	startValue := pointValue;
 
-	Transition.GetPointData(*slopeRatio.pointList.back(), seq.Model, pointTime, pointValue)
+	l := len(slopeRatio.Points)
+	pointTime, pointValue = Transition.PointData(slopeRatio.Points[l-1], seq.Model)
 	endTime := pointTime;
 	delta := pointValue - startValue;
 
 	temp := slopeRatio.totalSlopeUnits()
 	totalTime := endTime - baseTime;
 
-	int numSlopes = slopeRatio.slopeList.size()
-	std::vector<double> newPointValues(numSlopes - 1)
-	for int i := 1; i < numSlopes + 1; i++ {
-		temp1 := slopeRatio.slopeList[i - 1]->slope / temp; /* Calculate normal slope */
+	nSlopes := len(slopeRatio.Slopes)
+
+	newPtVals := [nSlopes-1]float64
+	for i := 1; i < nSlopes + 1; i++ {
+		temp1 := slopeRatio.slopeList[i-1].Slope / temp; /* Calculate normal slope */
 
 		/* Calculate time interval */
-		intervalTime := Transition::getPointTime(*slopeRatio.pointList[i], seq.Model)
-				- Transition::getPointTime(*slopeRatio.pointList[i - 1], seq.Model)
+		intervalTime := Transition.PointTime(slopeRatio.Points[i], seq.Model)
+				- Transition.PointTime(slopeRatio.Points[i-1], seq.Model)
 
 		/* Apply interval percentage to slope */
 		temp1 = temp1 * (intervalTime / totalTime)
@@ -502,19 +542,20 @@ func (seq *Sequence) SlopeRatioEvents(evIdx int, slopeRatio SlopeRatio, baseline
 	factor := delta / sum;
 	temp = startValue;
 
-	double value = 0.0;
-	for i := 0, size = slopeRatio.pointList.size(); i < size; i++ {
-		const Transition::Point& point = *slopeRatio.pointList[i];
+	value := 0.0;
+	pts := len(slopeRatio.Points)
+	for i := 0; i < pts; i++ {
+		pt := slopeRatio.Points[i];
 
-		if i >= 1 && i < slopeRatio.pointList.size(); - 1 {
-			pointTime = Transition::getPointTime(point, seq.Model)
+		if i >= 1 && i < pts - 1 {
+			pointTime = Transition.PointTime(pt, seq.Model)
 
 			pointValue = newPointValues[i - 1];
 			pointValue *= factor;
 			pointValue += temp;
 			temp = pointValue;
 		} else {
-			Transition::getPointData(point, seq.Model, pointTime, pointValue)
+			pointTime, pointValue = Transition.PointData(point, seq.Model)
 		}
 
 		value = baseline + ((pointValue / 100.0) * parameterDelta)
@@ -523,93 +564,107 @@ func (seq *Sequence) SlopeRatioEvents(evIdx int, slopeRatio SlopeRatio, baseline
 		} else if value > max {
 			value = max;
 		}
-		if !point.isPhantom {
-			insertEvent(eventIndex, pointTime, value)
+		if !pt.isPhantom {
+			seq.InsertEvent(eventIndex, pointTime, value)
 		}
 	}
-
 	return value;
 }
 
 // It is assumed that postureList.size() >= 2.
 // ApplyRule
-func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos float64, postureIdx int) {
-	double currentValueDelta, value, lastValue
-	double ruleSymbols[5] = {0.0, 0.0, 0.0, 0.0, 0.0}
-	double tempTime
-	double targets[4]
-	Event* tempEvent = nil
+func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos []float64, postureIdx int) {
+	ruleSyms := [5]float64{0.0, 0.0, 0.0, 0.0, 0.0}
 
-	rule.evaluateExpressionSymbols(tempos, postureList, seq.Model, ruleSymbols)
+	rule.EvalExpr(tempos, &postures, seq.Model, ruleSyms)
+	seq.Multiplier = 1.0 / seq.PostureDatum[postureIdx].RuleTempo
+	n := len(rule.BoolExprs)
+	phtype := PhoneType(n)
+	seq.Duration = int(ruleSyms[0] * seq.Multiplier)
 
-	seq.Multiplier = 1.0 / (double) (seq.PostureDatum[postureIndex].ruleTempo)
+	seq.RuleDatum[seq.CurRule].FirstPosture = postureIdx
+	seq.RuleDatum[seq.CurRule].LastPosture = postureIdx + int(phtype - 1)
+	seq.RuleDatum[seq.CurRule].Beat = (ruleSyms[1] * seq.Multiplier) + float64(seq.ZeroRef)
+	seq.RuleDatum[seq.CurRule].Duration = ruleSyms[0] * seq.Multiplier
+	seq.CurRule++
+	rd := RuleData{}
+	seq.RuleDatum = append(seq.RuleDatum, rd)
 
-	int type = rule.numberOfExpressions()
-	setDuration((int) (ruleSymbols[0] * seq.Multiplier))
+	var tempEvent *Event
 
-	seq.RuleDatum[seq.CurRule].firstPosture = postureIndex
-	seq.RuleDatum[seq.CurRule].lastPosture = postureIndex + (type - 1)
-	seq.RuleDatum[seq.CurRule].beat = (ruleSymbols[1] * seq.Multiplier) + (double) seq.ZeroRef
-	seq.RuleDatum[seq.CurRule++].duration = ruleSymbols[0] * seq.Multiplier
-	seq.RuleDatum.push_back(RuleData())
-
-	switch (type {
+	switch phtype {
 	/* Note: Case 4 should execute all of the below, case 3 the last two */
-	case 4:
-		if postureList.size() == 4 {
-			seq.PostureDatum[postureIndex + 3].onset = (double) seq.ZeroRef + ruleSymbols[1]
-			tempEvent = insertEvent(-1, ruleSymbols[3], 0.0)
-			if tempEvent) tempEvent->flag = 1
+	case TetraPhone:
+		if len(postures) == 4 {
+			seq.PostureDatum[postureIdx + 3].Onset = float64(seq.ZeroRef) + ruleSyms[1]
+			tempEvent = seq.InsertEvent(-1, ruleSyms[3], 0.0)
+			if tempEvent != nil {
+				tempEvent.Flag = 1
+			}
 		}
-	case 3:
-		if postureList.size() >= 3 {
-			seq.PostureDatum[postureIndex + 2].onset = (double) seq.ZeroRef + ruleSymbols[1]
-			tempEvent = insertEvent(-1, ruleSymbols[2], 0.0)
-			if tempEvent) tempEvent->flag = 1
+		fallthrough
+	case TriPhone:
+		if len(postures) >= 3 {
+			seq.PostureDatum[postureIdx + 2].Onset = float64(seq.ZeroRef) + ruleSyms[1]
+			tempEvent = seq.InsertEvent(-1, ruleSyms[2], 0.0)
+			if tempEvent != nil {
+				tempEvent.Flag = 1
+			}
 		}
-	case 2:
-		seq.PostureDatum[postureIndex + 1].onset = (double) seq.ZeroRef + ruleSymbols[1]
-		tempEvent = insertEvent(-1, 0.0, 0.0)
-		if tempEvent) tempEvent->flag = 1
-		break
+		fallthrough
+	case DiPhone:
+		seq.PostureDatum[postureIdx + 1].Onset = float64(seq.ZeroRef) + ruleSyms[1]
+		tempEvent = seq.InsertEvent(-1, 0.0, 0.0)
+		if tempEvent != nil {
+			tempEvent.Flag = 1
+		}
+	default:
+		log.Println("ApplyRule fell through switch")
 	}
 
 	//tempTargets = (List *) [rule parameterList]
 
+	var targets [4]float64
 	/* Loop through the parameters */
-	for (int i = 0, size = seq.Model.parameterList().size(); i < size; i++) {
+	for i := 0; i < len(seq.Model.Params); i++ {
 		/* Get actual parameter target values */
-		targets[0] = postureList[0]->getParameterTarget(i)
-		targets[1] = postureList[1]->getParameterTarget(i)
-		targets[2] = (postureList.size() >= 3) ? postureList[2]->getParameterTarget(i) : 0.0
-		targets[3] = (postureList.size() == 4) ? postureList[3]->getParameterTarget(i) : 0.0
-
-		/* Optimization, Don't calculate if no changes occur */
-		cont := 1
-		switch (type {
-		case DIPHONE:
-			if targets[0] == targets[1] {
-				cont = 0
-			}
-			break
-		case TRIPHONE:
-			if (targets[0] == targets[1]) && (targets[0] == targets[2] {
-				cont = 0
-			}
-			break
-		case TETRAPHONE:
-			if (targets[0] == targets[1]) && (targets[0] == targets[2]) && (targets[0] == targets[3] {
-				cont = 0
-			}
-			break
+		targets[0] = postures[0].ParamTargets[i]
+		targets[1] = postures[1].ParamTargets[i]
+		targets[2] = 0.0
+		targets[3] = 0.0
+		if len(postures) >= 3 {
+			targets[2] = postures[2].ParamTargets[i]
+		}
+		if len(postures) == 4 {
+			targets[3] = postures[3].ParamTargets[i]
 		}
 
-		insertEvent(i, 0.0, targets[0])
+		/* Optimization, Don't calculate if no changes occur */
+		cont := true
+		// no fallthrough
+		switch phtype {
+		case DiPhone:
+			if targets[0] == targets[1] {
+				cont = false
+			}
+		case TriPhone:
+			if (targets[0] == targets[1]) && (targets[0] == targets[2] {
+				cont = false
+			}
+		case TetraPhone:
+			if (targets[0] == targets[1]) && (targets[0] == targets[2]) && (targets[0] == targets[3] {
+				cont = false
+			}
+		default:
+			log.Println("ApplyRule fell through switch")
+		}
+
+		seq.InsertEvent(i, 0.0, targets[0])
 
 		if cont {
-			curType := DIPHONE
-			currentValueDelta = targets[1] - targets[0]
-			lastValue = targets[0]
+			curType := DiPhone
+			curDelta := targets[1] - targets[0]
+			lastVal := targets[0]
 			//lastValue = 0.0
 
 			const std::shared_ptr<Transition> transition = rule.getParamProfileTransition(i)
@@ -618,36 +673,36 @@ func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos float64, p
 			}
 
 			/* Apply lists to parameter */
-			for (j := 0; j < transition->pointOrSlopeList().size(); ++j) {
+			for j := 0; j < transition->pointOrSlopeList().size(); ++j {
 				const Transition::PointOrSlope& pointOrSlope = *transition->pointOrSlopeList()[j]
 				if pointOrSlope.isSlopeRatio() {
 					const auto& slopeRatio = dynamic_cast<const Transition::SlopeRatio&>(pointOrSlope)
 
-					if slopeRatio.pointList[0]->type != currentType { //TODO: check pointList.size() > 0
-						currentType = slopeRatio.pointList[0]->type
-						targets[currentType - 2] = lastValue
-						currentValueDelta = targets[currentType - 1] - lastValue
+					if slopeRatio.pointList[0]->type != curType { //TODO: check pointList.size() > 0
+						curType = slopeRatio.pointList[0]->type
+						targets[curType - 2] = lastVal
+						curDelta = targets[curType - 1] - lastVal
 					}
-					value = createSlopeRatioEvents(
-							slopeRatio, targets[currentType - 2], currentValueDelta,
+					val = createSlopeRatioEvents(
+							slopeRatio, targets[curType - 2], curDelta,
 							min_[i], max_[i], i)
 				} else {
 					const auto& point = dynamic_cast<const Transition::Point&>(pointOrSlope)
 
-					if point.type != currentType {
-						currentType = point.type
-						targets[currentType - 2] = lastValue
-						currentValueDelta = targets[currentType - 1] - lastValue
+					if point.type != curType {
+						curType = point.type
+						targets[curType - 2] = lastVal
+						curDelta = targets[curType - 1] - lastVal
 					}
 					double pointTime
 					Transition::getPointData(point, seq.Model,
-									targets[currentType - 2], currentValueDelta, min_[i], max_[i],
-									pointTime, value)
+									targets[curType - 2], curDelta, min_[i], max_[i],
+									pointTime, val)
 					if !point.isPhantom {
-						insertEvent(i, pointTime, value)
+						insertEvent(i, pointTime, val)
 					}
 				}
-				lastValue = value
+				lastVal = val
 			}
 		}
 		//else {
@@ -656,7 +711,7 @@ func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos float64, p
 	}
 
 	/* Special Event Profiles */
-	for (int i = 0, size = seq.Model.parameterList().size(); i < size; i++ {
+	for i := 0; i < len(seq.Model.Params); i++ {
 		const std::shared_ptr<Transition> specialTransition = rule.getSpecialProfileTransition(i)
 		if specialTransition {
 			for (j := 0; j < specialTransition->pointOrSlopeList().size(); ++j {
@@ -664,7 +719,7 @@ func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos float64, p
 				const auto& point = dynamic_cast<const Transition::Point&>(pointOrSlope)
 
 				/* calculate time of event */
-				tempTime = Transition::getPointTime(point, seq.Model)
+				tempTime := Transition::getPointTime(point, seq.Model)
 
 				/* Calculate value of event */
 				value = ((point.value / 100.0) * (max_[i] - min_[i]))
@@ -676,17 +731,20 @@ func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos float64, p
 		}
 	}
 
-	setZeroRef((int) (ruleSymbols[0] * seq.Multiplier) + seq.ZeroRef)
-	tempEvent = insertEvent(-1, 0.0, 0.0)
-	if tempEvent) tempEvent->flag = 1;
+	seq.ZeroRef = int(ruleSyms[0] * seq.Multiplier) + seq.ZeroRef
+	tempEvent = seq.InsertEvent(-1, 0.0, 0.0)
+	if tempEvent != nil {
+		tempEvent.Flag = 1
+	}
+
 
 }
 
 func (seq *Sequence) GenerateEventList( {
 	for i := 0; i < 16; i++ { //TODO: replace hard-coded value
-		param := seq.Model.GetParameter(i)
-		seq.Min[i] = param.minimum()
-		seq.Max[i] = param.maximum()
+		param := seq.Model.Params[i]
+		seq.Min[i] = param.Min
+		seq.Max[i] = param.Max
 	}
 
 	/* Calculate Rhythm including regression */
@@ -695,14 +753,14 @@ func (seq *Sequence) GenerateEventList( {
 		/* Apply rhythm model */
 		var footTempo float64
 		var tempTempo float64
-		if seq.Feet[i].marked {
+		if seq.Feet[i].Marked {
 			tempTempo = 117.7 - (19.36 * float64(rus))
 			seq.Feet[i].Tempo -= tempTempo / 180.0;
-			footTempo = seq.GlobalTemp * seq.Feet[i].tempo;
+			footTempo = seq.GlobalTempo * seq.Feet[i].Tempo;
 		} else {
 			tempTempo := 18.5 - (2.08 * float64(rus))
 			seq.Feet[i].Tempo -= tempTempo / 140.0;
-			footTempo = seq.GlobalTemp * seq.Feet[i].Tempo;
+			footTempo = seq.GlobalTempo * seq.Feet[i].Tempo;
 		}
 		for j := seq.Feet[i].Start; j < seq.Feet[i].End + 1; j++ {
 			seq.PostureTempos[j] *= footTempo;
@@ -790,46 +848,41 @@ func (seq *Sequence) ApplyIntonation( {
 		} else {
 			switch seq.ToneGroups[i].Type {
 			default:
-			case TONE_GROUP_TYPE_STATEMENT:
+			case ToneStatement:
 				if seq.TgUseRandom {
 					tgRandom = intRandDist0(randSrc_)
 				} else {
 					tgRandom = 0;
 				}
 				seq.IntonationParams = &seq.TgParams[0][tgRandom * 10];
-				break;
-			case TONE_GROUP_TYPE_EXCLAMATION:
+			case ToneExclamation:
 				if seq.TgUseRandom {
 					tgRandom = intRandDist0(randSrc_)
 				} else {
 					tgRandom = 0;
 				}
 				seq.IntonationParams = &seq.TgParams[0][tgRandom * 10];
-				break;
-			case TONE_GROUP_TYPE_QUESTION:
+			case ToneQuestion:
 				if seq.TgUseRandom {
 					tgRandom = intRandDist1(randSrc_)
 				} else {
 					tgRandom = 0;
 				}
 				seq.IntonationParams = &seq.TgParams[1][tgRandom * 10];
-				break;
-			case TONE_GROUP_TYPE_CONTINUATION:
+			case ToneContinuation:
 				if seq.TgUseRandom {
 					tgRandom = intRandDist2(randSrc_)
 				} else {
 					tgRandom = 0;
 				}
 				seq.IntonationParams = &seq.TgParams[2][tgRandom * 10];
-				break;
-			case TONE_GROUP_TYPE_SEMICOLON:
+			case ToneSemicolon:
 				if seq.TgUseRandom {
 					tgRandom = intRandDist3(randSrc_)
 				} else {
 					tgRandom = 0;
 				}
 				seq.IntonationParams = &seq.TgParams[3][tgRandom * 10];
-				break;
 			}
 		}
 
