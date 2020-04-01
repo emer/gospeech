@@ -75,12 +75,6 @@ func (fc *Formula) Init() {
 	fc.Syms = make(map[FormulaSymbolType]float64)
 }
 
-func (fc *Formula) Clear() {
-	for k, v := range fc {
-		v = 0.0
-	}
-}
-
 func (fc *Formula) Default(tt TransitionType) error {
 	fc.Syms[FormulaSymTransition1] = 33.3333
 	fc.Syms[FormulaSymTransition2] = 33.3333
