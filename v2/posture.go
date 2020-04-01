@@ -1,4 +1,4 @@
-// Copyright (c) 2019, The Emergent Authors. All rights reserved.
+// Copyright (c) 2020, The Emergent Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -54,15 +54,6 @@ func NewPosture(nm string, paramN, symN int) *Posture {
 	cat.Native = true
 	np.Categories = append(np.Categories, cat)
 	return &np
-}
-
-func (pos *Posture) PostureTry(nm string) *Category {
-	for i := 0; i < len(pos.Categories); i++ {
-		if pos.Categories[i].Name == nm {
-			return &pos.Categories[i]
-		}
-	}
-	return nil
 }
 
 func (pos *Posture) Copy(newNm string) *Posture {

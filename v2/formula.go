@@ -1,4 +1,4 @@
-// Copyright (c) 2019, The Emergent Authors. All rights reserved.
+// Copyright (c) 2020, The Emergent Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -122,4 +122,14 @@ func (fc *Formula) Default(tt TransitionType) error {
 		return errors.New("Formula.Default: Unknown TransactionType")
 	}
 	return nil
+}
+
+type FormulaSymbolList struct {
+	Symbols []float64
+}
+
+func NewFormulaSymbolList(n int) *FormulaSymbolList {
+	s := FormulaSymbolList{}
+	s.Symbols = make([]float64, n)
+	return &s
 }

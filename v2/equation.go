@@ -1,4 +1,4 @@
-// Copyright (c) 2019, The Emergent Authors. All rights reserved.
+// Copyright (c) 2020, The Emergent Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -27,14 +27,23 @@
 
 package v2
 
-import "github.com/goki/ki/kit"
+import (
+	"errors"
+	"fmt"
+	"log"
+	"strconv"
+	"strings"
+	"unicode"
 
-const         addChar = '+'
-const         subChar = '-'
-const        multChar = '*'
-const         divChar = '/'
-const  rightParenChar = ')'
-const   leftParenChar = '('
+	"github.com/goki/ki/kit"
+)
+
+const addChar rune = '+'
+const subChar = '-'
+const multChar = '*'
+const divChar = '/'
+const rtParenChar = ')'
+const lftParenChar = '('
 
 type Equation struct {
 	Name string
@@ -65,189 +74,253 @@ const (
 	
 	SymLftParen
 	
+		SymString
+	
 	SymTypeN
 )
 //go:generate stringer -type=SymbolType
 
 var Kit_SymbolType = kit.Enums.AddEnum(SymTypeN, kit.NotBitFlag, nil)
 
-type FormulaNode struct {
-	Type SymbolType
+type FormulaNode interface {	// Parser returns the pi.Parser for this language
+	Eval(syms *FormulaSymbolList) float64
+}
+
+type FormulaMinusUnaryOp struct {
+	Child *FormulaNode
+}
+
+func NewFormulaMinusUnaryOp(c *FormulaNode) *FormulaMinusUnaryOp {
+	f := FormulaMinusUnaryOp{}
+	f.Child = c
+	return &f
+}
+
+func (fmu *FormulaMinusUnaryOp) Eval(syms *FormulaSymbolList) float64 {
+	return -(fmu.Eval(syms))
+}
+
+type FormulaAddOp struct {
 	Child1 *FormulaNode
 	Child2 *FormulaNode
+}
+
+func NewFormulaAddOp(c1, c2 *FormulaNode) *FormulaAddOp {
+	f := FormulaAddOp{}
+	f.Child1 = c1
+	f.Child2 = c2
+	return &f
+}
+
+func (fmu *FormulaAddOp) Eval(syms *FormulaSymbolList) float64 {
+	return fmu.Eval(syms) + fmu.Eval(syms);
+}
+
+type FormulaSubOp struct {
+	Child1 *FormulaNode
+	Child2 *FormulaNode
+}
+
+func NewFormulaSubOp(c1, c2 *FormulaNode) *FormulaSubOp {
+	f := FormulaSubOp{}
+	f.Child1 = c1
+	f.Child2 = c2
+	return &f
+}
+
+func (fmu *FormulaSubOp) Eval(syms *FormulaSymbolList) float64 {
+	return fmu.Eval(syms) - fmu.Eval(syms);
+}
+
+type FormulaMultOp struct {
+	Child1 *FormulaNode
+	Child2 *FormulaNode
+}
+
+func NewFormulaMultOp(c1, c2 *FormulaNode) *FormulaMultOp {
+	f := FormulaMultOp{}
+	f.Child1 = c1
+	f.Child2 = c2
+	return &f
+}
+
+func (fmu *FormulaMultOp) Eval(syms *FormulaSymbolList) float64 {
+	return fmu.Eval(syms) * fmu.Eval(syms);
+}
+
+type FormulaDivOp struct {
+	Child1 *FormulaNode
+	Child2 *FormulaNode
+}
+
+func NewFormulaDivOp(c1, c2 *FormulaNode) *FormulaDivOp {
+	f := FormulaDivOp{}
+	f.Child1 = c1
+	f.Child2 = c2
+	return &f
+}
+
+func (fmu *FormulaDivOp) Eval(syms *FormulaSymbolList) float64 {
+	return fmu.Eval(syms) / fmu.Eval(syms);
+}
+
+type FormulaConst struct {
 	Value float64
-	Symbol Code
+}
+
+func NewFormulaConst(value float64) *FormulaConst {
+	f := FormulaConst{}
+	f.Value = value
+	return &f
+}
+
+func (fmu *FormulaConst) Eval(syms *FormulaSymbolList) float64 {
+	return fmu.Value
+}
+
+type FormulaSymbolVal struct {
+	Symbol FormulaSymbolType
+}
+
+func NewFormulaSymbolVal(symbol FormulaSymbolType) *FormulaSymbolVal {
+	f := FormulaSymbolVal{}
+	f.Symbol = symbol
+	return &f
+}
+
+func (fmu *FormulaSymbolVal) Eval(syms *FormulaSymbolList) float64 {
+	return syms.Symbols[int(fmu.Symbol)]
 }
 
 type FormulaParse struct {
 	
 }
-public:
-	FormulaNodeParser(const std::string& s)
-				: formulaSymbolMap_(formulaSymbol.codeMap)
-				, s_(GS::Text::trim(s))
-				, pos_(0)
-				, symbolType_(SYMBOL_TYPE_INVALID) {
-		if (s_.empty()) {
-			THROW_EXCEPTION(GS::TRMControlModelException, "Formula expression parser error: Empty string.")
-		}
-		nextSymbol();
-	}
 
-	FormulaNode_ptr parse();
-private:
-	enum SymbolType {
-		SYMBOL_TYPE_INVALID,
-		SYMBOL_TYPE_ADD,
-		SYMBOL_TYPE_SUB,
-		SYMBOL_TYPE_MULT,
-		SYMBOL_TYPE_DIV,
-		SYMBOL_TYPE_RIGHT_PAREN,
-		SYMBOL_TYPE_LEFT_PAREN,
-		SYMBOL_TYPE_STRING
-	};
-
-	void throwException(const char* errorDescription) const;
-	template<typename T> void throwException(const char* errorDescription, const T& complement) const;
-	bool finished() const {
-		return pos_ >= s_.size();
-	}
-	void nextSymbol();
-	FormulaNode_ptr parseFactor();
-	FormulaNode_ptr parseTerm();
-	FormulaNode_ptr parseExpression();
-	void skipSpaces();
-
-	static bool isSeparator(char c) {
-		switch (c) {
-		case rightParenChar: return true;
-		case leftParenChar:  return true;
-		default:             return std::isspace(c) != 0;
-		}
-	}
-
-	const FormulaSymbol::CodeMap& formulaSymbolMap_;
-	const std::string s_;
-	std::string::size_type pos_;
-	std::string symbol_;
-	SymbolType symbolType_;
-};
-
-void
-FormulaNodeParser::throwException(const char* errorDescription) const
-{
-	THROW_EXCEPTION(GS::TRMControlModelException, "Formula expression parser error: "
-				<< errorDescription
-				<< " at position " << (pos_ - symbol_.size()) << " of string [" << s_ << "].");
+type FormulaNodeParser struct {
+	FormulaSymbolMap SymbolMap
+	S string
+	Pos int
+	Symbol string
+	SymbolType SymbolType
 }
 
-template<typename T>
-void
-FormulaNodeParser::throwException(const char* errorDescription, const T& complement) const
-{
-	THROW_EXCEPTION(GS::TRMControlModelException, "Formula expression parser error: "
-				<< errorDescription << complement
-				<< " at position " << (pos_ - symbol_.size()) << " of string [" << s_ << "].");
+func NewFormulaNodeParser(s String) *FormulaNodeParser {
+	fnp := FormulaNodeParser{}
+	fnp.S = strings.TrimSpace(s)
+	fnp.Pos = 0
+	fnp.SymbolType = SymInvalid
+	
+	if len(fnp.S) == 0 {
+		log.Println("Formula expression parser error: Empty string.")
+		return
+	}
+	fnp.NextSymbol()
+	return &fnp
 }
 
-void
-FormulaNodeParser::skipSpaces()
-{
-	while (!finished() && std::isspace(s_[pos_])) ++pos_;
+func (fnp *FormulaNodeParser) ParseTerm() *FormulaNode {
+
+	return nil
 }
 
-void
-FormulaNodeParser::nextSymbol()
-{
-	skipSpaces();
+func (fnp *FormulaNodeParser) ParseExpr() *FormulaNode {
 
-	symbol_.resize(0);
+	return nil
+}
 
-	if (finished()) {
-		symbolType_ = SYMBOL_TYPE_INVALID;
-		return;
+func (fnp *FormulaNodeParser) Finished() bool {
+	return fnp.Pos >= len(fnp.S)
+}
+
+// SkipSpaces moves the index into string past white space
+func (fnp *FormulaNodeParser) SkipSpaces() {
+	for !fnp.Finished() && unicode.IsSpace(rune(fnp.S[fnp.Pos])) {
+		fnp.Pos++
+	}
+}
+ 
+func (fnp *FormulaNodeParser) NextSymbol() {
+	fnp.SkipSpaces()
+	fnp.Symbol = ""
+
+	if fnp.Finished() {
+		fnp.SymbolType = SymInvalid
+		return
 	}
 
-	char c = s_[pos_++];
-	symbol_ = c;
-	switch (c) {
+	c := rune(fnp.S[fnp.Pos])
+	fnp.Pos++
+	//fnp.SymType = c
+
+	switch c {
 	case addChar:
-		symbolType_ = SYMBOL_TYPE_ADD;
-		break;
+		fnp.SymbolType = SymAdd
 	case subChar:
-		symbolType_ = SYMBOL_TYPE_SUB;
-		break;
+		fnp.SymbolType = SymSub
 	case multChar:
-		symbolType_ = SYMBOL_TYPE_MULT;
-		break;
+		fnp.SymbolType = SymMult
 	case divChar:
-		symbolType_ = SYMBOL_TYPE_DIV;
-		break;
-	case rightParenChar:
-		symbolType_ = SYMBOL_TYPE_RIGHT_PAREN;
-		break;
-	case leftParenChar:
-		symbolType_ = SYMBOL_TYPE_LEFT_PAREN;
-		break;
+		fnp.SymbolType = SymDiv
+	case rtParenChar:
+		fnp.SymbolType = SymRtParen
+	case lftParenChar:
+		fnp.SymbolType = SymLftParen
 	default:
-		symbolType_ = SYMBOL_TYPE_STRING;
-		while ( !finished() && !isSeparator(c = s_[pos_]) ) {
-			symbol_ += c;
-			++pos_;
+		fnp.SymbolType = SymString
+		cnext := string(fnp.S[fnp.Pos])  // notice that Pos has been incremented already
+		for !fnp.Finished() && !IsSeparator(cnext)  {
+			fnp.Symbol += cnext
+			fnp.Pos++
 		}
 	}
 }
 
-/*******************************************************************************
- * FACTOR -> "(" EXPRESSION ")" | SYMBOL | CONST | ADD_OP FACTOR
- */
-FormulaNode_ptr
-FormulaNodeParser::parseFactor()
-{
-	switch (symbolType_) {
-	case SYMBOL_TYPE_LEFT_PAREN: // (expression)
-	{
-		nextSymbol();
-		FormulaNode_ptr res(parseExpression());
-		if (symbolType_ != SYMBOL_TYPE_RIGHT_PAREN) {
-			throwException("Right parenthesis not found");
+// Parse Factor -- FACTOR -> "(" EXPRESSION ")" | SYMBOL | CONST | ADD_OP FACTOR
+func (fnp *FormulaNodeParser) ParseFactor() (*FormulaNode, error) {
+	switch fnp.SymbolType {
+	case SymLftParen: // expression
+		fnp.NextSymbol()
+		 res := fnp.ParseExpression()
+		if fnp.SymbolType != SymRtParen {
+			return nil, errors.New("ParseFactor: Right parenthesis not found")
 		}
-		nextSymbol();
-		return res;
-	}
-	case SYMBOL_TYPE_ADD: // unary plus
-		nextSymbol();
-		return parseFactor();
-	case SYMBOL_TYPE_SUB: // unary minus
-		nextSymbol();
-		return FormulaNode_ptr(new FormulaMinusUnaryOp(parseFactor()));
-	case SYMBOL_TYPE_STRING: // const / symbol
-	{
-		std::string symbolTmp = symbol_;
-		nextSymbol();
+		fnp.NextSymbol()
+		return res, nil
+	case SymAdd: // unary plus
+		fnp.NextSymbol()
+		return fnp.ParseFactor()
+	case SymSub: // unary minus
+		fnp.NextSymbol();
+		return NewFormulaMinusUnaryOp(parseFactor())
+	case SymString: // const / symbol
+		temp := fnp.Symbol
+
+// ToDo: !!!
+		fnp.NextSymbol();
 		FormulaSymbol::CodeMap::const_iterator iter = formulaSymbolMap_.find(symbolTmp);
 		if (iter == formulaSymbolMap_.end()) {
 			// It's not a symbol.
-			return FormulaNode_ptr(new FormulaConst(GS::Text::parseString<float>(symbolTmp)));
+			return NewFormulaConst(strconv.ParseFloat(temp))
 		} else {
-			return FormulaNode_ptr(new FormulaSymbolValue(iter->second));
+			return NewFormulaSymbolValue(iter->second)
 		}
-	}
-	case SYMBOL_TYPE_RIGHT_PAREN:
-		throwException("Unexpected symbol: ", rightParenChar);
-	case SYMBOL_TYPE_MULT:
-		throwException("Unexpected symbol: ", multChar);
-	case SYMBOL_TYPE_DIV:
-		throwException("Unexpected symbol: ", divChar);
+	case SymRtParen:
+		msg := fmt.Sprintf("ParseFactor: Unexpected symbol: %s", rtParenChar)
+		return nil, errors.New(msg)
+	case SymMult:
+		msg := fmt.Sprintf("ParseFactor: Unexpected symbol: %s", multChar)
+		return nil, errors.New(msg)
+	case SymDiv:
+		msg := fmt.Sprintf("ParseFactor: Unexpected symbol: %s", divChar)
+		return nil, errors.New(msg)
 	default:
-		throwException("Invalid symbol");
+		return nil, errors.New("Invalid Symbol")
 	}
-	return FormulaNode_ptr(); // unreachable
 }
 
 /*******************************************************************************
- * TERM -> FACTOR { MULT_OP FACTOR }
- */
+* TERM -> FACTOR { MULT_OP FACTOR }
+*/
 FormulaNode_ptr FormulaNodeParser::parseTerm()
 {
 	FormulaNode_ptr term1 = parseFactor();
@@ -258,9 +331,9 @@ FormulaNode_ptr FormulaNodeParser::parseTerm()
 		FormulaNode_ptr term2 = parseFactor();
 		FormulaNode_ptr expr;
 		if (type == SYMBOL_TYPE_MULT) {
-			expr.reset(new FormulaMultBinaryOp(std::move(term1), std::move(term2)));
+			expr.reset(new FormulaMultOp(std::move(term1), std::move(term2)));
 		} else {
-			expr.reset(new FormulaDivBinaryOp(std::move(term1), std::move(term2)));
+			expr.reset(new FormulaDivOp(std::move(term1), std::move(term2)));
 		}
 		term1.swap(expr);
 		type = symbolType_;
@@ -270,8 +343,8 @@ FormulaNode_ptr FormulaNodeParser::parseTerm()
 }
 
 /*******************************************************************************
- * EXPRESSION -> TERM { ADD_OP TERM }
- */
+* EXPRESSION -> TERM { ADD_OP TERM }
+*/
 FormulaNode_ptr
 FormulaNodeParser::parseExpression()
 {
@@ -285,9 +358,9 @@ FormulaNodeParser::parseExpression()
 
 		FormulaNode_ptr expr;
 		if (type == SYMBOL_TYPE_ADD) {
-			expr.reset(new FormulaAddBinaryOp(std::move(term1), std::move(term2)));
+			expr.reset(new FormulaAddOp(std::move(term1), std::move(term2)));
 		} else {
-			expr.reset(new FormulaSubBinaryOp(std::move(term1), std::move(term2)));
+			expr.reset(new FormulaSubOp(std::move(term1), std::move(term2)));
 		}
 
 		term1 = std::move(expr);
@@ -309,127 +382,10 @@ FormulaNodeParser::parse()
 
 } /* namespace */
 
-//==============================================================================
-
-namespace GS {
-namespace TRMControlModel {
-
-float
-FormulaMinusUnaryOp::eval(const FormulaSymbolList& symbolList) const
-{
-	return -(child_->eval(symbolList));
-}
-
-void
-FormulaMinusUnaryOp::print(std::ostream& out, int level) const
-{
-	std::string prefix(level * 8, ' ');
-	out << prefix << "- [\n";
-
-	child_->print(out, level + 1);
-
-	out << prefix << "]" << std::endl;
-}
-
-float
-FormulaAddBinaryOp::eval(const FormulaSymbolList& symbolList) const
-{
-	return child1_->eval(symbolList) + child2_->eval(symbolList);
-}
-
-void
-FormulaAddBinaryOp::print(std::ostream& out, int level) const
-{
-	std::string prefix(level * 8, ' ');
-	out << prefix << "+ [\n";
-
-	child1_->print(out, level + 1);
-	child2_->print(out, level + 1);
-
-	out << prefix << "]" << std::endl;
-}
-
-float
-FormulaSubBinaryOp::eval(const FormulaSymbolList& symbolList) const
-{
-	return child1_->eval(symbolList) - child2_->eval(symbolList);
-}
-
-void
-FormulaSubBinaryOp::print(std::ostream& out, int level) const
-{
-	std::string prefix(level * 8, ' ');
-	out << prefix << "- [\n";
-
-	child1_->print(out, level + 1);
-	child2_->print(out, level + 1);
-
-	out << prefix << "]" << std::endl;
-}
-
-float
-FormulaMultBinaryOp::eval(const FormulaSymbolList& symbolList) const
-{
-	return child1_->eval(symbolList) * child2_->eval(symbolList);
-}
-
-void
-FormulaMultBinaryOp::print(std::ostream& out, int level) const
-{
-	std::string prefix(level * 8, ' ');
-	out << prefix << "* [\n";
-
-	child1_->print(out, level + 1);
-	child2_->print(out, level + 1);
-
-	out << prefix << "]" << std::endl;
-}
-
-float
-FormulaDivBinaryOp::eval(const FormulaSymbolList& symbolList) const
-{
-	return child1_->eval(symbolList) / child2_->eval(symbolList);
-}
-
-void
-FormulaDivBinaryOp::print(std::ostream& out, int level) const
-{
-	std::string prefix(level * 8, ' ');
-	out << prefix << "/ [\n";
-
-	child1_->print(out, level + 1);
-	child2_->print(out, level + 1);
-
-	out << prefix << "]" << std::endl;
-}
-
-float
-FormulaConst::eval(const FormulaSymbolList& /*symbolList*/) const
-{
-	return value_;
-}
-
-void
-FormulaConst::print(std::ostream& out, int level) const
-{
-	out << std::string(level * 8, ' ') << "const=" << value_ << std::endl;
-}
-
-float
-FormulaSymbolValue::eval(const FormulaSymbolList& symbolList) const
-{
-	return symbolList[symbol_];
-}
-
-void
-FormulaSymbolValue::print(std::ostream& out, int level) const
-{
-	out << std::string(level * 8, ' ') << "symbol=" << symbol_ << std::endl;
-}
-
-void
-Equation::setFormula(const std::string& formula)
-{
+func (eq *Equation) SetFormula(f string)
+//void
+//Equation::setFormula(const std::string& formula)
+//{
 	FormulaNodeParser p(formula);
 	FormulaNode_ptr tempFormulaRoot = p.parse();
 
@@ -437,24 +393,22 @@ Equation::setFormula(const std::string& formula)
 	std::swap(tempFormulaRoot, formulaRoot_);
 }
 
-float
-Equation::evalFormula(const FormulaSymbolList& symbolList) const
-{
-	if (!formulaRoot_) {
-		THROW_EXCEPTION(InvalidStateException, "Empty formula.");
-	}
+//float
+//Equation::evalFormula(const FormulaSymbolList& symbolList) const
+//{
+//	if (!formulaRoot_) {
+//		THROW_EXCEPTION(InvalidStateException, "Empty formula.");
+//	}
+//
+//	return formulaRoot_->eval(symbolList);
+//}
+//
+//std::ostream&
+//operator<<(std::ostream& out, const Equation& equation)
+//{
+//	if (equation.formulaRoot_) {
+//		equation.formulaRoot_->print(out);
+//	}
+//	return out;
+//}
 
-	return formulaRoot_->eval(symbolList);
-}
-
-std::ostream&
-operator<<(std::ostream& out, const Equation& equation)
-{
-	if (equation.formulaRoot_) {
-		equation.formulaRoot_->print(out);
-	}
-	return out;
-}
-
-} /* namespace TRMControlModel */
-} /* namespace GS */

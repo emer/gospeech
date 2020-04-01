@@ -1,4 +1,4 @@
-// Copyright (c) 2019, The Emergent Authors. All rights reserved.
+// Copyright (c) 2020, The Emergent Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -28,13 +28,17 @@
 package v2
 
 import (
+	"bufio"
+	"fmt"
+	"log"
+	"os"
 	"strconv"
 
 	"github.com/goki/ki/bitflag"
 )
 
 const modelConfigFn = "/trm_control_model.config"
-const resonanceConfigFn = "/trm.config"
+const trmConfigFn = "/trm.config"
 const voiceFilePrefix = "/voice_"
 
 type Control struct {
@@ -56,11 +60,11 @@ func (ctrl *Control) LoadConfigs(path string) {
 
 	ctrl.ModelConfig.Load(path + modelConfigFn)
 
-	resonanceConfigPath := path + resonanceConfigFn
+	trmConfigPath := path + trmConfigFn
 
 	voiceConfigPath := path + voiceFilePrefix + ".config"
 
-	ctrl.TrmConfig.Load(resonanceConfigPath, voiceConfigPath)
+	ctrl.TrmConfig.Load(trmConfigPath, voiceConfigPath)
 }
 
 func (ctrl *Control) InitUtterance() {
@@ -79,32 +83,39 @@ func (ctrl *Control) InitUtterance() {
 	ctrl.Sequence.Drift.SetUp(mc.DriftDeviation, mc.ControlRate, mc.DriftLowCutoff)
 	ctrl.Sequence.SetRadiusCoefs(rc.RadiusCoefs)
 
-	trmParamStream<<
-		rc.outputRate<<'\n'<<
-		mc.ControlRate<<'\n'<<
-		rc.volume<<'\n'<<
-		rc.channels<<'\n'<<
-		rc.balance<<'\n'<<
-		rc.waveform<<'\n'<<
-		rc.glottalPulseTp<<'\n'<<
-		rc.glottalPulseTnMin<<'\n'<<
-		rc.glottalPulseTnMax<<'\n'<<
-		rc.breathiness<<'\n'<<
-		rc.vtlOffset + rc.TractLength<<'\n'<< // tube length
-		rc.temperature<<'\n'<<
-		rc.lossFactor<<'\n'<<
-		rc.apertureRadius<<'\n'<<
-		rc.mouthCoef<<'\n'<<
-		rc.noseCoef<<'\n'<<
-		rc.noseRadius[1]<<'\n'<<
-		rc.noseRadius[2]<<'\n'<<
-		rc.noseRadius[3]<<'\n'<<
-		rc.noseRadius[4]<<'\n'<<
-		rc.noseRadius[5]<<'\n'<<
-		rc.throatCutoff<<'\n'<<
-		rc.throatVol<<'\n'<<
-		rc.modulation<<'\n'<<
-		rc.mixOffset<<'\n'
+	f, err := os.Create("trmParams.txt")
+	if err != nil {
+		log.Printf("Error trying to create %v\n", "trmParams.txt")
+		return
+	}
+	w := bufio.NewWriter(f)
+	w.WriteString(fmt.Sprintf("%f", rc.OutputRate) + "\n")
+	w.WriteString(fmt.Sprintf("%f", mc.ControlRate) + "\n")
+	w.WriteString(fmt.Sprintf("%f", rc.Volume) + "\n")
+	w.WriteString(fmt.Sprintf("%f", rc.Channels) + "\n")
+	w.WriteString(fmt.Sprintf("%f", rc.Balance) + "\n")
+	w.WriteString(fmt.Sprintf("%f", rc.Waveform) + "\n")
+	w.WriteString(fmt.Sprintf("%f", rc.GlottalPulseTp) + "\n")
+	w.WriteString(fmt.Sprintf("%f", rc.GlottalPulseTnMin) + "\n")
+	w.WriteString(fmt.Sprintf("%f", rc.GlottalPulseTnMax) + "\n")
+	w.WriteString(fmt.Sprintf("%f", rc.Breathiness) + "\n")
+	tvtl := rc.VtlOffset + rc.VocalTractLength
+	w.WriteString(fmt.Sprintf("%f", tvtl) + "\n")
+	w.WriteString(fmt.Sprintf("%f", rc.Temperature) + "\n")
+	w.WriteString(fmt.Sprintf("%f", rc.LossFactor) + "\n")
+	w.WriteString(fmt.Sprintf("%f", rc.ApertureRadius) + "\n")
+	w.WriteString(fmt.Sprintf("%f", rc.MouthCoef) + "\n")
+	w.WriteString(fmt.Sprintf("%f", rc.NoseCoef) + "\n")
+	w.WriteString(fmt.Sprintf("%f", rc.NoseRadii[1]) + "\n")
+	w.WriteString(fmt.Sprintf("%f", rc.NoseRadii[2]) + "\n")
+	w.WriteString(fmt.Sprintf("%f", rc.NoseRadii[3]) + "\n")
+	w.WriteString(fmt.Sprintf("%f", rc.NoseRadii[4]) + "\n")
+	w.WriteString(fmt.Sprintf("%f", rc.NoseRadii[5]) + "\n")
+	w.WriteString(fmt.Sprintf("%f", rc.ThroatCutoff) + "\n")
+	w.WriteString(fmt.Sprintf("%f", rc.ThroatVolume) + "\n")
+	w.WriteString(fmt.Sprintf("%f", rc.NoiseModulation) + "\n")
+	w.WriteString(fmt.Sprintf("%f", rc.MixOffset) + "\n")
+	w.Flush()
 }
 
 // Chunks are separated by /c.
@@ -150,7 +161,7 @@ func (ctrl *Control) ValidPosture(token string) bool {
 	if i >= 0 && i <= 9 {
 		return true
 	} else {
-		return ctrl.Model.Postures.PostureTry(token) != nil
+		return ctrl.Model.PostureTry(token) != nil
 	}
 }
 

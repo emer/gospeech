@@ -1,4 +1,4 @@
-// Copyright (c) 2019, The Emergent Authors. All rights reserved.
+// Copyright (c) 2020, The Emergent Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -28,15 +28,15 @@
 package v2
 
 type Model struct {
-	Categories []Category
-	Params     []Param
+	Categories       []Category
+	Params           []Param
 	Codes            []Code
 	Postures         []Posture
 	Rules            []Rule
 	EquationGrps     []EquationGrp
 	TransitionGrps   []TransitionGrp
 	TransitionGrpsSp []TransitionGrp
-	Formula Formula
+	Formula          Formula
 }
 
 // Reset
@@ -86,15 +86,27 @@ func (mdl *Model) Reset() {
 //	return -1
 //}
 //
-ParamIdx returns the address of the named category or nil if not found
+
+//CategoryTry returns the address of the named Category or nil if not found
 func (mdl *Model) CategoryTry(nm string) *Category {
-	for i, c := range mdl.Categories {
-	 	if c.Name == nm {
-	 		return &c
-	 	}
+	for _, c := range mdl.Categories {
+		if c.Name == nm {
+			return &c
+		}
 	}
 	return nil
 }
+
+// CategoryTry returns the address of the named Posture or nil if not found
+func (mdl *Model) PostureTry(nm string) *Posture {
+	for _, p := range mdl.Postures {
+		if p.Name == nm {
+			return &p
+		}
+	}
+	return nil
+}
+
 //
 //
 ////
