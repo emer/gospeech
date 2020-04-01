@@ -48,7 +48,7 @@ const lftParenChar = '('
 type Equation struct {
 	Name string
 	Comment string
-	FormulaName string
+	Formula string
 	FormulaRoot *FormulaNode
 }
 
@@ -83,7 +83,7 @@ const (
 var Kit_SymbolType = kit.Enums.AddEnum(SymTypeN, kit.NotBitFlag, nil)
 
 type FormulaNode interface {	// Parser returns the pi.Parser for this language
-	Eval(syms *FormulaSymbolList) float64
+	Eval(sl *FormulaSymbolList) float64
 }
 
 type FormulaMinusUnaryOp struct {
@@ -96,8 +96,8 @@ func NewFormulaMinusUnaryOp(c *FormulaNode) *FormulaMinusUnaryOp {
 	return &f
 }
 
-func (fmu *FormulaMinusUnaryOp) Eval(syms *FormulaSymbolList) float64 {
-	return -(fmu.Eval(syms))
+func (fmu *FormulaMinusUnaryOp) Eval(sl *FormulaSymbolList) float64 {
+	return -(fmu.Eval(sl))
 }
 
 type FormulaAddOp struct {
@@ -112,8 +112,8 @@ func NewFormulaAddOp(c1, c2 *FormulaNode) *FormulaAddOp {
 	return &f
 }
 
-func (fmu *FormulaAddOp) Eval(syms *FormulaSymbolList) float64 {
-	return fmu.Eval(syms) + fmu.Eval(syms);
+func (fmu *FormulaAddOp) Eval(sl *FormulaSymbolList) float64 {
+	return fmu.Eval(sl) + fmu.Eval(sl);
 }
 
 type FormulaSubOp struct {
@@ -128,8 +128,8 @@ func NewFormulaSubOp(c1, c2 *FormulaNode) *FormulaSubOp {
 	return &f
 }
 
-func (fmu *FormulaSubOp) Eval(syms *FormulaSymbolList) float64 {
-	return fmu.Eval(syms) - fmu.Eval(syms);
+func (fmu *FormulaSubOp) Eval(sl *FormulaSymbolList) float64 {
+	return fmu.Eval(sl) - fmu.Eval(sl);
 }
 
 type FormulaMultOp struct {
@@ -144,8 +144,8 @@ func NewFormulaMultOp(c1, c2 *FormulaNode) *FormulaMultOp {
 	return &f
 }
 
-func (fmu *FormulaMultOp) Eval(syms *FormulaSymbolList) float64 {
-	return fmu.Eval(syms) * fmu.Eval(syms);
+func (fmu *FormulaMultOp) Eval(sl *FormulaSymbolList) float64 {
+	return fmu.Eval(sl) * fmu.Eval(sl);
 }
 
 type FormulaDivOp struct {
@@ -160,8 +160,8 @@ func NewFormulaDivOp(c1, c2 *FormulaNode) *FormulaDivOp {
 	return &f
 }
 
-func (fmu *FormulaDivOp) Eval(syms *FormulaSymbolList) float64 {
-	return fmu.Eval(syms) / fmu.Eval(syms);
+func (fmu *FormulaDivOp) Eval(sl *FormulaSymbolList) float64 {
+	return fmu.Eval(sl) / fmu.Eval(sl);
 }
 
 type FormulaConst struct {
@@ -174,7 +174,7 @@ func NewFormulaConst(value float64) *FormulaConst {
 	return &f
 }
 
-func (fmu *FormulaConst) Eval(syms *FormulaSymbolList) float64 {
+func (fmu *FormulaConst) Eval(sl *FormulaSymbolList) float64 {
 	return fmu.Value
 }
 
@@ -188,8 +188,8 @@ func NewFormulaSymbolVal(symbol FormulaSymbolType) *FormulaSymbolVal {
 	return &f
 }
 
-func (fmu *FormulaSymbolVal) Eval(syms *FormulaSymbolList) float64 {
-	return syms.Symbols[int(fmu.Symbol)]
+func (fmu *FormulaSymbolVal) Eval(sl *FormulaSymbolList) float64 {
+	return sl.Symbols[int(fmu.Symbol)]
 }
 
 type FormulaParse struct {
@@ -216,16 +216,6 @@ func NewFormulaNodeParser(s String) *FormulaNodeParser {
 	}
 	fnp.NextSymbol()
 	return &fnp
-}
-
-func (fnp *FormulaNodeParser) ParseTerm() *FormulaNode {
-
-	return nil
-}
-
-func (fnp *FormulaNodeParser) ParseExpr() *FormulaNode {
-
-	return nil
 }
 
 func (fnp *FormulaNodeParser) Finished() bool {
@@ -280,7 +270,7 @@ func (fnp *FormulaNodeParser) ParseFactor() (*FormulaNode, error) {
 	switch fnp.SymbolType {
 	case SymLftParen: // expression
 		fnp.NextSymbol()
-		 res := fnp.ParseExpression()
+		 res := fnp.ParseExpr()
 		if fnp.SymbolType != SymRtParen {
 			return nil, errors.New("ParseFactor: Right parenthesis not found")
 		}
@@ -318,97 +308,82 @@ func (fnp *FormulaNodeParser) ParseFactor() (*FormulaNode, error) {
 	}
 }
 
-/*******************************************************************************
-* TERM -> FACTOR { MULT_OP FACTOR }
-*/
-FormulaNode_ptr FormulaNodeParser::parseTerm()
-{
-	FormulaNode_ptr term1 = parseFactor();
+// ParseTerm TERM -> FACTOR { MULT_OP FACTOR }
+func (fnp *FormulaNodeParser) ParseTerm() *FormulaNode {
+	 term1, _ := fnp.ParseFactor();
 
-	SymbolType type = symbolType_;
-	while (type == SYMBOL_TYPE_MULT || type == SYMBOL_TYPE_DIV) {
-		nextSymbol();
-		FormulaNode_ptr term2 = parseFactor();
-		FormulaNode_ptr expr;
-		if (type == SYMBOL_TYPE_MULT) {
-			expr.reset(new FormulaMultOp(std::move(term1), std::move(term2)));
+	symType := fnp.SymbolType;
+	for symType == SymMult || symType == SymDiv {
+		fnp.NextSymbol()
+		term2, _ := fnp.ParseFactor();
+		var expr *FormulaNode
+		if symType == SymMult {
+			//expr = NewFormulaMultOp(term1, term2).(*FormulaNode.FormulaMultOp)
+			expr = NewFormulaMultOp(term1, term2)
 		} else {
-			expr.reset(new FormulaDivOp(std::move(term1), std::move(term2)));
+			//expr = NewFormulaDivOp(term1, term2).(*FormulaNode.FormulaDivOp)
+			expr = NewFormulaDivOp(term1, term2)
 		}
-		term1.swap(expr);
-		type = symbolType_;
+		temp := term1
+		term1 = expr
+		expr = temp
+		symType = fnp.SymbolType
 	}
 
 	return term1;
 }
 
-/*******************************************************************************
-* EXPRESSION -> TERM { ADD_OP TERM }
-*/
-FormulaNode_ptr
-FormulaNodeParser::parseExpression()
-{
-	FormulaNode_ptr term1 = parseTerm();
+// ParseExpr  EXPRESSION -> TERM { ADD_OP TERM }
+func (fnp *FormulaNodeParser) ParseExpr() *FormulaNode {
+	term1 := fnp.ParseTerm()
 
-	SymbolType type = symbolType_;
-	while (type == SYMBOL_TYPE_ADD || type == SYMBOL_TYPE_SUB) {
+	symType := fnp.SymbolType;
+	for symType == SymAdd || symType == SymSub {
+		fnp.NextSymbol()
+		term2 := fnp.ParseTerm()
 
-		nextSymbol();
-		FormulaNode_ptr term2 = parseTerm();
-
-		FormulaNode_ptr expr;
-		if (type == SYMBOL_TYPE_ADD) {
-			expr.reset(new FormulaAddOp(std::move(term1), std::move(term2)));
+		var expr *FormulaNode
+		if symType == SymMult {
+			//expr = NewFormulaAddOp(term1, term2).(*FormulaNode.FormulaAddOp)
+			expr = NewFormulaAddOp(term1, term2)
 		} else {
-			expr.reset(new FormulaSubOp(std::move(term1), std::move(term2)));
+			//expr = NewFormulaSubOp(term1, term2).(*FormulaNode.FormulaSubOp)
+			expr = NewFormulaSubOp(term1, term2)
 		}
-
-		term1 = std::move(expr);
-		type = symbolType_;
+		temp := term1
+		term1 = expr
+		expr = temp
+		symType = fnp.SymbolType
 	}
 
 	return term1;
 }
 
-FormulaNode_ptr
-FormulaNodeParser::parse()
-{
-	FormulaNode_ptr formulaRoot = parseExpression();
-	if (symbolType_ != SYMBOL_TYPE_INVALID) { // there is a symbol available
-		throwException("Invalid text");
+// Parse
+func (fnp *FormulaNodeParser) Parse() *FormulaNode {
+	formulaRoot := fnp.ParseExpr()
+	if fnp.SymbolType != SymInvalid {  // hmmm, seems backwards
+		log.Println("Parse: Invalid text")
+		return nil
 	}
 	return formulaRoot;
 }
 
 } /* namespace */
 
-func (eq *Equation) SetFormula(f string)
-//void
-//Equation::setFormula(const std::string& formula)
-//{
-	FormulaNodeParser p(formula);
-	FormulaNode_ptr tempFormulaRoot = p.parse();
+func (eq *Equation)SetFormula(formula string) {
+	np := NewFormulaNodeParser(formula)
+	tempFormulaRoot := np.Parse();
+	eq.Formula = formula
 
-	formula_ = formula;
-	std::swap(tempFormulaRoot, formulaRoot_);
+	temp := eq.FormulaRoot
+	eq.FormulaRoot = tempFormulaRoot
+	tempFormulaRoot = temp
 }
 
-//float
-//Equation::evalFormula(const FormulaSymbolList& symbolList) const
-//{
-//	if (!formulaRoot_) {
-//		THROW_EXCEPTION(InvalidStateException, "Empty formula.");
-//	}
-//
-//	return formulaRoot_->eval(symbolList);
-//}
-//
-//std::ostream&
-//operator<<(std::ostream& out, const Equation& equation)
-//{
-//	if (equation.formulaRoot_) {
-//		equation.formulaRoot_->print(out);
-//	}
-//	return out;
-//}
-
+func (eq *Equation) Eval(sl *FormulaSymbolList) float64 {
+	if eq.FormulaRoot == nil {
+		panic("EmptyFormula")
+	}
+	return eq.FormulaRoot.Eval(sl)
+}
