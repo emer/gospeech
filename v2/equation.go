@@ -266,22 +266,24 @@ func (fnp *FormulaNodeParser) NextSymbol() {
 }
 
 // Parse Factor -- FACTOR -> "(" EXPRESSION ")" | SYMBOL | CONST | ADD_OP FACTOR
-func (fnp *FormulaNodeParser) ParseFactor() (*FormulaNode, error) {
+func (fnp *FormulaNodeParser) ParseFactor() *FormulaNode {
 	switch fnp.SymbolType {
 	case SymLftParen: // expression
 		fnp.NextSymbol()
 		 res := fnp.ParseExpr()
 		if fnp.SymbolType != SymRtParen {
-			return nil, errors.New("ParseFactor: Right parenthesis not found")
+			//return nil, errors.New("ParseFactor: Right parenthesis not found")
+			return nil
 		}
 		fnp.NextSymbol()
-		return res, nil
+		return res
 	case SymAdd: // unary plus
 		fnp.NextSymbol()
 		return fnp.ParseFactor()
 	case SymSub: // unary minus
 		fnp.NextSymbol();
-		return NewFormulaMinusUnaryOp(parseFactor())
+		foo := NewFormulaMinusUnaryOp(fnp.ParseFactor())
+		return foo
 	case SymString: // const / symbol
 		temp := fnp.Symbol
 
@@ -295,30 +297,32 @@ func (fnp *FormulaNodeParser) ParseFactor() (*FormulaNode, error) {
 			return NewFormulaSymbolValue(iter->second)
 		}
 	case SymRtParen:
-		msg := fmt.Sprintf("ParseFactor: Unexpected symbol: %s", rtParenChar)
-		return nil, errors.New(msg)
+		//msg := fmt.Sprintf("ParseFactor: Unexpected symbol: %s", rtParenChar)
+		//return nil, errors.New(msg)
+		return nil
 	case SymMult:
-		msg := fmt.Sprintf("ParseFactor: Unexpected symbol: %s", multChar)
-		return nil, errors.New(msg)
+		//msg := fmt.Sprintf("ParseFactor: Unexpected symbol: %s", multChar)
+		return nil
 	case SymDiv:
-		msg := fmt.Sprintf("ParseFactor: Unexpected symbol: %s", divChar)
-		return nil, errors.New(msg)
+		//msg := fmt.Sprintf("ParseFactor: Unexpected symbol: %s", divChar)
+		//return nil, errors.New(msg)
+		return nil
 	default:
-		return nil, errors.New("Invalid Symbol")
+		//return nil, errors.New("Invalid Symbol")
+		return
 	}
 }
 
 // ParseTerm TERM -> FACTOR { MULT_OP FACTOR }
 func (fnp *FormulaNodeParser) ParseTerm() *FormulaNode {
-	 term1, _ := fnp.ParseFactor();
+	 term1 := fnp.ParseFactor();
 
 	symType := fnp.SymbolType;
 	for symType == SymMult || symType == SymDiv {
 		fnp.NextSymbol()
-		term2, _ := fnp.ParseFactor();
+		term2 := fnp.ParseFactor();
 		var expr *FormulaNode
 		if symType == SymMult {
-			//expr = NewFormulaMultOp(term1, term2).(*FormulaNode.FormulaMultOp)
 			expr = NewFormulaMultOp(term1, term2)
 		} else {
 			//expr = NewFormulaDivOp(term1, term2).(*FormulaNode.FormulaDivOp)
@@ -385,5 +389,9 @@ func (eq *Equation) Eval(sl *FormulaSymbolList) float64 {
 	if eq.FormulaRoot == nil {
 		panic("EmptyFormula")
 	}
-	return eq.FormulaRoot.Eval(sl)
+
+	// ToDo: what to do here
+	// NextSymbol and switch on symbol?
+	//return eq.FormulaRoot.Eval(sl)
+	return 0.0 // temp to compile
 }
