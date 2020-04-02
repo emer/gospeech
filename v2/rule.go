@@ -78,7 +78,7 @@ const (
 var Kit_LogicSymbolType = kit.Enums.AddEnum(LogicSymTypeN, kit.NotBitFlag, nil)
 
 // Parse
-type Parse struct {
+type Parser struct {
 	Model *Model
 	Str string
 	Pos int
@@ -86,22 +86,20 @@ type Parse struct {
 	SymType LogicSymbolType
 }
 
-func (pars *Parse) Defaults() {
-	pars.Pos = 0
-	pars.SymType = LogicSymInvalid
-}
-
-func (pars *Parse) Init(s string, model *Model) error {
+func NewParser(s string, model *Model) *Parser {
 	if len(s) == 0 {
-		errors.New("empty string parameter not allowed")
+		return nil
 	}
-	pars.Model = model
-	pars.Str = strings.TrimSpace(s)
-	pars.NextSymbol()
-	return pars.Parse()
+	prs := Parser{}
+	prs.Model = model
+	prs.Pos = 0
+	prs.Str = strings.TrimSpace(s)
+	prs.SymType = LogicSymInvalid
+	prs.NextSymbol()
+	return &prs
 }
 
-func (pars *Parse) Finished() bool {
+func (pars *Parser) Finished() bool {
 	return pars.Pos >= len(pars.Str)
 }
 
@@ -116,14 +114,14 @@ func IsSeparator(c string) bool {
 }
 
 // SkipSpaces moves the index into string past white space
-func (pars *Parse) SkipSpaces() {
+func (pars *Parser) SkipSpaces() {
 	for !pars.Finished() && unicode.IsSpace(rune(pars.Str[pars.Pos])) {
 		pars.Pos++
 	}
 }
 
 // NextSymbol
-func (pars *Parse) NextSymbol() {
+func (pars *Parser) NextSymbol() {
 	pars.SkipSpaces()
 	pars.Symbol = ""
 
@@ -164,7 +162,7 @@ func (pars *Parse) NextSymbol() {
 }
 
 // GetNode returns the next boolean node
-func (pars *Parse) GetNode() (node *Node) {
+func (pars *Parser) GetNode() (node *Node) {
 	switch pars.SymType {
 
 	case SymLftParen:
@@ -190,7 +188,7 @@ func (pars *Parse) GetNode() (node *Node) {
 			{	// 2nd operand.
 				pars.NextSymbol()
 				op2 = pars.GetNode()
-				node = RuleOrExpression(op1, op2)
+				newExpr :=
 				// p.reset(new RuleBooleanOrExpression(std::move(op1), std::move(op2)))
 				break;
 			}
@@ -262,31 +260,31 @@ func (pars *Parse) GetNode() (node *Node) {
 		return &nt
 	}
 	case LogicSymOr:
-		return nil, errors.New("Unexpected OR op.")
+		return nil
 	case LogicSymNot:
-		return nil, errors.New("Unexpected NOT op.")
+		return nil
 	case LogicSymXor:
-		return nil, errors.New("Unexpected XOR op.")
+		return nil
 	case LogicSymAnd:
-		return nil, errors.New("Unexpected AND op.")
+		return nil
 	case SymRtParen:
-		return nil, errors.New("Unexpected right parenthesis")
+		return nil
 	default:
-		return nil, errors.New("Missing symbol")
+		return nil
 	}
 }
 
 // Parse
-func (pars *Parse) Parse() *Node {
-	root := GetNode()
-	if (root.SymType != SymInvalid) {
-		return nil, errors.New("Invalid text") // ToDo: this doesn't make sens
+func (pars *Parser) Parse() *Node {
+	root := pars.GetNode()
+	if (root.NodeType != SymInvalid) {
+		return nil // ToDo: this doesn't make sens
 	}
 	return root
 }
 
 // EvalExpr
-func (r *Rule) EvalExpr(tempos []float64, postures *[]Posture, model *Model, syms *float64) {
+func (r *Rule) EvalExpr(tempos []float64, postures []Posture, model *Model, syms []float64) {
 	var localTempos []float64
 
 	model.Formula.Clear()
@@ -305,7 +303,7 @@ func (r *Rule) EvalExpr(tempos []float64, postures *[]Posture, model *Model, sym
 		localTempos[1] = tempos[1]
 	} else {
 		localTempos[0] = 0.0
-		locatTempos[1] = 0.0
+		localTempos[1] = 0.0
 	}
 
 	if len(postures) >= 3 {
@@ -313,7 +311,7 @@ func (r *Rule) EvalExpr(tempos []float64, postures *[]Posture, model *Model, sym
 	model.Formula[Transition3] = pos.GetSymbolTarget(1)
 		model.Formula[Qssa3] = pos.GetSymbolTarget(2)
 		 model.Formula[Qssb3] = pos.GetSymbolTarget(3)
-		locatTempos[2] = tempos[2]
+		localTempos[2] = tempos[2]
 	} else {
 		localTempos[2] = 0.0
 	}
@@ -328,19 +326,19 @@ func (r *Rule) EvalExpr(tempos []float64, postures *[]Posture, model *Model, sym
 		localTempos[3] = 0.0
 	}
 
-	model.Formula.Syms[FormulaSymTempo1] = localTempos[0]
-	model.Formula.Syms[FormulaSymTempo2] = localTempos[1]
-	model.Formula.Syms[FormulaSymTempo3] = localTempos[2]
-	model.Formula.Syms[FormulaSymTempo4] = localTempos[3]
-	model.Formula.Syms[FormulaSymRd]    = syms[0]
-	model.Formula.Syms[FormulaSymBeat]  = syms[1]
-	model.Formula.Syms[FormulaSymMark1] = syms[2]
-	model.Formula.Syms[FormulaSymMark2] = syms[3]
-	model.Formula.Syms[FormulaSymMark3] = syms[4]
+	model.Formula.Symbols[FormulaSymTempo1] = localTempos[0]
+	model.Formula.Symbols[FormulaSymTempo2] = localTempos[1]
+	model.Formula.Symbols[FormulaSymTempo3] = localTempos[2]
+	model.Formula.Symbols[FormulaSymTempo4] = localTempos[3]
+	model.Formula.Symbols[FormulaSymRd]    = syms[0]
+	model.Formula.Symbols[FormulaSymBeat]  = syms[1]
+	model.Formula.Symbols[FormulaSymMark1] = syms[2]
+	model.Formula.Symbols[FormulaSymMark2] = syms[3]
+	model.Formula.Symbols[FormulaSymMark3] = syms[4]
 
 
 	// Execute in this order.
-	if (exprSymbolEquations_.ruleDuration) {
+	if (r.ExprSymEquations) {
 		model.setFormulaSymbolValue(FormulaSymRd, model.evalEquationFormula(*exprSymbolEquations_.ruleDuration));
 	}
 	if (exprSymbolEquations_.mark1) {
@@ -368,7 +366,7 @@ func (r *Rule) EvalExpr(tempos []float64, postures *[]Posture, model *Model, sym
 // Rule
 //////////////////////////////////////////////////
 
-type ExpSymEquation struct {
+type ExprSymEquation struct {
 	Duration *Equation
 	Beat *Equation
 	Mark1 *Equation
@@ -378,16 +376,16 @@ type ExpSymEquation struct {
 
 type Rule struct {
 	BoolExprs []string
-	ParamProfileTransitions []Transitions
-	SpecialProfileTransitions []Transitions
-	ExprSymEquations ExprSymEquations
+	ParamProfileTransitions []Transition
+	SpecialProfileTransitions []Transition
+	ExprSymEquations []ExprSymEquation
 	Comment string
 	Nodes []Node
 }
 
 func (r *Rule) Init(nParams int) {
-	r.ParamProfileTransitions = make([]Transitions, nParams)
-	r.SpecialProfileTransitions = make([]Transitions, nParams)
+	r.ParamProfileTransitions = make([]Transition, nParams)
+	r.SpecialProfileTransitions = make([]Transition, nParams)
 }
 
 type LogicNodeType int
@@ -434,37 +432,39 @@ func NewNode(typ LogicNodeType, c1, c2 *Node) *Node {
 }
 
 func (nd *Node) Eval(posture *Posture) (result bool, err error) {
+	var r1 = false
+	var r2 = false
+
 	switch nd.NodeType {
-		
 	case LogicNodeAnd:
 		if nd.Child1 == nil || nd.Child2 == nil {
-			err = "Eval error: One or more of nodes children were nil"
+			errors.New("Eval error: One or more of nodes children were nil")
 		}
-		r1 := nd.Child1.Eval(posture)
-		r2 := nd.Child2.Eval(posture)
+		r1, err = nd.Child1.Eval(posture)
+		r2, err = nd.Child2.Eval(posture)
 		return r1 && r2, nil
 
 	case LogicNodeOr:
 		if nd.Child1 == nil || nd.Child2 == nil {
-			err = "Eval error: One or more of nodes children were nil"
+			errors.New("Eval error: One or more of nodes children were nil")
 		}
-		r1 := nd.Child1.Eval(posture)
-		r2 := nd.Child2.Eval(posture)
+		r1, err = nd.Child1.Eval(posture)
+		r2, err = nd.Child2.Eval(posture)
 		return r1 || r2, nil
 		
 	case LogicNodeXor:
 		if nd.Child1 == nil || nd.Child2 == nil {
-			err = "Eval error: One or more of nodes children were nil"
+			errors.New("Eval error: One or more of nodes children were nil")
 		}
-		r1 := nd.Child1.Eval(posture)
-		r2 := nd.Child2.Eval(posture)
+		r1, err = nd.Child1.Eval(posture)
+		r2, err = nd.Child2.Eval(posture)
 		return r1 != r2, nil
 		
 	case LogicNodeNot:
 		if nd.Child1 == nil {
-			err = "Eval error: child1 was nil"
+			errors.New("Eval error: chile1 was nil")
 		}
-		r1 := nd.Child1.Eval(posture)
+		r1, err = nd.Child1.Eval(posture)
 		return !r1, nil
 		
 	case LogicNodeTerminal:
@@ -486,7 +486,7 @@ func (r *Rule)SetExprList(exprs []string, model *Model) error {
 	}
 	var testList []Nodes
 	for _, e := range exprs {
-		p := Parse{}
+		p := Parser{}
 		p.Str = e
 		p.Model = model
 		node := p.Parse()

@@ -66,7 +66,7 @@ type Point struct {
 
 	// If timeExpression is not empty, time = timeExpression, otherwise time = freeTime.
 	timeExpr *Equation
-	FreeTime float64 `desc:"millisecons""`
+	FreeTime float64 `desc:"milliseconds""`
 }
 
 func (pt *Point) NewPoint() {
@@ -114,7 +114,7 @@ func PointTime(pt Point, model *Model) float64 {
 	if pt.timeExpr != nil {
 		return pt.FreeTime
 	} else {
-		return pt.timeExpr.EvalFormula(model.FormulaSymbols)
+		return pt.timeExpr.Eval(model.Formula)
 	}
 }
 
@@ -123,7 +123,7 @@ func PointData(pt Point, model *Model) (time, value float64) {
 	if pt.timeExpr != nil {
 		time = pt.FreeTime
 	} else {
-		time = pt.timeExpr.EvalFormula(model.FormulaSymbols)
+		time = pt.timeExpr.Eval(model.Formula)
 	}
 	value = pt.Value
 	return time, value
@@ -134,7 +134,7 @@ func PointDataMinMax(pt Point, model *Model, baseline, delta, min, max float64) 
 	if pt.timeExpr != nil {
 		time = pt.FreeTime
 	} else {
-		time = pt.timeExpr.EvalFormula(model.FormulaSymbols)
+		time = pt.timeExpr.Eval(model.Formula)
 	}
 
 	value = baseline + (value/100.0)*delta
@@ -144,4 +144,9 @@ func PointDataMinMax(pt Point, model *Model, baseline, delta, min, max float64) 
 		value = max
 	}
 	return time, value
+}
+
+type TransGroup struct {
+	Name        string
+	Transitions []Transition
 }

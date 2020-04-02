@@ -118,6 +118,10 @@ func (fc *Formula) Default(tt TransitionType) error {
 	return nil
 }
 
+type Foo interface {
+	GetFormulaSymbolList() []float64
+}
+
 type FormulaSymbolList struct {
 	Symbols []float64
 }
