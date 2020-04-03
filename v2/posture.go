@@ -66,3 +66,12 @@ func (pos *Posture) Copy(newNm string) *Posture {
 	np.Comment = pos.Comment
 	return np
 }
+
+func (pos *Posture) IsMemberOfCategory(category *category) bool {
+	for _, c := range pos.Categories {
+		if &c == category {
+			return true
+		}
+	}
+	return false
+}
