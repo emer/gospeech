@@ -36,8 +36,11 @@ const (
 	// TransInvalid
 	TransInvalid TransitionType = iota
 
+	// skip the value 1
+	_
+
 	// TransDiPhone
-	TransDiPhone = 2
+	TransDiPhone
 
 	// TransTriPhone
 	TransTriPhone
@@ -52,44 +55,75 @@ const (
 
 var Kit_TransitionType = kit.Enums.AddEnum(TransTypeN, kit.NotBitFlag, nil)
 
-type PointSlope interface {
+type PointOrSlope struct {
 }
 
-type PointOrSlope struct {
+func (pos *PointOrSlope) IsSlopeRatio() bool {
+	return false
 }
 
 type Point struct {
 	PointOrSlope
 	TType     TransitionType
 	Value     float64
-	isPhantom bool
+	IsPhantom bool
 
 	// If timeExpression is not empty, time = timeExpression, otherwise time = freeTime.
 	timeExpr *Equation
 	FreeTime float64 `desc:"milliseconds""`
 }
 
-func (pt *Point) NewPoint() {
+func NewPoint() *Point {
+	pt := Point{}
 	pt.TType = TransInvalid
 	pt.Value = 0.0
-	pt.isPhantom = false
+	pt.IsPhantom = false
 	pt.FreeTime = 0.0
 	pt.timeExpr = &Equation{}
+	return &pt
+}
+
+func (pt *Point) IsSlopeRatio() bool {
+	return false
 }
 
 type Slope struct {
+	PointOrSlope
 	Slope       float64
 	DisplayTime float64
 }
 
-func (slp *Slope) Defaults() {
+func NewSlope() *Slope {
+	slp := Slope{}
 	slp.Slope = 0.0
 	slp.DisplayTime = 0.0
+	return &slp
+}
+
+func (pos *Slope) IsSlopeRatio() bool {
+	return false
 }
 
 type SlopeRatio struct {
+	PointOrSlope
 	Points []Point
 	Slopes []Slope
+}
+
+func NewSlopeRatio() *SlopeRatio {
+	sr := SlopeRatio{}
+	return &sr
+}
+func (sr *SlopeRatio) IsSlopeRatio() bool {
+	return true
+}
+
+func (sr *SlopeRatio) NSlopeUnits() float64 {
+	temp := 0.0
+	for _, s := range sr.Slopes {
+		temp += s.Slope
+	}
+	return temp
 }
 
 // Transition
@@ -98,15 +132,6 @@ type Transition struct {
 	TType     TransitionType
 	Special   bool
 	PtSlpList []interface{}
-}
-
-//
-func (trn *Transition) NUnits() float64 {
-	temp := 0.0
-	for _, s := range trn.PtSlpList {
-		temp += s.Slope
-	}
-	return temp
 }
 
 // PointTime

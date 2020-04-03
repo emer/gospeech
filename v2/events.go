@@ -28,43 +28,56 @@
 package v2
 
 import (
-	"github.com/goki/ki/kit"
+	"bufio"
+	"fmt"
+	"gonum.org/v1/gonum/mathext/prng"
+	"io"
 	"log"
 	"math"
+	"math/rand"
 	"os"
+	"strings"
+
+	"github.com/goki/ki/kit"
 )
+
+const intonationConfig = "/intonation"
+
+const DiPhone = 2
+const TriPhone = 3
+const TetraPhone = 4
 
 // PhoneType
-type PhoneType int
-
-const (
-	// DiPhone
-	DiPhone PhoneType = 2
-
-	// TriPhone
-	TriPhone
-
-	// TetraPhone
-	TetraPhone
-
-	PhoneTypeN
-)
-
-//go:generate stringer -type=PhoneType
-
-var Kit_PhoneType = kit.Enums.AddEnum(PhoneTypeN, kit.NotBitFlag, nil)
+//type PhoneType int
+//
+//const (
+//	// DiPhone
+//	DiPhone PhoneType = iota + 2
+//
+//	// TriPhone
+//	TriPhone
+//
+//	// TetraPhone
+//	TetraPhone
+//
+//	PhoneTypeN
+//)
+//
+////go:generate stringer -type=PhoneType
+//
+//var Kit_PhoneType = kit.Enums.AddEnum(PhoneTypeN, kit.NotBitFlag, nil)
 
 // ToneType
 type ToneType int
 
 const (
-	// DiPhone
+	// ToneStatement
 	ToneStatement ToneType = iota
 
-	// TriPhone
+	// ToneExclamation
 	ToneExclamation
 
-	// TetraPhone
+	// ToneQuestion
 	ToneQuestion
 
 	// ToneContinuation
@@ -179,43 +192,69 @@ type Sequence struct {
 	Model *Model
 	Events []Event
 
-	ZeroRef             int
-	ZeroIdx             int
-	Duration            int
-	TimeQuant           int
-	MacroFlag           int
-	MicroFlag           int
-	DriftFlag           int
-	SmoothInton         int
-	PitchMean           float64
-	GlobalTempo         float64
-	Multiplier          float64
-	IntonationParams    []float64
-	PostureDatum        []PostureData
-	PostureTempos       []float64
-	CurPosture          int
-	Feet                []Foot
-	CurFoot             int
-	ToneGroups          []ToneGroup
-	CurToneGroup        int
-	RuleDatum           []RuleData
-	CurRule             int
-	Min                 [16]float64
-	Max                 [16]float64
-	IntonationPts       []IntonationPt
-	Drift               Drift
-	TgUseRandom         bool
-	IntonRandom         float64
-	TgParams            []float64
-	TgCount             [5]int
+	ZeroRef                  int
+	ZeroIdx                  int
+	Duration                 int
+	TimeQuant                int
+	MacroFlag                int
+	MicroFlag                int
+	DriftFlag                int
+	SmoothInton              int
+	PitchMean                float64
+	GlobalTempo              float64
+	Multiplier               float64
+	IntonationParams         []float64
+	PostureDatum             []PostureData
+	PostureTempos            []float64
+	CurPosture               int
+	Feet                     []Foot
+	CurFoot                  int
+	ToneGroups               []ToneGroup
+	CurToneGroup             int
+	RuleDatum                []RuleData
+	CurRule                  int
+	Min                      [16]float64
+	Max                      [16]float64
+	IntonationPts            []IntonationPt
+	Drift                    Drift
+	TgUseRandom              bool
+	IntonRandom              float64
+	TgParams                 [][]float64
+	TgCount                  []int
 	UseFixedIntonationParams bool
-	FixedIntonationParams    [10]float64
-	RadiusCoef          [8]float64 // TRM::Tube::TOTAL_REGIONS
+	FixedIntonationParams    []float64
+	RadiusCoef               []float64 // TRM::Tube::TOTAL_REGIONS
 
 	// std::random_device randDev_;
-	// std::mt19937 randSrc_;
+	 randSrc prng.MT19937_64
 	// std::uniform_real_distribution<> randDist_;
 
+}
+
+func NewSequence(config string, model *Model) *Sequence {
+	seq := Sequence{}
+
+	seq.MacroFlag = 0
+	seq.MicroFlag = 0
+	seq.DriftFlag = 0
+	seq.SmoothInton = 1
+	seq.GlobalTempo = 1.0
+	seq.UseFixedIntonationParams = false
+
+	seq.Model = model
+	seq.TgParams = make([][]float64, ToneTypeN)
+	seq.InitToneGroups(config)
+
+	seq.FixedIntonationParams = make([]float64, 10) // why 10?
+	for i, _ := range seq.FixedIntonationParams {
+		seq.FixedIntonationParams[i] = 1.0
+	}
+	seq.RadiusCoef = make([]float64, 8) // TRM::Tube::TOTAL_REGIONS
+	for i, _ := range seq.RadiusCoef {
+		seq.RadiusCoef[i] = 1.0
+	}
+	seq.TgCount = make([]int, 5)
+	return &seq
 }
 
 func (seq *Sequence) Defaults() {
@@ -228,26 +267,6 @@ func (seq *Sequence) Defaults() {
 }
 
 func (seq *Sequence) Init(config string, model *Model) {
-	seq.Model = model
-	seq.Defaults()
-	seq.TgParams = make([]float64, 5)
-	seq.InitToneGroups(config)
-
-	for i := 0; i < 10; i++ {
-		seq.FixedIntonationParams[i] = 0.0
-	}
-	for i := 0; i < 8; i++ { // TRM::Tube::TOTAL_REGIONS
-		seq.RadiusCoef[i] = 1.0
-	}
-
-	Events.reserve(128)
-
-	for i := 0; i < 10; i++ {
-		seq.FixedIntonationParams[i] = 0.0
-	}
-	for i := 0; i < 8; i++ { //TRM::Tube::TOTAL_REGIONS
-		seq.RadiusCoef[i] = 1.0
-	}
 
 }
 
@@ -265,70 +284,65 @@ func (seq *Sequence) SetRadiusCoefs(values []float64) {
 	}
 }
 
-func (seq *Sequence) ParseGroups(idx int, number int, fp *os.File) {
-	char line[256];
-	seq.TgParams[idx].resize(10 * number)
-	for i := 0; i < number; i++ {
-		fgets(line, 256, fp)
-		float* temp = &seq.TgParams[index][i * 10];
-		sscanf(line, " %f %f %f %f %f %f %f %f %f %f",
-			&temp[0], &temp[1], &temp[2], &temp[3], &temp[4],
-			&temp[5], &temp[6], &temp[7], &temp[8], &temp[9])
+func (seq *Sequence) ParseGroups(idx int, count int, fp *os.File) {
+	seq.TgParams[idx] = make([]float64, 10 * count)
+	f := bufio.NewReader(fp)
+	for i := 0; i < count; i++ {
+		for {
+			line, isP, err := f.ReadLine()
+			if err == io.EOF {
+				break
+			}
+			if isP == true {
+				log.Println("ParseGroups: partial line read, will likely be a problem")
+			}
+			seq.TgParams[idx] = make([]float64, i*10)
+			temp := seq.TgParams
+			fmt.Sscanf(string(line), " %f %f %f %f %f %f %f %f %f %f",
+				&temp[0], &temp[1], &temp[2], &temp[3], &temp[4],
+				&temp[5], &temp[6], &temp[7], &temp[8], &temp[9])
+		}
 	}
 }
 
-func (seq *Sequence) InitToneGroups(configDirPath string {
+func (seq *Sequence) InitToneGroups(configDirPath string) error {
 	var fp *os.File
-	var line [256]byte
 	count := 0
-	
-	std::ostringstream path;
-	path << configDirPath << INTONATION_CONFIG_FILE_NAME;
-	fp = os.Open(path.str().c_str(), "rb")
-	if fp == nil {
-		THROW_EXCEPTION(IOException, "Could not open the file " << path.str().c_str() << '.')
+
+	path := configDirPath + intonationConfig
+	fp, err := os.Open(path) // For read access.
+	if err != nil {
+		return err
 	}
-	while (fgets(line, 256, fp) != NULL) {
+
+	f := bufio.NewReader(fp)
+	for {
+		line, isP, err := f.ReadLine()
+		if err == io.EOF {
+			break
+		}
+		if isP == true {
+			log.Println("ParseGroups: partial line read, will likely be a problem")
+		}
 		if (line[0] == '#') || (line[0] == ' ') {
 			// Skip.
-		} else if strncmp(line, "TG", 2) == 0 {
-			sscanf(&line[2], " %d", &tgCount_[count])
-			parseGroups(count, tgCount_[count], fp)
-			count++;
-		} else if strncmp(line, "RANDOM", 6) == 0 {
-			sscanf(&line[6], " %f", &intonationRandom_)
+		} else if strings.HasPrefix(string(line), "TG") {
+			fmt.Sscanf(string(line[2]), " %d", seq.TgCount[count])
+			seq.ParseGroups(count, seq.TgCount[count], fp)
+			count++
+		} else if strings.HasPrefix(string(line), "RANDOM") {
+			fmt.Sscanf(string(line[6]), " %f", seq.IntonRandom)
 		}
 	}
 	fp.Close()
-	
-	if Log::debugEnabled {
-		printToneGroups()
-	}
+	return nil
 }
 
-func (seq *Sequence) PrintToneGroups( {
-	// printf("===== Intonation configuration:\n")
-	// printf("Intonation random = %f\n", intonationRandom_)
-	// printf("Tone groups: %d %d %d %d %d\n", tgCount_[0], tgCount_[1], tgCount_[2], tgCount_[3], tgCount_[4])
-	//
-	// for (int i = 0; i < 5; i++ {
-	// 	float* temp = &seq.TgParams[i][0];
-	// 	printf("Temp [%d] = %p\n", i, temp)
-	// 	int j = 0;
-	// 	for (int k = 0; k < tgCount_[i]; k++ {
-	// 		printf("%f %f %f %f %f %f %f %f %f %f\n",
-	// 			temp[j]  , temp[j+1], temp[j+2], temp[j+3], temp[j+4],
-	// 			temp[j+5], temp[j+6], temp[j+7], temp[j+8], temp[j+9])
-	// 		j += 10;
-	// 	}
-	// }
-}
-
-func (seq *Sequence) GetBeatAtIndex(ruleIdx int) float64 {
-	if ruleIdx > seq.CurRule {
+func (seq *Sequence) GetBeatAtIndex(idx int) float64 {
+	if idx > seq.CurRule {
 		return 0.0
 	} else {
-		// return ruleData_[ruleIndex].beat;
+		return seq.RuleDatum[idx].Beat
 	}
 }
 
@@ -377,36 +391,6 @@ func (seq *Sequence) NewFoot() {
 	f.Tempo = 1.0
 	seq.Feet = append(seq.Feet, f)
 }
-
-// void
-// EventList::setCurrentFootMarked()
-// {
-// 	seq.Feet[currentFoot_].marked = 1;
-// }
-//
-// void
-// EventList::setCurrentFootLast()
-// {
-// 	seq.Feet[currentFoot_].last = 1;
-// }
-//
-// void
-// EventList::setCurrentFootTempo(double tempo)
-// {
-// 	seq.Feet[currentFoot_].tempo = tempo;
-// }
-//
-// void
-// EventList::setCurrentPostureTempo(double tempo)
-// {
-// 	seq.PostureTempos[seq.CurPosture] = tempo;
-// }
-//
-// void
-// EventList::setCurrentPostureRuleTempo(float tempo)
-// {
-// 	seq.PostureDatum[seq.CurPosture].ruleTempo = tempo;
-// }
 
 func (seq *Sequence) NewToneGroup() {
 	if seq.CurFoot == 0 {
@@ -501,32 +485,31 @@ func (seq *Sequence) SetZeroRef(nv int) {
 	}
 }
 
-func (seq *Sequence) SlopeRatioEvents(evIdx int, slopeRatio SlopeRatio, baseline, paramDelta, min, max float64) float64 {
+func (seq *Sequence) SlopeRatioEvents(evIdx int, sr *SlopeRatio, baseline, paramDelta, min, max float64) float64 {
 	sum := 0.0
 	var pointTime float64
 	var pointValue float64
 
-	pointTime, pointValue = Transition.PointData(slopeRatio.Points[0], seq.Model)
+	pointTime, pointValue = PointData(sr.Points[0], seq.Model)
 	baseTime := pointTime;
 	startValue := pointValue;
 
-	l := len(slopeRatio.Points)
-	pointTime, pointValue = Transition.PointData(slopeRatio.Points[l-1], seq.Model)
+	l := len(sr.Points)
+	pointTime, pointValue = PointData(sr.Points[l-1], seq.Model)
 	endTime := pointTime;
 	delta := pointValue - startValue;
 
-	temp := slopeRatio.totalSlopeUnits()
+	temp := sr.NSlopeUnits()
 	totalTime := endTime - baseTime;
 
-	nSlopes := len(slopeRatio.Slopes)
+	nSlopes := len(sr.Slopes)
 
-	newPtVals := [nSlopes-1]float64
+	newPtVals := make([]float64, nSlopes-1)
 	for i := 1; i < nSlopes + 1; i++ {
-		temp1 := slopeRatio.slopeList[i-1].Slope / temp; /* Calculate normal slope */
+		temp1 := sr.Slopes[i-1].Slope / temp; /* Calculate normal slope */
 
 		/* Calculate time interval */
-		intervalTime := Transition.PointTime(slopeRatio.Points[i], seq.Model)
-				- Transition.PointTime(slopeRatio.Points[i-1], seq.Model)
+		intervalTime := PointTime(sr.Points[i], seq.Model) - PointTime(sr.Points[i-1], seq.Model)
 
 		/* Apply interval percentage to slope */
 		temp1 = temp1 * (intervalTime / totalTime)
@@ -535,37 +518,37 @@ func (seq *Sequence) SlopeRatioEvents(evIdx int, slopeRatio SlopeRatio, baseline
 		temp1 = temp1 * delta;
 		sum += temp1;
 
-		if i < numSlopes {
-			newPointValues[i - 1] = temp1;
+		if i < nSlopes {
+			newPtVals[i - 1] = temp1;
 		}
 	}
 	factor := delta / sum;
 	temp = startValue;
 
 	value := 0.0;
-	pts := len(slopeRatio.Points)
+	pts := len(sr.Points)
 	for i := 0; i < pts; i++ {
-		pt := slopeRatio.Points[i];
+		pt := sr.Points[i];
 
 		if i >= 1 && i < pts - 1 {
-			pointTime = Transition.PointTime(pt, seq.Model)
+			pointTime = PointTime(pt, seq.Model)
 
-			pointValue = newPointValues[i - 1];
+			pointValue = newPtVals[i - 1];
 			pointValue *= factor;
 			pointValue += temp;
 			temp = pointValue;
 		} else {
-			pointTime, pointValue = Transition.PointData(point, seq.Model)
+			pointTime, pointValue = PointData(pt, seq.Model)
 		}
 
-		value = baseline + ((pointValue / 100.0) * parameterDelta)
+		value = baseline + ((pointValue / 100.0) * paramDelta)
 		if value < min {
 			value = min;
 		} else if value > max {
 			value = max;
 		}
-		if !pt.isPhantom {
-			seq.InsertEvent(eventIndex, pointTime, value)
+		if !pt.IsPhantom {
+			seq.InsertEvent(evIdx, pointTime, value)
 		}
 	}
 	return value;
@@ -574,16 +557,16 @@ func (seq *Sequence) SlopeRatioEvents(evIdx int, slopeRatio SlopeRatio, baseline
 // It is assumed that postureList.size() >= 2.
 // ApplyRule
 func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos []float64, postureIdx int) {
-	ruleSyms := [5]float64{0.0, 0.0, 0.0, 0.0, 0.0}
+	var val float64
+	ruleSyms := []float64{0.0, 0.0, 0.0, 0.0, 0.0}
 
-	rule.EvalExpr(tempos, &postures, seq.Model, ruleSyms)
+	rule.EvalExpr(tempos, postures, seq.Model, ruleSyms)
 	seq.Multiplier = 1.0 / seq.PostureDatum[postureIdx].RuleTempo
-	n := len(rule.BoolExprs)
-	phtype := PhoneType(n)
+	phtype := len(rule.BoolExprs)
 	seq.Duration = int(ruleSyms[0] * seq.Multiplier)
 
 	seq.RuleDatum[seq.CurRule].FirstPosture = postureIdx
-	seq.RuleDatum[seq.CurRule].LastPosture = postureIdx + int(phtype - 1)
+	seq.RuleDatum[seq.CurRule].LastPosture = postureIdx + int(phtype-1)
 	seq.RuleDatum[seq.CurRule].Beat = (ruleSyms[1] * seq.Multiplier) + float64(seq.ZeroRef)
 	seq.RuleDatum[seq.CurRule].Duration = ruleSyms[0] * seq.Multiplier
 	seq.CurRule++
@@ -596,7 +579,7 @@ func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos []float64,
 	/* Note: Case 4 should execute all of the below, case 3 the last two */
 	case TetraPhone:
 		if len(postures) == 4 {
-			seq.PostureDatum[postureIdx + 3].Onset = float64(seq.ZeroRef) + ruleSyms[1]
+			seq.PostureDatum[postureIdx+3].Onset = float64(seq.ZeroRef) + ruleSyms[1]
 			tempEvent = seq.InsertEvent(-1, ruleSyms[3], 0.0)
 			if tempEvent != nil {
 				tempEvent.Flag = 1
@@ -605,7 +588,7 @@ func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos []float64,
 		fallthrough
 	case TriPhone:
 		if len(postures) >= 3 {
-			seq.PostureDatum[postureIdx + 2].Onset = float64(seq.ZeroRef) + ruleSyms[1]
+			seq.PostureDatum[postureIdx+2].Onset = float64(seq.ZeroRef) + ruleSyms[1]
 			tempEvent = seq.InsertEvent(-1, ruleSyms[2], 0.0)
 			if tempEvent != nil {
 				tempEvent.Flag = 1
@@ -613,7 +596,7 @@ func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos []float64,
 		}
 		fallthrough
 	case DiPhone:
-		seq.PostureDatum[postureIdx + 1].Onset = float64(seq.ZeroRef) + ruleSyms[1]
+		seq.PostureDatum[postureIdx+1].Onset = float64(seq.ZeroRef) + ruleSyms[1]
 		tempEvent = seq.InsertEvent(-1, 0.0, 0.0)
 		if tempEvent != nil {
 			tempEvent.Flag = 1
@@ -621,8 +604,7 @@ func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos []float64,
 	default:
 		log.Println("ApplyRule fell through switch")
 	}
-
-	//tempTargets = (List *) [rule parameterList]
+	//tempTargets = (List *) [rule parameterList]  // commented out in C++
 
 	var targets [4]float64
 	/* Loop through the parameters */
@@ -665,82 +647,80 @@ func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos []float64,
 			curType := DiPhone
 			curDelta := targets[1] - targets[0]
 			lastVal := targets[0]
-			//lastValue = 0.0
+			//lastValue = 0.0 // commented out in C++
 
-			const std::shared_ptr<Transition> transition = rule.getParamProfileTransition(i)
-			if !transition {
-				THROW_EXCEPTION(UnavailableResourceException, "Rule transition not found: " << i << '.')
+			transition := &rule.ParamProfileTransitions[i]
+			if transition == nil {
+				log.Println("Rule tranisition not found")
+				return
 			}
 
 			/* Apply lists to parameter */
-			for j := 0; j < transition->pointOrSlopeList().size(); ++j {
-				const Transition::PointOrSlope& pointOrSlope = *transition->pointOrSlopeList()[j]
-				if pointOrSlope.isSlopeRatio() {
-					const auto& slopeRatio = dynamic_cast<const Transition::SlopeRatio&>(pointOrSlope)
-
-					if slopeRatio.pointList[0]->type != curType { //TODO: check pointList.size() > 0
-						curType = slopeRatio.pointList[0]->type
-						targets[curType - 2] = lastVal
-						curDelta = targets[curType - 1] - lastVal
+			for j := 0; j < len(transition.PtSlpList); j++ {
+				pointOrSlope := transition.PtSlpList[j]
+				slopeRatio, ok := pointOrSlope.(SlopeRatio)
+				if ok { // is SlopeRatio
+					if int(slopeRatio.Points[0].TType) != curType { //TODO: check pointList.size() > 0
+						curType = int(slopeRatio.Points[0].TType)
+						targets[curType-2] = lastVal
+						curDelta = targets[curType-1] - lastVal
 					}
-					val = createSlopeRatioEvents(
-							slopeRatio, targets[curType - 2], curDelta,
-							min_[i], max_[i], i)
+					v := seq.SlopeRatioEvents(i, &slopeRatio, targets[curType-2], curDelta,
+						seq.Min[i], seq.Max[i])
+					val = v
 				} else {
-					const auto& point = dynamic_cast<const Transition::Point&>(pointOrSlope)
-
-					if point.type != curType {
-						curType = point.type
-						targets[curType - 2] = lastVal
-						curDelta = targets[curType - 1] - lastVal
+					pt, ok := pointOrSlope.(Point)
+					if ok { // is SlopeRatio
+						if int(pt.TType) != curType {
+							curType = int(pt.TType)
+							targets[curType-2] = lastVal
+							curDelta = targets[curType-1] - lastVal
+						}
+						ptTime, v := PointData(pt, seq.Model)
+						val = v
+						if !pt.IsPhantom {
+							seq.InsertEvent(i, ptTime, val)
+						}
 					}
-					double pointTime
-					Transition::getPointData(point, seq.Model,
-									targets[curType - 2], curDelta, min_[i], max_[i],
-									pointTime, val)
-					if !point.isPhantom {
-						insertEvent(i, pointTime, val)
-					}
+					lastVal = val
 				}
-				lastVal = val
 			}
 		}
 		//else {
 		//	insertEvent(i, 0.0, targets[0])
 		//}
-	}
 
 	/* Special Event Profiles */
 	for i := 0; i < len(seq.Model.Params); i++ {
-		const std::shared_ptr<Transition> specialTransition = rule.getSpecialProfileTransition(i)
-		if specialTransition {
-			for (j := 0; j < specialTransition->pointOrSlopeList().size(); ++j {
-				const Transition::PointOrSlope& pointOrSlope = *specialTransition->pointOrSlopeList()[j];
-				const auto& point = dynamic_cast<const Transition::Point&>(pointOrSlope)
+		spTrans := rule.SpecialProfileTransitions[i]
+			for j := 0; j < len(spTrans.PtSlpList); j++ {
+				pointOrSlope := spTrans.PtSlpList[j]
+				pt, ok := pointOrSlope.(Point)
+				if !ok {
+					log.Println("Apply Rule: type assertion failure - not a Point")
+				}
 
 				/* calculate time of event */
-				tempTime := Transition::getPointTime(point, seq.Model)
+				tempTime := PointTime(pt, seq.Model)
 
 				/* Calculate value of event */
-				value = ((point.value / 100.0) * (max_[i] - min_[i]))
-				//maxValue = value;
+				value := (pt.Value / 100.0) * (seq.Max[i] - seq.Min[i])
+				//maxValue = value; // commented out in C++
 
 				/* insert event into event list */
-				insertEvent(i + 16U, tempTime, value)
+				seq.InsertEvent(i + 16, tempTime, value)
 			}
 		}
 	}
 
-	seq.ZeroRef = int(ruleSyms[0] * seq.Multiplier) + seq.ZeroRef
+	seq.SetZeroRef(int(ruleSyms[0] * seq.Multiplier) + seq.ZeroRef)
 	tempEvent = seq.InsertEvent(-1, 0.0, 0.0)
 	if tempEvent != nil {
 		tempEvent.Flag = 1
 	}
-
-
 }
 
-func (seq *Sequence) GenerateEventList( {
+func (seq *Sequence) GenerateEventList() {
 	for i := 0; i < 16; i++ { //TODO: replace hard-coded value
 		param := seq.Model.Params[i]
 		seq.Min[i] = param.Min
@@ -772,67 +752,82 @@ func (seq *Sequence) GenerateEventList( {
 		}
 	}
 
-	int basePostureIndex = 0;
-	std::vector<const Posture*> tempPostureList;
-	while (basePostureIndex < seq.CurPosture {
-		tempPostureList.clear()
+	basePosIdx := 0;
+	var tempPostures = []Posture{}
+	for basePosIdx < seq.CurPosture {
+		tempPostures = tempPostures[:0]
 		for i := 0; i < 4; i++ {
-			int postureIndex = basePostureIndex + i;
-			if postureIndex <= seq.CurPosture && seq.PostureDatum[postureIndex].posture {
-				tempPostureList.push_back(seq.PostureDatum[postureIndex].posture)
+			postureIndex := basePosIdx + i;
+			if postureIndex <= seq.CurPosture && seq.PostureDatum[postureIndex].Posture != nil  {
+				tempPostures = append(tempPostures, *(seq.PostureDatum[postureIndex].Posture))
 			} else {
 				break;
 			}
 		}
-		if tempPostureList.size() < 2 {
+		if len(tempPostures) < 2 {
 			break;
 		}
-		int ruleIndex = 0;
-		const Rule* tempRule = seq.Model.findFirstMatchingRule(tempPostureList, ruleIndex)
-		if tempRule == nullptr {
-			THROW_EXCEPTION(UnavailableResourceException, "Could not find a matching rule.")
+		ruleIndex := 0;
+		tempRule, ruleIndex := seq.Model.FirstRule(tempPostures)
+		if tempRule == nil {
+			log.Println("Could not find a matching rule.")
+			return
 		}
 
-		seq.RuleDatum[seq.CurRule].number = ruleIndex + 1U;
-
-		applyRule(*tempRule, tempPostureList, &seq.PostureTempos[basePostureIndex], basePostureIndex)
-
-		basePostureIndex += tempRule->numberOfExpressions() - 1;
+		seq.RuleDatum[seq.CurRule].Number = ruleIndex + 1
+		seq.ApplyRule(tempRule, tempPostures, seq.PostureTempos, basePosIdx)
+		basePosIdx += len(tempRule.BoolExprs) - 1;
 	}
 
 	//[dataPtr[numElements-1] setFlag:1];
 }
 
-func (seq *Sequence) SetFullTimeScale( {
+func (seq *Sequence) SetFullTimeScale() {
 	seq.ZeroRef = 0;
 	seq.ZeroIdx = 0;
-	seq.Duration = Events.back()->time + 100;
+	seq.Duration = seq.Events[len(seq.Events)-1].Time + 100;
 }
 
+// IntRange is the way to specify the min and max values for an integer range (used here when generating random numbers)
+type IntRange struct {
+	Min int
+	Max int
+}
 
-func (seq *Sequence) ApplyIntonation( {
+func (seq *Sequence) ApplyIntonation() {
 	var tgRandom int
 	ruleIndex := 0
-	 postureIndex;
-	int i, j, k;
-	double pretonicDelta, offsetTime = 0.0;
-	double randomSemitone, randomSlope;
+	//double pretonicDelta, offsetTime = 0.0;
+	//double randomSemitone, randomSlope;
 
 	seq.ZeroRef = 0;
 	seq.ZeroIdx = 0;
-	seq.Duration = Events.back()->time + 100;
+	seq.Duration = seq.Events[len(seq.Events) - 1].Time + 100
+	seq.IntonationPts = seq.IntonationPts[:0]  // clear
 
-	seq.IntonationPts.clear()
-
-	std::shared_ptr<const Category> vocoidCategory = seq.Model.findCategory("vocoid")
-	if !vocoidCategory {
-		THROW_EXCEPTION(UnavailableResourceException, "Could not find the category \"vocoid\".")
+	vocoidCategory := seq.Model.CategoryTry("vocoid")
+	if vocoidCategory == nil {
+		log.Println("Could not find the category \"vocoid\".")
+		return
 	}
 
-	std::uniform_int_distribution<> intRandDist0(0, tgCount_[0] > 0 ? tgCount_[0] - 1 : 0)
-	std::uniform_int_distribution<> intRandDist1(0, tgCount_[1] > 0 ? tgCount_[1] - 1 : 0)
-	std::uniform_int_distribution<> intRandDist2(0, tgCount_[2] > 0 ? tgCount_[2] - 1 : 0)
-	std::uniform_int_distribution<> intRandDist3(0, tgCount_[3] > 0 ? tgCount_[3] - 1 : 0)
+	var randDist0 IntRange
+	var randDist1 IntRange
+	var randDist2 IntRange
+	var randDist3 IntRange
+
+	if seq.TgCount[0] > 0 {
+		randDist0.Max = seq.TgCount[0]-1
+	}
+	if seq.TgCount[1] > 0 {
+		randDist1.Max = seq.TgCount[1]-1
+	}
+	if seq.TgCount[2] > 0 {
+		randDist2.Max = seq.TgCount[2]-1
+	}
+	if seq.TgCount[3] > 0 {
+		randDist3.Max = seq.TgCount[3]-1
+	}
 
 	for i := 0; i < seq.CurToneGroup; i++ {
 		firstFoot := seq.ToneGroups[i].StartFoot
@@ -850,39 +845,39 @@ func (seq *Sequence) ApplyIntonation( {
 			default:
 			case ToneStatement:
 				if seq.TgUseRandom {
-					tgRandom = intRandDist0(randSrc_)
+					tgRandom = rand.Intn(randDist0.Max)
 				} else {
 					tgRandom = 0;
 				}
-				seq.IntonationParams = &seq.TgParams[0][tgRandom * 10];
+				seq.IntonationParams = seq.TgParams[0][tgRandom * 10]
 			case ToneExclamation:
 				if seq.TgUseRandom {
-					tgRandom = intRandDist0(randSrc_)
+					tgRandom = rand.Intn(randDist0.Max)
 				} else {
 					tgRandom = 0;
 				}
-				seq.IntonationParams = &seq.TgParams[0][tgRandom * 10];
+				seq.IntonationParams = seq.TgParams[0][tgRandom * 10];
 			case ToneQuestion:
 				if seq.TgUseRandom {
-					tgRandom = intRandDist1(randSrc_)
+					tgRandom = rand.Intn(randDist1.Max)
 				} else {
 					tgRandom = 0;
 				}
-				seq.IntonationParams = &seq.TgParams[1][tgRandom * 10];
+				seq.IntonationParams = seq.TgParams[1][tgRandom * 10];
 			case ToneContinuation:
 				if seq.TgUseRandom {
-					tgRandom = intRandDist2(randSrc_)
+					tgRandom = rand.Intn(randDist2.Max)
 				} else {
 					tgRandom = 0;
 				}
-				seq.IntonationParams = &seq.TgParams[2][tgRandom * 10];
+				seq.IntonationParams = seq.TgParams[2][tgRandom * 10];
 			case ToneSemicolon:
 				if seq.TgUseRandom {
-					tgRandom = intRandDist3(randSrc_)
+					tgRandom = rand.Intn(randDist3.Max)
 				} else {
 					tgRandom = 0;
 				}
-				seq.IntonationParams = &seq.TgParams[3][tgRandom * 10];
+				seq.IntonationParams = seq.TgParams[3][tgRandom * 10];
 			}
 		}
 
@@ -891,8 +886,13 @@ func (seq *Sequence) ApplyIntonation( {
 		//	printf("%f ", intonParms[j])
 		//printf("\n")
 
+		pretonicDelta := 0.0
 		deltaTime := endTime - startTime;
-		pretonicDelta = deltaTime < EPS ? 0.0 : seq.IntonationParams[1] / deltaTime;
+		if deltaTime < eps {
+			pretonicDelta = 0
+		} else {
+			pretonicDelta = seq.IntonationParams[1] / deltaTime
+		}
 		//printf("Pretonic Delta = %f time = %f\n", pretonicDelta, (endTime - startTime))
 
 		/* Set up intonation boundary variables */
@@ -972,81 +972,76 @@ func (seq *Sequence) ApplyIntonation( {
 
 }
 
-func (seq *Sequence) ApplyIntonationSmooth( {
+func (seq *Sequence) ApplyIntonationSmooth() {
 	seq.SetFullTimeScale()
-	//tempPoint = [[IntonationPoint alloc] initWithEventList: self];
-	//[tempPoint setSemitone: -20.0];
-	//[tempPoint setSemitone: -20.0];
-	//[tempPoint setRuleIndex: 0];
-	//[tempPoint setOffsetTime: 10.0 - [self getBeatAtIndex:(int) 0]];
-
-	//[intonationPoints insertObject: tempPoint at:0];
+	//tempPoint = [[IntonationPoint alloc] initWithEventList: self]; //commented out in C++ version
+	//[tempPoint setSemitone: -20.0]; //commented out in C++ version
+	//[tempPoint setSemitone: -20.0]; //commented out in C++ version
+	//[tempPoint setRuleIndex: 0]; //commented out in C++ version
+	//[tempPoint setOffsetTime: 10.0 - [self getBeatAtIndex:(int) 0]]; //commented out in C++ version
+	//[intonationPoints insertObject: tempPoint at:0]; //commented out in C++ version
 
 	for j := 0; j < len(seq.IntonationPts) - 1; j++ {
-		const IntonationPoint& point1 = seq.IntonationPts[j];
-		const IntonationPoint& point2 = seq.IntonationPts[j + 1];
+		point1 := seq.IntonationPts[j];
+		point2 := seq.IntonationPts[j + 1];
 
-		double x1 = point1.absoluteTime() / 4.0;
-		double y1 = point1.semitone() + 20.0;
-		double m1 = point1.slope()
+		point1.AbsTime()
+		x1 := point1.AbsTime() / 4.0;
+		y1 := point1.SemiTone + 20.0;
+		m1 := point1.Slope
 
-		double x2 = point2.absoluteTime() / 4.0;
-		double y2 = point2.semitone() + 20.0;
-		double m2 = point2.slope()
+		x2 := point2.AbsTime() / 4.0;
+		y2 := point2.SemiTone + 20.0;
+		m2 := point2.Slope
 
-		double x12 = x1 * x1;
-		double x13 = x12 * x1;
+		x12 := x1 * x1;
+		x13 := x12 * x1;
 
-		double x22 = x2 * x2;
-		double x23 = x22 * x2;
+		x22 := x2 * x2;
+		x23 := x22 * x2;
 
-		double denominator = x2 - x1;
+		denominator := x2 - x1;
 		denominator = denominator * denominator * denominator;
 
-//		double d = ( -(y2 * x13) + 3 * y2 * x12 * x2 + m2 * x13 * x2 + m1 * x12 * x22 - m2 * x12 * x22 - 3 * x1 * y1 * x22 - m1 * x1 * x23 + y1 * x23 )
-//			/ denominator;
-		double c = ( -(m2 * x13) - 6 * y2 * x1 * x2 - 2 * m1 * x12 * x2 - m2 * x12 * x2 + 6 * x1 * y1 * x2 + m1 * x1 * x22 + 2 * m2 * x1 * x22 + m1 * x23 )
-			/ denominator;
-		double b = ( 3 * y2 * x1 + m1 * x12 + 2 * m2 * x12 - 3 * x1 * y1 + 3 * x2 * y2 + m1 * x1 * x2 - m2 * x1 * x2 - 3 * y1 * x2 - 2 * m1 * x22 - m2 * x22 )
-			/ denominator;
-		double a = ( -2 * y2 - m1 * x1 - m2 * x1 + 2 * y1 + m1 * x2 + m2 * x2) / denominator;
+//		double d = ( -(y2 * x13) + 3 * y2 * x12 * x2 + m2 * x13 * x2 + m1 * x12 * x22 - m2 * x12 * x22 - 3 * x1 * y1 * x22 - m1 * x1 * x23 + y1 * x23 ) / denominator; // commmented out in C++
+		c := ( -(m2 * x13) - 6 * y2 * x1 * x2 - 2 * m1 * x12 * x2 - m2 * x12 * x2 + 6 * x1 * y1 * x2 + m1 * x1 * x22 + 2 * m2 * x1 * x22 + m1 * x23 ) / denominator
+		b := ( 3 * y2 * x1 + m1 * x12 + 2 * m2 * x12 - 3 * x1 * y1 + 3 * x2 * y2 + m1 * x1 * x2 - m2 * x1 * x2 - 3 * y1 * x2 - 2 * m1 * x22 - m2 * x22 / denominator
+		a := ( -2 * y2 - m1 * x1 - m2 * x1 + 2 * y1 + m1 * x2 + m2 * x2) / denominator
 
-		insertEvent(32, point1.absoluteTime(), point1.semitone())
+		seq.InsertEvent(32, point1.AbsTime(), point1.SemiTone)
 		//printf("Inserting Point %f\n", [point1 semitone])
-		double yTemp = (3.0 * a * x12) + (2.0 * b * x1) + c;
-		insertEvent(33, point1.absoluteTime(), yTemp)
+		yTemp := (3.0 * a * x12) + (2.0 * b * x1) + c;
+		seq.InsertEvent(33, point1.AbsTime(), yTemp)
 		yTemp = (6.0 * a * x1) + (2.0 * b)
-		insertEvent(34, point1.absoluteTime(), yTemp)
+		seq.InsertEvent(34, point1.AbsTime(), yTemp)
 		yTemp = 6.0 * a;
-		insertEvent(35, point1.absoluteTime(), yTemp)
+		seq.InsertEvent(35, point1.AbsTime(), yTemp)
 	}
-	//[intonationPoints removeObjectAt:0];
+	//[intonationPoints removeObjectAt:0]; //commented out in C++ version
 
-	//[self insertEvent:32 atTime: 0.0 withValue: -20.0]; /* A value of -20.0 in bin 32 should produce a
-	//							    linear interp to -20.0 */
+	//[self insertEvent:32 atTime: 0.0 withValue: -20.0]; /* A value of -20.0 in bin 32 should produce a linear interp to -20.0 */ //commented out in C++ version
 }
 
-func (seq *Sequence) AddIntonationPoint(semiTone, offsetTime, slope float64, ruleIdx int {
+func (seq *Sequence) AddIntonationPoint(semiTone, offsetTime, slope float64, ruleIdx int) {
 
 	if ruleIdx > seq.CurRule {
 		return;
 	}
 
-	IntonationPoint iPoint(this)
-	iPoint.setRuleIndex(ruleIdx)
-	iPoint.setOffsetTime(offsetTime)
-	iPoint.setSemitone(semitone)
-	iPoint.setSlope(slope)
+	iPt := IntonationPt{}
+	iPt.RuleIdx = ruleIdx
+	iPt.Offset = offsetTime
+	iPt.SemiTone = semiTone
+	iPt.Slope = slope
 
-	double time = iPoint.absoluteTime()
+	time := iPt.AbsTime()
 	for i := 0; i < len(seq.IntonationPts); i++ {
-		if time < seq.IntonationPts[i].absoluteTime() {
+		if time < seq.IntonationPts[i].AbsTime() {
 			seq.IntonationPts.insert(seq.IntonationPts.begin() + i, iPoint)
 			return;
 		}
 	}
-
-	seq.IntonationPts.push_back(iPoint)
+	seq.IntonationPts = append(seq.IntonationPts, iPt)
 }
 
 void

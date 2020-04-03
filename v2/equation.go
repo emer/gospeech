@@ -201,7 +201,7 @@ func (fmu *FormulaSymbolVal) Eval(sl *FormulaSymbolList) float64 {
 }
 
 type FormulaNodeParser struct {
-	FormulaSymbolMap Formula
+	FormulaSymbols Formula
 	S string
 	Pos int
 	Symbol string
@@ -294,7 +294,7 @@ func (fnp *FormulaNodeParser) ParseFactor() *FormulaNode {
 // ToDo: !!!
 		fnp.NextSymbol()
 
-	//	for k, v := range fnp.FormulaSymbolMap.Syms {
+	//	for k, v := range fnp.FormulaSymbols.Syms { // .Syms is the map
 	//		if k == fnp.Symbol {
 	//			return NewFormulaConst(strconv.ParseFloat(temp))
 	//}
@@ -317,8 +317,9 @@ func (fnp *FormulaNodeParser) ParseFactor() *FormulaNode {
 		return nil
 	default:
 		//return nil, errors.New("Invalid Symbol")
-		return
+		return nil
 	}
+	return nil
 }
 
 // ParseTerm TERM -> FACTOR { MULT_OP FACTOR }
