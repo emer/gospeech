@@ -139,7 +139,7 @@ func PointTime(pt Point, model *Model) float64 {
 	if pt.timeExpr != nil {
 		return pt.FreeTime
 	} else {
-		return pt.timeExpr.Eval(model.Formula)
+		return pt.timeExpr.Eval(model.FormulaSymbols)
 	}
 }
 
@@ -148,7 +148,7 @@ func PointData(pt Point, model *Model) (time, value float64) {
 	if pt.timeExpr != nil {
 		time = pt.FreeTime
 	} else {
-		time = pt.timeExpr.Eval(model.Formula)
+		time = pt.timeExpr.Eval(model.FormulaSymbols)
 	}
 	value = pt.Value
 	return time, value
@@ -159,7 +159,7 @@ func PointDataMinMax(pt Point, model *Model, baseline, delta, min, max float64) 
 	if pt.timeExpr != nil {
 		time = pt.FreeTime
 	} else {
-		time = pt.timeExpr.Eval(model.Formula)
+		time = pt.timeExpr.Eval(model.FormulaSymbols)
 	}
 
 	value = baseline + (value/100.0)*delta

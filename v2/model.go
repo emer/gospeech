@@ -38,7 +38,7 @@ type Model struct {
 	EquationGrps     []EqGroup
 	TransitionGrps   []TransGroup
 	TransitionGrpsSp []TransGroup
-	Formula          *FormulaSymbolList
+	FormulaSymbols   *FormulaSymbols
 }
 
 // Reset
@@ -51,7 +51,7 @@ func (mdl *Model) Reset() {
 	mdl.EquationGrps = mdl.EquationGrps[:0]
 	mdl.TransitionGrps = mdl.TransitionGrps[:0]
 	mdl.TransitionGrpsSp = mdl.TransitionGrpsSp[:0]
-	mdl.Formula.Clear()
+	mdl.FormulaSymbols.Clear()
 }
 
 // Load
@@ -106,7 +106,7 @@ func (mdl *Model) PostureTry(nm string) *Posture {
 // EvalEquationFormula
 func (mdl *Model) EvalEquationFormul(eq *Equation) float64 {
 
-	return eq.Eval(mdl.Formula)
+	return eq.Eval(mdl.FormulaSymbols)
 }
 
 // FindEquationGroup
@@ -256,13 +256,13 @@ func (mdl *Model) TransitionGroupSpIndexTry(nm string) (grpIdx, eqIdx int) {
 }
 
 // FirstRule finds the first Rule that matches the given sequence of Postures. Returns rule and index
-func (mdl *Model) FirstRule(sequence []Posture) (*Rule, int) {
+func (mdl *Model) FirstRule(postureSequence []Posture, ruleIdx int) (*Rule, int) {
 	if len(mdl.Rules) == 0 {
 		return nil, -1
 	}
 	for i, r := range mdl.Rules {
-		if len(r.BoolExprs) <= len(sequence) {
-			if r.EvalExpr(sequence) {
+		if len(r.BoolExprs) <= len(postureSequence) {
+			if r.EvalRuleExpr(postureSequence) {
 				return &r, i
 			}
 		}

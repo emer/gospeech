@@ -67,11 +67,21 @@ func (pos *Posture) Copy(newNm string) *Posture {
 	return np
 }
 
-func (pos *Posture) IsMemberOfCategory(category *category) bool {
+func (pos *Posture) IsMemberOfCategory(category *Category) bool {
 	for _, c := range pos.Categories {
 		if &c == category {
 			return true
 		}
 	}
 	return false
+}
+
+// CategoryTry returns the address of the named Posture or nil if not found
+func (pos *Posture) CategoryTry(nm string) *Category {
+	for _, c := range pos.Categories {
+		if c.Name == nm {
+			return &c
+		}
+	}
+	return nil
 }

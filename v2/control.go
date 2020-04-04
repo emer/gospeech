@@ -67,7 +67,39 @@ func (ctrl *Control) LoadConfigs(path string) {
 	ctrl.TrmConfig.Load(trmConfigPath, voiceConfigPath)
 }
 
-func (ctrl *Control) InitUtterance() {
+//SynthSequenceToFile synthesizes speech from data contained in the event list
+func (ctrl *Control) SynthSequenceToFile(trmParaFile, outputFile string) {
+	f, err := os.Create(trmParaFile)
+	if err != nil {
+		log.Printf("Error trying to open %v\n", outputFile)
+		return
+	}
+	writer := bufio.NewWriter(f)
+	ctrl.InitUtterance(writer)
+	ctrl.Sequence.GenOutput(writer)
+
+	// ToDo:
+	//TRM::Tube trm;
+	//	trm.synthesizeToFile(trmParamStream, outputFile);
+}
+
+//SynthSequenceToBuf synthesizes speech from data contained in the event list
+func (ctrl *Control) SynthSequenceToBuf(trmParaFile string, buf []float64) {
+	f, err := os.Create(trmParaFile)
+	if err != nil {
+		log.Printf("Error trying to open %v\n", trmParaFile)
+		return
+	}
+	writer := bufio.NewWriter(f)
+	ctrl.InitUtterance(writer)
+	ctrl.Sequence.GenOutput(writer)
+
+	// ToDo:
+	//TRM::Tube trm;
+	//	trm.synthesizeToBuffer(trmParamStream, buf);
+}
+
+func (ctrl *Control) InitUtterance(w *bufio.Writer) {
 	rc := NewTrmConfig()
 	mc := ctrl.ModelConfig
 	if rc.OutputRate != 22050.0 && rc.OutputRate != 44100.0 {
@@ -88,7 +120,7 @@ func (ctrl *Control) InitUtterance() {
 		log.Printf("Error trying to create %v\n", "trmParams.txt")
 		return
 	}
-	w := bufio.NewWriter(f)
+	//w := bufio.NewWriter(f)
 	w.WriteString(fmt.Sprintf("%f", rc.OutputRate) + "\n")
 	w.WriteString(fmt.Sprintf("%f", mc.ControlRate) + "\n")
 	w.WriteString(fmt.Sprintf("%f", rc.Volume) + "\n")

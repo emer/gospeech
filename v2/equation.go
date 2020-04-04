@@ -29,7 +29,6 @@ package v2
 
 import (
 	"log"
-	"strconv"
 	"strings"
 	"unicode"
 
@@ -44,14 +43,14 @@ const rtParenChar = ')'
 const lftParenChar = '('
 
 type Equation struct {
-	Name string
-	Comment string
-	Formula string
+	Name        string
+	Comment     string
+	Formula     string
 	FormulaRoot *FormulaNode
 }
 
 type EqGroup struct {
-	Name string
+	Name      string
 	Equations []Equation
 }
 
@@ -59,31 +58,32 @@ type SymbolType int
 
 const (
 	SymInvalid = iota
-	 
+
 	SymAdd
-	 
+
 	SymSub
-	 
+
 	SymMult
-	
+
 	SymDiv
-	
+
 	SymRtParen
-	
+
 	SymLftParen
-	
+
 	SymString
-	
+
 	SymTypeN
 )
+
 //go:generate stringer -type=SymbolType
 
 var Kit_SymbolType = kit.Enums.AddEnum(SymTypeN, kit.NotBitFlag, nil)
 
-type FormulaNode struct {	// Parser returns the pi.Parser for this language
+type FormulaNode struct { // Parser returns the pi.Parser for this language
 }
 
-func (fn *FormulaNode) Eval(sl *FormulaSymbolList) float64 {
+func (fn *FormulaNode) Eval(sl *FormulaSymbols) float64 {
 	return 0.0
 }
 
@@ -98,7 +98,7 @@ func NewFormulaMinusUnaryOp(c *FormulaNode) *FormulaMinusUnaryOp {
 	return &f
 }
 
-func (fmu *FormulaMinusUnaryOp) Eval(sl *FormulaSymbolList) float64 {
+func (fmu *FormulaMinusUnaryOp) Eval(sl *FormulaSymbols) float64 {
 	return -(fmu.Eval(sl))
 }
 
@@ -115,8 +115,8 @@ func NewFormulaAddOp(c1, c2 *FormulaNode) *FormulaAddOp {
 	return &f
 }
 
-func (fmu *FormulaAddOp) Eval(sl *FormulaSymbolList) float64 {
-	return fmu.Eval(sl) + fmu.Eval(sl);
+func (fmu *FormulaAddOp) Eval(sl *FormulaSymbols) float64 {
+	return fmu.Eval(sl) + fmu.Eval(sl)
 }
 
 type FormulaSubOp struct {
@@ -132,8 +132,8 @@ func NewFormulaSubOp(c1, c2 *FormulaNode) *FormulaSubOp {
 	return &f
 }
 
-func (fmu *FormulaSubOp) Eval(sl *FormulaSymbolList) float64 {
-	return fmu.Eval(sl) - fmu.Eval(sl);
+func (fmu *FormulaSubOp) Eval(sl *FormulaSymbols) float64 {
+	return fmu.Eval(sl) - fmu.Eval(sl)
 }
 
 type FormulaMultOp struct {
@@ -149,8 +149,8 @@ func NewFormulaMultOp(c1, c2 *FormulaNode) *FormulaMultOp {
 	return &f
 }
 
-func (fmu *FormulaMultOp) Eval(sl *FormulaSymbolList) float64 {
-	return fmu.Eval(sl) * fmu.Eval(sl);
+func (fmu *FormulaMultOp) Eval(sl *FormulaSymbols) float64 {
+	return fmu.Eval(sl) * fmu.Eval(sl)
 }
 
 type FormulaDivOp struct {
@@ -166,8 +166,8 @@ func NewFormulaDivOp(c1, c2 *FormulaNode) *FormulaDivOp {
 	return &f
 }
 
-func (fmu *FormulaDivOp) Eval(sl *FormulaSymbolList) float64 {
-	return fmu.Eval(sl) / fmu.Eval(sl);
+func (fmu *FormulaDivOp) Eval(sl *FormulaSymbols) float64 {
+	return fmu.Eval(sl) / fmu.Eval(sl)
 }
 
 type FormulaConst struct {
@@ -181,7 +181,7 @@ func NewFormulaConst(value float64) *FormulaConst {
 	return &f
 }
 
-func (fmu *FormulaConst) Eval(sl *FormulaSymbolList) float64 {
+func (fmu *FormulaConst) Eval(sl *FormulaSymbols) float64 {
 	return fmu.Value
 }
 
@@ -196,16 +196,16 @@ func NewFormulaSymbolVal(symbol FormulaSymbolType) *FormulaSymbolVal {
 	return &f
 }
 
-func (fmu *FormulaSymbolVal) Eval(sl *FormulaSymbolList) float64 {
-	return sl.Symbols[int(fmu.Symbol)]
+func (fmu *FormulaSymbolVal) Eval(sl *FormulaSymbols) float64 {
+	return sl.CodeMap[fmu.Symbol]
 }
 
 type FormulaNodeParser struct {
-	FormulaSymbols Formula
-	S string
-	Pos int
-	Symbol string
-	SymbolType SymbolType
+	FormulaSymbols FormulaSymbols
+	S              string
+	Pos            int
+	Symbol         string
+	SymbolType     SymbolType
 }
 
 func NewFormulaNodeParser(s string) *FormulaNodeParser {
@@ -213,7 +213,7 @@ func NewFormulaNodeParser(s string) *FormulaNodeParser {
 	fnp.S = strings.TrimSpace(s)
 	fnp.Pos = 0
 	fnp.SymbolType = SymInvalid
-	
+
 	if len(fnp.S) == 0 {
 		log.Println("Formula expression parser error: Empty string.")
 		return nil
@@ -232,7 +232,7 @@ func (fnp *FormulaNodeParser) SkipSpaces() {
 		fnp.Pos++
 	}
 }
- 
+
 func (fnp *FormulaNodeParser) NextSymbol() {
 	fnp.SkipSpaces()
 	fnp.Symbol = ""
@@ -261,8 +261,8 @@ func (fnp *FormulaNodeParser) NextSymbol() {
 		fnp.SymbolType = SymLftParen
 	default:
 		fnp.SymbolType = SymString
-		cnext := string(fnp.S[fnp.Pos])  // notice that Pos has been incremented already
-		for !fnp.Finished() && !IsSeparator(cnext)  {
+		cnext := string(fnp.S[fnp.Pos]) // notice that Pos has been incremented already
+		for !fnp.Finished() && !IsSeparator(cnext) {
 			fnp.Symbol += cnext
 			fnp.Pos++
 		}
@@ -274,7 +274,7 @@ func (fnp *FormulaNodeParser) ParseFactor() *FormulaNode {
 	switch fnp.SymbolType {
 	case SymLftParen: // expression
 		fnp.NextSymbol()
-		 res := fnp.ParseExpr()
+		res := fnp.ParseExpr()
 		if fnp.SymbolType != SymRtParen {
 			//return nil, errors.New("ParseFactor: Right parenthesis not found")
 			return nil
@@ -285,13 +285,13 @@ func (fnp *FormulaNodeParser) ParseFactor() *FormulaNode {
 		fnp.NextSymbol()
 		return fnp.ParseFactor()
 	case SymSub: // unary minus
-		fnp.NextSymbol();
+		fnp.NextSymbol()
 		op := NewFormulaMinusUnaryOp(fnp.ParseFactor())
 		return &op.FormulaNode
 	case SymString: // const / symbol
 		//temp := fnp.Symbol
 
-// ToDo: !!!
+		// ToDo: !!!
 		fnp.NextSymbol()
 
 	//	for k, v := range fnp.FormulaSymbols.Syms { // .Syms is the map
@@ -324,12 +324,12 @@ func (fnp *FormulaNodeParser) ParseFactor() *FormulaNode {
 
 // ParseTerm TERM -> FACTOR { MULT_OP FACTOR }
 func (fnp *FormulaNodeParser) ParseTerm() *FormulaNode {
-	 term1 := fnp.ParseFactor();
+	term1 := fnp.ParseFactor()
 
-	symType := fnp.SymbolType;
+	symType := fnp.SymbolType
 	for symType == SymMult || symType == SymDiv {
 		fnp.NextSymbol()
-		term2 := fnp.ParseFactor();
+		term2 := fnp.ParseFactor()
 		var expr *FormulaNode
 		if symType == SymMult {
 			op := NewFormulaMultOp(term1, term2)
@@ -345,14 +345,14 @@ func (fnp *FormulaNodeParser) ParseTerm() *FormulaNode {
 		symType = fnp.SymbolType
 	}
 
-	return term1;
+	return term1
 }
 
 // ParseExpr  EXPRESSION -> TERM { ADD_OP TERM }
 func (fnp *FormulaNodeParser) ParseExpr() *FormulaNode {
 	term1 := fnp.ParseTerm()
 
-	symType := fnp.SymbolType;
+	symType := fnp.SymbolType
 	for symType == SymAdd || symType == SymSub {
 		fnp.NextSymbol()
 		term2 := fnp.ParseTerm()
@@ -373,24 +373,22 @@ func (fnp *FormulaNodeParser) ParseExpr() *FormulaNode {
 		symType = fnp.SymbolType
 	}
 
-	return term1;
+	return term1
 }
 
 // Parse
 func (fnp *FormulaNodeParser) Parse() *FormulaNode {
 	formulaRoot := fnp.ParseExpr()
-	if fnp.SymbolType != SymInvalid {  // hmmm, seems backwards
+	if fnp.SymbolType != SymInvalid { // hmmm, seems backwards
 		log.Println("Parse: Invalid text")
 		return nil
 	}
-	return formulaRoot;
+	return formulaRoot
 }
 
-} /* namespace */
-
-func (eq *Equation)SetFormula(formula string) {
+func (eq *Equation) SetFormula(formula string) {
 	np := NewFormulaNodeParser(formula)
-	tempFormulaRoot := np.Parse();
+	tempFormulaRoot := np.Parse()
 	eq.Formula = formula
 
 	temp := eq.FormulaRoot
@@ -398,7 +396,7 @@ func (eq *Equation)SetFormula(formula string) {
 	tempFormulaRoot = temp
 }
 
-func (eq *Equation) Eval(sl *FormulaSymbolList) float64 {
+func (eq *Equation) Eval(sl *FormulaSymbols) float64 {
 	if eq.FormulaRoot == nil {
 		panic("EmptyFormula")
 	}

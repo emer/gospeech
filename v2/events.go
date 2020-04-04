@@ -30,7 +30,6 @@ package v2
 import (
 	"bufio"
 	"fmt"
-	"gonum.org/v1/gonum/mathext/prng"
 	"io"
 	"log"
 	"math"
@@ -39,6 +38,7 @@ import (
 	"strings"
 
 	"github.com/goki/ki/kit"
+	"gonum.org/v1/gonum/mathext/prng"
 )
 
 const intonationConfig = "/intonation"
@@ -127,10 +127,10 @@ func (ev *Event) SetValue(v float64, idx int) {
 }
 
 type PostureData struct {
-	Posture   *Posture
 	Syllable  int
 	Onset     float64
 	RuleTempo float64
+	Posture   *Posture
 }
 
 func (pd *PostureData) Defaults() {
@@ -561,7 +561,7 @@ func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos []float64,
 	var val float64
 	ruleSyms := []float64{0.0, 0.0, 0.0, 0.0, 0.0}
 
-	rule.EvalExpr(tempos, postures, seq.Model, ruleSyms)
+	rule.EvalExprSyms(tempos, postures, seq.Model, ruleSyms)
 	seq.Multiplier = 1.0 / seq.PostureDatum[postureIdx].RuleTempo
 	phtype := len(rule.BoolExprs)
 	seq.Duration = int(ruleSyms[0] * seq.Multiplier)
@@ -769,7 +769,7 @@ func (seq *Sequence) GenerateEventList() {
 			break
 		}
 		ruleIndex := 0
-		tempRule, ruleIndex := seq.Model.FirstRule(tempPostures)
+		tempRule, ruleIndex := seq.Model.FirstRule(tempPostures, ruleIndex)
 		if tempRule == nil {
 			log.Println("Could not find a matching rule.")
 			return
@@ -848,35 +848,35 @@ func (seq *Sequence) ApplyIntonation() {
 				} else {
 					tgRandom = 0
 				}
-				seq.IntonationParams = seq.TgParams[0][tgRandom*10]
+				seq.IntonationParams[0] = seq.TgParams[0][tgRandom*10]
 			case ToneExclamation:
 				if seq.TgUseRandom {
 					tgRandom = rand.Intn(randDist0.Max)
 				} else {
 					tgRandom = 0
 				}
-				seq.IntonationParams = seq.TgParams[0][tgRandom*10]
+				seq.IntonationParams[0] = seq.TgParams[0][tgRandom*10]
 			case ToneQuestion:
 				if seq.TgUseRandom {
 					tgRandom = rand.Intn(randDist1.Max)
 				} else {
 					tgRandom = 0
 				}
-				seq.IntonationParams = seq.TgParams[1][tgRandom*10]
+				seq.IntonationParams[0] = seq.TgParams[1][tgRandom*10]
 			case ToneContinuation:
 				if seq.TgUseRandom {
 					tgRandom = rand.Intn(randDist2.Max)
 				} else {
 					tgRandom = 0
 				}
-				seq.IntonationParams = seq.TgParams[2][tgRandom*10]
+				seq.IntonationParams[0] = seq.TgParams[2][tgRandom*10]
 			case ToneSemicolon:
 				if seq.TgUseRandom {
 					tgRandom = rand.Intn(randDist3.Max)
 				} else {
 					tgRandom = 0
 				}
-				seq.IntonationParams = seq.TgParams[3][tgRandom*10]
+				seq.IntonationParams[0] = seq.TgParams[3][tgRandom*10]
 			}
 		}
 
@@ -1047,7 +1047,7 @@ func (seq *Sequence) AddIntonationPoint(semiTone, offsetTime, slope float64, rul
 	seq.IntonationPts = append(seq.IntonationPts, iPt)
 }
 
-func (seq *Sequence) GenOutput(stream) {
+func (seq *Sequence) GenOutput(w *bufio.Writer) {
 	curValues := [36]float64{}
 	curDeltas := [36]float64{}
 	table := [16]float64{}
@@ -1131,15 +1131,16 @@ func (seq *Sequence) GenOutput(stream) {
 		table[0] += seq.PitchMean
 
 		//trmParamStream << std::fixed << std::setprecision(3)
-		trmParamStream << table[0]
+		w.WriteString(fmt.Sprintf("%f", table[0]))
+
 		for k := 1; k < 7; k++ {
-			trmParamStream << ' ' << table[k]
+			w.WriteString(fmt.Sprintf(" %f", table[k]))
 		}
 		for k := 7; k < 15; k++ { // R1 - R8
-			trmParamStream << ' ' << table[k] * seq.RadiusCoef[k-7]
+			w.WriteString(fmt.Sprintf(" %f", table[k]*seq.RadiusCoef[k-7]))
 		}
-		trmParamStream << ' ' << table[15]
-		trmParamStream << '\n'
+		w.WriteString(fmt.Sprintf(" %f", table[15]))
+		w.WriteString("\n")
 
 		for j := 0; j < 32; j++ {
 			if curDeltas[j] > 0.0 {

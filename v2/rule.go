@@ -73,16 +73,17 @@ const (
 
 	LogicSymTypeN
 )
+
 //go:generate stringer -type=LogicSymbolType
 
 var Kit_LogicSymbolType = kit.Enums.AddEnum(LogicSymTypeN, kit.NotBitFlag, nil)
 
 // Parse
 type Parser struct {
-	Model *Model
-	Str string
-	Pos int
-	Symbol string
+	Model   *Model
+	Str     string
+	Pos     int
+	Symbol  string
 	SymType LogicSymbolType
 }
 
@@ -142,8 +143,8 @@ func (pars *Parser) NextSymbol() {
 		pars.SymType = SymLftParen
 		break
 	default:
-		cnext := string(pars.Str[pars.Pos])  // notice that Pos has been incremented already
-		for !pars.Finished() && !IsSeparator(cnext)  {
+		cnext := string(pars.Str[pars.Pos]) // notice that Pos has been incremented already
+		for !pars.Finished() && !IsSeparator(cnext) {
 			pars.Symbol += cnext
 			pars.Pos++
 		}
@@ -162,103 +163,108 @@ func (pars *Parser) NextSymbol() {
 }
 
 // GetNode returns the next boolean node
-func (pars *Parser) GetNode() (node *Node) {
+func (pars *Parser) GetRuleNode() *RuleBooleanNode {
 	switch pars.SymType {
 
 	case SymLftParen:
-	{
-		//var p *Node
+		{
+			var p *RuleBooleanNode
 
-		pars.NextSymbol()
-		if pars.SymType == LogicSymNot {
-			// operand.
 			pars.NextSymbol()
-			var op *Node
-			op = pars.GetNode()
-			node = op
-		} else {
-			// 1st operand
-			var op1 *Node
-			op1 = pars.GetNode()
 
-			// operator.
-			var op2 *Node
-			switch pars.SymType {
-			case LogicSymOr:
-			{	// 2nd operand.
+			if pars.SymType == LogicSymNot {
+				// operand.
 				pars.NextSymbol()
-				op2 = pars.GetNode()
-				newExpr :=
-				// p.reset(new RuleBooleanOrExpression(std::move(op1), std::move(op2)))
-				break;
-			}
-			case LogicSymAnd:
-			{	// 2nd operand.
-				pars.NextSymbol()
-				op2 = pars.GetNode()
-				node = RuleAndExpression(op1, op2)
+				op := pars.GetRuleNode()
+				p = op
+			} else {
+				// 1st operand
+				var op1 *RuleBooleanNode
+				op1 = pars.GetRuleNode()
 
+				// operator.
+				var op2 *RuleBooleanNode
+				switch pars.SymType {
+				case LogicSymOr:
+					{ // 2nd operand.
+						pars.NextSymbol()
+						op2 = pars.GetRuleNode()
+						ex := RuleOrExpr{}
+						ex.Child1 = op1
+						ex.Child2 = op2
+						p = &ex.RuleBooleanNode
+					}
+				case LogicSymAnd:
+					{ // 2nd operand.
+						pars.NextSymbol()
+						op2 = pars.GetRuleNode()
+						ex := RuleAndExpr{}
+						ex.Child1 = op1
+						ex.Child2 = op2
+						p = &ex.RuleBooleanNode
+					}
+				case LogicSymXor:
+					{ // 2nd operand.
+						pars.NextSymbol()
+						op2 = pars.GetRuleNode()
+						ex := RuleXorExpr{}
+						ex.Child1 = op1
+						ex.Child2 = op2
+						p = &ex.RuleBooleanNode
+					}
+				case LogicSymNot:
+					log.Println("Invalid operator")
+					return nil
+				default:
+					log.Println("Missing operator")
+					return nil
+				}
 			}
-			case LogicSymXor:
-			{	// 2nd operand.
-				pars.NextSymbol()
-				op2  = pars.GetNode()
-				node = RuleXorExpression(op1, op2)
 
-			}
-			case LogicSymNot:
-				log.Println("Invalid operator")
+			if pars.SymType != SymRtParen {
+				log.Println("Right parenthesis not found")
 				return nil
-			default:
-				log.Println("Missing operator")
-				return nil
 			}
+			pars.NextSymbol()
+			return p
 		}
-
-		if (pars.SymType != SymRtParen) {
-			log.Println("Right parenthesis not found")
-			return nil
-		}
-		pars.NextSymbol()
-		return nil
-	}
 
 	case LogicSymString:
-	{
-		wild := false;
-		if len(pars.Symbol) >= 2 && pars.Symbol[len(pars.Symbol - 1)] == wildCard {
-			wild = true;
-		}
+		{
+			wild := false
+			if len(pars.Symbol) >= 2 && string(pars.Symbol[len(pars.Symbol)-1]) == wildCard {
+				wild = true
+			}
 
-		var name string
-		if wild {
-			name = pars.Symbol.substr(0, pars.Symbol.size() - 1)
-		} else {
-			name = pars.Symbol;
-		}
-
-		var category Category
-		posture = pars.Model.PostureNameTry(name)
-		if posture != nil {
-			category = posture.CategoryNameTry(name)
-		} else {
+			var name string
 			if wild {
-				log.Println("Asterisk at the end of a category name")
+				name = pars.Symbol[0 : len(pars.Symbol)-1]
+			} else {
+				name = pars.Symbol
+			}
+
+			var category *Category
+			posture := pars.Model.PostureTry(name)
+			if posture != nil {
+				category = posture.CategoryTry(name)
+			} else {
+				if wild {
+					log.Println("Asterisk at the end of a category name")
+					return nil
+				}
+				category = pars.Model.CategoryTry(name)
+			}
+			if category == nil {
+				log.Printf("Could not find category: %v", name)
 				return nil
 			}
-			category = pars.Model.CategoryNameTry(name)
-		}
-		if category == nil {
-			log.Printf("Could not find category: %v", name)
-			return nil
-		}
 
- 		nextSymbol()
-		nt := NewNode(NodeTerminal, nil, nil)
-		nt.Category = Category
-		nt.Wild = wilcard
-		return &nt
-	}
+			pars.NextSymbol()
+			nt := RuleTerminalExpr{}
+			nt.Cat = category
+			nt.MatchAll = wild
+			return &nt.RuleBooleanNode
+		}
 	case LogicSymOr:
 		return nil
 	case LogicSymNot:
@@ -275,30 +281,135 @@ func (pars *Parser) GetNode() (node *Node) {
 }
 
 // Parse
-func (pars *Parser) Parse() *Node {
-	root := pars.GetNode()
-	if (root.NodeType != SymInvalid) {
+func (pars *Parser) Parse() *RuleBooleanNode {
+	root := pars.GetRuleNode()
+	if pars.SymType != SymInvalid {
 		return nil // ToDo: this doesn't make sens
 	}
 	return root
 }
 
+func RuleNodeEval(node *RuleBooleanNode) bool {
+	return true
+}
+
+type RuleBooleanNode interface {
+	Eval(pos *Posture) bool
+}
+
+type RuleAndExpr struct {
+	RuleBooleanNode
+	Child1 *RuleBooleanNode
+	Child2 *RuleBooleanNode
+}
+
+func (ex *RuleAndExpr) Eval(pos *Posture) bool {
+	if ex.Child1 == nil || ex.Child2 == nil {
+		log.Println("RuleAndExpr: Eval error - one or both of Child1 and Child2 are nil")
+		return false
+	}
+	result := RuleNodeEval(ex.Child1) && RuleNodeEval(ex.Child2)
+	return result
+}
+
+type RuleXorExpr struct {
+	RuleBooleanNode
+	Child1 *RuleBooleanNode
+	Child2 *RuleBooleanNode
+}
+
+func (ex *RuleXorExpr) Eval(pos *Posture) bool {
+	if ex.Child1 == nil || ex.Child2 == nil {
+		log.Println("RuleAndExpr: Eval error - one or both of Child1 and Child2 are nil")
+		return false
+	}
+	result := RuleNodeEval(ex.Child1) != RuleNodeEval(ex.Child2)
+	return result
+}
+
+type RuleOrExpr struct {
+	RuleBooleanNode
+	Child1 *RuleBooleanNode
+	Child2 *RuleBooleanNode
+}
+
+func (ex *RuleOrExpr) Eval(pos *Posture) bool {
+	if ex.Child1 == nil || ex.Child2 == nil {
+		log.Println("RuleOrExpr: Eval error - one or both of Child1 and Child2 are nil")
+		return false
+	}
+	result := RuleNodeEval(ex.Child1) || RuleNodeEval(ex.Child2)
+	return result
+}
+
+type RuleNotExpr struct {
+	RuleBooleanNode
+	Child *RuleBooleanNode
+}
+
+func (ex *RuleNotExpr) Eval(pos *Posture) bool {
+	if ex.Child == nil {
+		log.Println("RuleAndExpr: Eval error - one or both of Child1 and Child2 are nil")
+		return false
+	}
+	result := !RuleNodeEval(ex.Child)
+	return result
+}
+
+type RuleTerminalExpr struct {
+	RuleBooleanNode
+	Cat      *Category
+	MatchAll bool
+}
+
+func (ex *RuleTerminalExpr) Eval(pos *Posture) bool {
+	if pos.IsMemberOfCategory(ex.Cat) {
+		return true
+	} else if ex.MatchAll {
+		return pos.Name == ex.Cat.Name+"'" // tried "\'" but got invalid escape sequence
+	}
+	return false
+}
+
+func (r *Rule) EvalRuleExpr(postures []Posture) bool {
+	if len(postures) < len(r.RuleNodes) {
+		return false
+	}
+	if len(r.RuleNodes) == 0 {
+		return false
+	}
+	for i := 0; i < len(r.RuleNodes); i++ {
+		if !(r.RuleNodes[i].Eval(&postures[i])) {
+			return false
+		}
+	}
+	return true
+}
+
+//bool
+//Rule::evalBooleanExpression(const Posture& posture, unsigned int expressionIndex) const
+//{
+//if (expressionIndex >= booleanNodeList_.size()) return false;
+//
+//return booleanNodeList_[expressionIndex]->eval(posture);
+//}
+
 // EvalExpr
-func (r *Rule) EvalExpr(tempos []float64, postures []Posture, model *Model, syms []float64) {
+func (r *Rule) EvalExprSyms(tempos []float64, postures []Posture, model *Model, syms []float64) {
 	var localTempos []float64
 
-	model.Formula.Clear()
+	model.FormulaSymbols.Clear()
 
 	if len(postures) >= 2 {
 		pos := postures[0]
-		model.Formula[Transition1] = pos.GetSymbolTarget(1)
-		model.Formula[Qssa1] = pos.GetSymbolTarget(2)
-		 model.Formula[Qssb1] = pos.GetSymbolTarget(3)
+		model.FormulaSymbols.CodeMap[FormulaSymTransition1] = pos.SymTargets[1]
+		model.FormulaSymbols.CodeMap[FormulaSymQssa1] = pos.SymTargets[2]
+		model.FormulaSymbols.CodeMap[FormulaSymQssb1] = pos.SymTargets[3]
 
-		pos := postures[1]
-		model.Formula[Transition2] = pos.GetSymbolTarget(1)
-		model.Formula[Qssa2] = Posture.GetSymbolTarget(2)
-		 model.Formula[Qssb2] = pos.GetSymbolTarget(3)
+		pos = postures[1]
+		model.FormulaSymbols.CodeMap[FormulaSymTransition2] = pos.SymTargets[1]
+		model.FormulaSymbols.CodeMap[FormulaSymQssa2] = pos.SymTargets[2]
+		model.FormulaSymbols.CodeMap[FormulaSymQssb2] = pos.SymTargets[3]
 		localTempos[0] = tempos[0]
 		localTempos[1] = tempos[1]
 	} else {
@@ -307,80 +418,78 @@ func (r *Rule) EvalExpr(tempos []float64, postures []Posture, model *Model, syms
 	}
 
 	if len(postures) >= 3 {
-				pos := postures[2]
-	model.Formula[Transition3] = pos.GetSymbolTarget(1)
-		model.Formula[Qssa3] = pos.GetSymbolTarget(2)
-		 model.Formula[Qssb3] = pos.GetSymbolTarget(3)
+		pos := postures[2]
+		model.FormulaSymbols.CodeMap[FormulaSymTransition3] = pos.SymTargets[1]
+		model.FormulaSymbols.CodeMap[FormulaSymQssa3] = pos.SymTargets[2]
+		model.FormulaSymbols.CodeMap[FormulaSymQssb3] = pos.SymTargets[3]
 		localTempos[2] = tempos[2]
 	} else {
 		localTempos[2] = 0.0
 	}
 
 	if len(postures) >= 4 {
-				pos := postures[3]
-	model.Formula[Transition4] = pos.GetSymbolTarget(1)
-		model.Formula[Qssa4] = pos.GetSymbolTarget(2)
-		 model.Formula[Qssb4] = pos.GetSymbolTarget(3)
+		pos := postures[3]
+		model.FormulaSymbols.CodeMap[FormulaSymTransition4] = pos.SymTargets[1]
+		model.FormulaSymbols.CodeMap[FormulaSymQssa4] = pos.SymTargets[2]
+		model.FormulaSymbols.CodeMap[FormulaSymQssb4] = pos.SymTargets[3]
 		localTempos[3] = tempos[3]
 	} else {
 		localTempos[3] = 0.0
 	}
 
-	model.Formula.Symbols[FormulaSymTempo1] = localTempos[0]
-	model.Formula.Symbols[FormulaSymTempo2] = localTempos[1]
-	model.Formula.Symbols[FormulaSymTempo3] = localTempos[2]
-	model.Formula.Symbols[FormulaSymTempo4] = localTempos[3]
-	model.Formula.Symbols[FormulaSymRd]    = syms[0]
-	model.Formula.Symbols[FormulaSymBeat]  = syms[1]
-	model.Formula.Symbols[FormulaSymMark1] = syms[2]
-	model.Formula.Symbols[FormulaSymMark2] = syms[3]
-	model.Formula.Symbols[FormulaSymMark3] = syms[4]
-
+	model.FormulaSymbols.CodeMap[FormulaSymTempo1] = localTempos[0]
+	model.FormulaSymbols.CodeMap[FormulaSymTempo2] = localTempos[1]
+	model.FormulaSymbols.CodeMap[FormulaSymTempo3] = localTempos[2]
+	model.FormulaSymbols.CodeMap[FormulaSymTempo4] = localTempos[3]
+	model.FormulaSymbols.CodeMap[FormulaSymRd] = syms[0]
+	model.FormulaSymbols.CodeMap[FormulaSymBeat] = syms[1]
+	model.FormulaSymbols.CodeMap[FormulaSymMark1] = syms[2]
+	model.FormulaSymbols.CodeMap[FormulaSymMark2] = syms[3]
+	model.FormulaSymbols.CodeMap[FormulaSymMark3] = syms[4]
 
 	// Execute in this order.
-	if (r.ExprSymEquations) {
-		model.setFormulaSymbolValue(FormulaSymRd, model.evalEquationFormula(*exprSymbolEquations_.ruleDuration));
+	if r.ExprSymEquations.Duration != nil {
+		model.FormulaSymbols.CodeMap[FormulaSymRd] = model.EvalEquationFormul(r.ExprSymEquations.Duration)
 	}
-	if (exprSymbolEquations_.mark1) {
-		model.setFormulaSymbolValue(FormulaSymMark1, model.evalEquationFormula(*exprSymbolEquations_.mark1));
+	if r.ExprSymEquations.Mark1 != nil {
+		model.FormulaSymbols.CodeMap[FormulaSymMark1] = model.EvalEquationFormul(r.ExprSymEquations.Mark1)
 	}
-	if (exprSymbolEquations_.mark2) {
-		model.setFormulaSymbolValue(FormulaSymMark2, model.evalEquationFormula(*exprSymbolEquations_.mark2));
+	if r.ExprSymEquations.Mark2 != nil {
+		model.FormulaSymbols.CodeMap[FormulaSymMark2] = model.EvalEquationFormul(r.ExprSymEquations.Mark2)
 	}
-	if (exprSymbolEquations_.mark3) {
-		model.setFormulaSymbolValue(FormulaSymMark3, model.evalEquationFormula(*exprSymbolEquations_.mark3));
+	if r.ExprSymEquations.Mark3 != nil {
+		model.FormulaSymbols.CodeMap[FormulaSymMark3] = model.EvalEquationFormul(r.ExprSymEquations.Mark3)
 	}
-	if (exprSymbolEquations_.beat) {
-		model.setFormulaSymbolValue(FormulaSymBeat, model.evalEquationFormula(*exprSymbolEquations_.beat));
+	if r.ExprSymEquations.Beat != nil {
+		model.FormulaSymbols.CodeMap[FormulaSymBeat] = model.EvalEquationFormul(r.ExprSymEquations.Beat)
 	}
 
-	syms[0] = model.Formula.Syms[FormulaSymRd]
-	syms[1] = model.Formula.Syms[FormulaSymBeat]
-	syms[2] = model.Formula.Syms[FormulaSymMark1]
-	syms[3] = model.Formula.Syms[FormulaSymMark2]
-	syms[4] = model.Formula.Syms[FormulaSymMark3]
+	syms[0] = model.FormulaSymbols.CodeMap[FormulaSymRd]
+	syms[1] = model.FormulaSymbols.CodeMap[FormulaSymBeat]
+	syms[2] = model.FormulaSymbols.CodeMap[FormulaSymMark1]
+	syms[3] = model.FormulaSymbols.CodeMap[FormulaSymMark2]
+	syms[4] = model.FormulaSymbols.CodeMap[FormulaSymMark3]
 }
-
 
 //////////////////////////////////////////////////
 // Rule
 //////////////////////////////////////////////////
 
-type ExprSymEquation struct {
+type ExprSymEquations struct {
 	Duration *Equation
-	Beat *Equation
-	Mark1 *Equation
-	Mark2 *Equation
-	Mark3 *Equation	
+	Beat     *Equation
+	Mark1    *Equation
+	Mark2    *Equation
+	Mark3    *Equation
 }
 
 type Rule struct {
-	BoolExprs []string
-	ParamProfileTransitions []Transition
+	BoolExprs                 []string
+	ParamProfileTransitions   []Transition
 	SpecialProfileTransitions []Transition
-	ExprSymEquations []ExprSymEquation
-	Comment string
-	Nodes []Node
+	ExprSymEquations          ExprSymEquations
+	Comment                   string
+	RuleNodes                 []RuleBooleanNode
 }
 
 func (r *Rule) Init(nParams int) {
@@ -411,91 +520,29 @@ const (
 
 	LogicNodeTypeN
 )
+
 //go:generate stringer -type=LogicNodeType
 
 var Kit_LogicNodeType = kit.Enums.AddEnum(LogicNodeTypeN, kit.NotBitFlag, nil)
 
-type Node struct {
-	NodeType LogicNodeType
-	Child1 *Node // all but terminal
-	Child2 *Node // for and, or, xor
-	Category *Category // only for terminal node
-	wildCard bool // only for terminal node
-}
-
-func NewNode(typ LogicNodeType, c1, c2 *Node) *Node {
-	ex := &Node{}
-	ex.NodeType = typ
-	ex.Child1 = c1
-	ex.Child2 = c2
-	return ex
-}
-
-func (nd *Node) Eval(posture *Posture) (result bool, err error) {
-	var r1 = false
-	var r2 = false
-
-	switch nd.NodeType {
-	case LogicNodeAnd:
-		if nd.Child1 == nil || nd.Child2 == nil {
-			errors.New("Eval error: One or more of nodes children were nil")
-		}
-		r1, err = nd.Child1.Eval(posture)
-		r2, err = nd.Child2.Eval(posture)
-		return r1 && r2, nil
-
-	case LogicNodeOr:
-		if nd.Child1 == nil || nd.Child2 == nil {
-			errors.New("Eval error: One or more of nodes children were nil")
-		}
-		r1, err = nd.Child1.Eval(posture)
-		r2, err = nd.Child2.Eval(posture)
-		return r1 || r2, nil
-		
-	case LogicNodeXor:
-		if nd.Child1 == nil || nd.Child2 == nil {
-			errors.New("Eval error: One or more of nodes children were nil")
-		}
-		r1, err = nd.Child1.Eval(posture)
-		r2, err = nd.Child2.Eval(posture)
-		return r1 != r2, nil
-		
-	case LogicNodeNot:
-		if nd.Child1 == nil {
-			errors.New("Eval error: chile1 was nil")
-		}
-		r1, err = nd.Child1.Eval(posture)
-		return !r1, nil
-		
-	case LogicNodeTerminal:
-		if posture.IsMemberOfCategory {
-			return true, nil
-		} else if nd.wildCard {
-			return posture.Name == (nd.Category + "\'"), nil
-		} else {
-			return false, nil
-		}
-	}
-}
-
 // ToDo: Not right!
-func (r *Rule)SetExprList(exprs []string, model *Model) error {
+func (r *Rule) SetExprList(exprs []string, model *Model) error {
 	length := len(exprs)
 	if length < 2 || length > 4 {
 		return errors.New("Invalid number of boolean expressions")
 	}
-	var testList []Nodes
+	var testList []RuleBooleanNode
 	for _, e := range exprs {
 		p := Parser{}
 		p.Str = e
 		p.Model = model
 		node := p.Parse()
-		testList = append(testList, node)
+		testList = append(testList, *node)
 	}
 	r.BoolExprs = exprs
-	// std::swap(booleanNodeList_, testBooleanNodeList);	
+	// std::swap(booleanNodeList_, testBooleanNodeList);
+	return nil
 }
-
 
 // Rule::setBooleanExpressionList(const std::vector<std::string>& exprList, const Model& model)
 // {
@@ -503,15 +550,14 @@ func (r *Rule)SetExprList(exprs []string, model *Model) error {
 // 	if (size < 2U || size > 4U) {
 // 		THROW_EXCEPTION(InvalidParameterException, "Invalid number of boolean expressions: " << size << '.');
 // 	}
-// 
+//
 // 	RuleBooleanNodeList testBooleanNodeList;
-// 
+//
 // 	for (unsigned int i = 0; i < size; ++i) {
 // 		Parse p(exprList[i], model);
 // 		testBooleanNodeList.push_back(p.parse());
 // 	}
-// 
+//
 // 	booleanExpressionList_ = exprList;
 // 	std::swap(booleanNodeList_, testBooleanNodeList);
 // }
-
