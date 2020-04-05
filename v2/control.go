@@ -30,6 +30,7 @@ package v2
 import (
 	"bufio"
 	"fmt"
+	"github.com/go-audio/audio"
 	"log"
 	"os"
 	"strconv"
@@ -43,19 +44,20 @@ const voiceFilePrefix = "/voice_"
 
 type Control struct {
 	Model       *Model
-	Sequence    Sequence
+	Sequence    *Sequence
 	ModelConfig ModelConfig
 	TrmConfig   TrmConfig
 }
 
-func (ctrl *Control) Init(path string, model *Model) {
-	ctrl.Model = model
+func NewControl(path string, model *Model) *Control {
+	ctrl := Control{}
 	ctrl.Model = model
 	ctrl.Sequence.Init(path, model)
 	ctrl.LoadConfigs("")
+	return &ctrl
 }
 
-//
+// LoadConfigs
 func (ctrl *Control) LoadConfigs(path string) {
 
 	ctrl.ModelConfig.Load(path + modelConfigFn)
@@ -68,8 +70,8 @@ func (ctrl *Control) LoadConfigs(path string) {
 }
 
 //SynthSequenceToFile synthesizes speech from data contained in the event list
-func (ctrl *Control) SynthSequenceToFile(trmParaFile, outputFile string) {
-	f, err := os.Create(trmParaFile)
+func (ctrl *Control) SynthSequenceToFile(trmParamFile, outputFile string) {
+	f, err := os.Create(trmParamFile)
 	if err != nil {
 		log.Printf("Error trying to open %v\n", outputFile)
 		return
@@ -115,11 +117,11 @@ func (ctrl *Control) InitUtterance(w *bufio.Writer) {
 	ctrl.Sequence.Drift.SetUp(mc.DriftDeviation, mc.ControlRate, mc.DriftLowCutoff)
 	ctrl.Sequence.SetRadiusCoefs(rc.RadiusCoefs)
 
-	f, err := os.Create("trmParams.txt")
-	if err != nil {
-		log.Printf("Error trying to create %v\n", "trmParams.txt")
-		return
-	}
+	//f, err := os.Create("trmParams.txt")
+	//if err != nil {
+	//	log.Printf("Error trying to create %v\n", "trmParams.txt")
+	//	return
+	//}
 	//w := bufio.NewWriter(f)
 	w.WriteString(fmt.Sprintf("%f", rc.OutputRate) + "\n")
 	w.WriteString(fmt.Sprintf("%f", mc.ControlRate) + "\n")
@@ -226,4 +228,59 @@ func (ctrl *Control) SetIntonation(intonation int64) {
 	if bitflag.Has(intonation, int(IntonationRandom)) {
 		ctrl.Sequence.TgUseRandom = true
 	}
+}
+
+type PhoneticParser interface {
+	SynthPhoneticString()
+}
+
+func (ctrl *Control) SynthPhoneticStringToFile(psp PhoneticParser, pString, trmParamFile, outputFile string) {
+	f, err := os.Create(trmParamFile)
+	if err != nil {
+		log.Printf("Error trying to open %v\n", trmParamFile)
+		return
+	}
+	writer := bufio.NewWriter(f)
+	ctrl.PhoneticParse(psp, pString, writer)
+
+	//trm := trm.Tube
+	//trm.synthesizeToFile(writer, outputFile);
+}
+
+func (ctrl *Control) SynthPhoneticStringToBuf(psp PhoneticParser, pString, trmParamFile string, buf []float64) {
+	f, err := os.Create(trmParamFile)
+	if err != nil {
+		log.Printf("Error trying to open %v\n", trmParamFile)
+		return
+	}
+	writer := bufio.NewWriter(f)
+	ctrl.PhoneticParse(psp, pString, writer)
+
+	//trm := trm.Tube
+	//trm.synthesizeToBuf(writer, buf);
+}
+
+func (ctrl *Control) PhoneticParse(psp PhoneticParser, pString string, writer *bufio.Writer) {
+	chunks := ctrl.CalcChunks(pString)
+	ctrl.InitUtterance(writer)
+	idx := 0
+	for chunks > 0 {
+		log.Println("Speaking ", pString[idx])
+		ctrl.PhoneticParseChunk(psp, &pString[index], writer)
+		idx += ctrl.NextChunk(&pString[idx+2]) + 2
+		chunks--
+	}
+	writer.Reset(writer)
+}
+
+func (ctrl *Control) PhoneticParseChunk(psp PhoneticParser, pschunk, writer *bufio.Writer) {
+	ctrl.Sequence = NewSequence("", ctrl.Model)
+	PhoneticParser.parseString(phoneticStringChunk)
+
+	eventList_.generateEventList()
+
+	eventList_.applyIntonation()
+	eventList_.applyIntonationSmooth()
+
+	eventList_.generateOutput(trmParamStream)
 }

@@ -5,9 +5,13 @@
 package main
 
 import (
+	"github.com/emer/gospeech/en/textparse"
+	"github.com/emer/gospeech/v2"
 	"github.com/goki/gi/gi"
 	"github.com/goki/gi/gimain"
 	"github.com/goki/gi/giv"
+	"github.com/goki/ki/ki"
+	"golang.org/x/exp/errors/fmt"
 )
 
 // this is the stub main for gogi that calls our actual
@@ -20,16 +24,15 @@ func main() {
 
 // Synth encapsulates
 type Synth struct {
-	// vt      trmcontrolv1.VocalTract `view:"noinline"`
 	win         *gi.Window
 	ToolBar     *gi.ToolBar `view:"-" desc:"the master toolbar"`
-	ModelConfig ModelConfig
-	TrmConfig   TrmConfig
-	// SignalData *etable.Table `desc:"waveform data"`
-	// WavePlot   *eplot.Plot2D `view:"-" desc:"waveform plot"`
-	// Text       string        `desc:"the text to be synthesized"`
-	// Save       bool          `desc:"if true write the synthesized values to .wav file"`
-	// Play       bool          `desc:"if true play the sound"`
+	ModelConfig v2.ModelConfig
+	TrmConfig   v2.TrmConfig
+	Text        string `desc:"the text to be synthesized"`
+	Phonetic    string `desc:"the phonetic version of Text"`
+	TextParser  *textparse.TextParser
+	Model       *v2.Model
+	Control     *v2.Control
 }
 
 func (syn *Synth) Defaults() {
@@ -43,63 +46,26 @@ func (syn *Synth) Config() {
 	syn.ModelConfig.Load("./trmControl.json")
 	vfp := "./voice_" + syn.ModelConfig.Voice + ".json"
 	syn.TrmConfig.Load("./trm.json", vfp)
+
+	syn.TextParser = textparse.NewTextParser()
+	syn.Text = "emergent"
+
+	syn.Model = &v2.Model{}
+	syn.Control = v2.NewControl("", syn.Model)
 }
 
-// ConfigSignalData
-// func (syn *Synth) ConfigSignalData(dt *etable.Table) {
-// 	dt.SetMetaData("name", "Wave")
-// 	dt.SetMetaData("desc", "Waveform values -1 to 1")
-// 	dt.SetMetaData("read-only", "true")
-// 	dt.SetMetaData("precision", strconv.Itoa(4))
-//
-// 	sch := etable.Schema{
-// 		{"Time", etensor.FLOAT64, nil, nil},
-// 		{"Amplitude", etensor.FLOAT64, nil, nil},
-// 	}
-// 	dt.SetFromSchema(sch, 0)
-// }
+func (syn *Synth) Synthesize() {
+	if len(syn.Text) == 0 {
+		gi.PromptDialog(syn.win.Viewport, gi.DlgOpts{Title: "No text to synthesize", Prompt: fmt.Sprintf("Enter the text to synthesize in the Text field.")}, gi.AddOk, gi.NoCancel, nil, nil)
+		return
+	}
 
-// func (syn *Synth) ConfigWavePlot(plt *eplot.Plot2D, dt *etable.Table) *eplot.Plot2D {
-// 	plt.Params.Title = "Waveform plot"
-// 	plt.Params.XAxisCol = "Time"
-// 	plt.SetTable(dt)
-//
-// 	// order of params: on, fixMin, min, fixMax, max
-// 	plt.SetColParams("Amplitude", eplot.On, eplot.FixMin, -1, eplot.FloatMax, 1)
-//
-// 	return plt
-// }
-//
-// func (syn *Synth) GetWaveData() {
-// 	syn.SignalData.AddRows(len(syn.vt.SynthOutput))
-// 	for i := 0; i < len(syn.vt.SynthOutput); i++ {
-// 		syn.SignalData.SetCellFloat("Time", i, float64(i))
-// 		syn.SignalData.SetCellFloat("Amplitude", i, float64(syn.vt.Wave[i]))
-// 	}
-// }
-//
-// func (syn *Synth) Synthesize() {
-// 	if len(syn.Text) == 0 {
-// 		gi.PromptDialog(syn.win.Viewport, gi.DlgOpts{Title: "No text to synthesize", Prompt: fmt.Sprintf("Enter the text to synthesize in the Text field.")}, gi.AddOk, gi.NoCancel, nil, nil)
-// 		return
-// 	}
-// 	// if len(syn.Text) > 0 {
-// 	_, err := syn.vt.SynthWords(syn.Text, true, true)
-// 	if err != nil {
-// 		log.Println(err)
-// 		gi.PromptDialog(syn.win.Viewport, gi.DlgOpts{Title: "Synthesis error", Prompt: fmt.Sprintf("Synthesis error, see console. Displaying waveform of text to that point.")}, gi.AddOk, gi.NoCancel, nil, nil)
-// 	}
-// 	syn.GetWaveData()
-// 	syn.WavePlot.GoUpdate()
-// 	if syn.Save {
-// 		fn := syn.Text + ".wav"
-// 		err := syn.vt.Buf.WriteWave(fn)
-// 		if err != nil {
-// 			fmt.Printf("File not found or error opening file: %s (%s)", fn, err)
-// 		}
-// 	}
-// 	// }
-// }
+	syn.Phonetic = syn.TextParser.ParseText(syn.Text)
+	fmt.Println(syn.Text, "phoneticaly is ", syn.Phonetic)
+
+	syn.Control.SynthPhoeticString()
+	trmController->synthesizePhoneticString(*phoneticStringParser, phoneticString.c_str(), trmParamFile, outputFile);
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 // 		Gui
@@ -140,10 +106,10 @@ func (syn *Synth) ConfigGui() *gi.Window {
 	// 		syn.GetWaveData()
 	// 	})
 
-	// tbar.AddAction(gi.ActOpts{Label: "Synthesize", Icon: "new"}, win.This(),
-	// 	func(recv, send ki.Ki, sig int64, data interface{}) {
-	// 		syn.Synthesize()
-	// 	})
+	tbar.AddAction(gi.ActOpts{Label: "Synthesize", Icon: "new"}, win.This(),
+		func(recv, send ki.Ki, sig int64, data interface{}) {
+			syn.Synthesize()
+		})
 
 	split.SetSplitsList([]float32{.3, .7})
 
@@ -172,4 +138,5 @@ func mainrun() {
 	Synther.Config()
 	Synther.win = Synther.ConfigGui()
 	Synther.win.StartEventLoop()
+	fmt.Println("post config gui")
 }

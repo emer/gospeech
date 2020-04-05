@@ -1,16 +1,20 @@
 package textparse
 
-type parse struct {
-	Table map[string]string
+// ToDo: All of this is a stub to get up and running
+type TextParser struct {
+	table map[string]string
 }
 
-func (p *parse) Init() {
-	p.Table = make(map[string]string)
-	p.Table["emergent"] = "/c // /0 # /w /l i./*m_er_r.j_uh_n_t # // /c"
-
+func NewTextParser() *TextParser {
+	tp := TextParser{}
+	tp.table = make(map[string]string)
+	tp.table["emergent"] = "/c // /0 # /w /l i./*m_er_r.j_uh_n_t # // /c"
+	return &tp
 }
 
-// Lookup returns the pregenerated phonetic version of the string argument e.g. "emergent" returns "/c // /0 # /w /l i./*m_er_r.j_uh_n_t # // /c"
-func (p *parse) Lookup(s string) string {
-	return p.Table[s]
+// Just does a lookup for bootstrapping - ToDo: port the code!
+// ParseText returns the pregenerated phonetic version of the string argument e.g. "emergent" returns "/c // /0 # /w /l i./*m_er_r.j_uh_n_t # // /c"
+func (tp *TextParser) ParseText(s string) string {
+	p := tp.table[s]
+	return p
 }
