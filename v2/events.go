@@ -135,7 +135,7 @@ type PostureData struct {
 
 func (pd *PostureData) Defaults() {
 	pd.Posture = nil
-	pd.Syllable = 0
+	pd.Syllable = false
 	pd.Onset = 0.0
 	pd.RuleTempo = 0.0
 }
@@ -256,19 +256,6 @@ func NewSequence(config string, model *Model) *Sequence {
 	seq.randDist.Min = 0
 	seq.randDist.Max = 1
 	return &seq
-}
-
-func (seq *Sequence) Defaults() {
-	seq.MacroFlag = 0
-	seq.MicroFlag = 0
-	seq.DriftFlag = 0
-	seq.SmoothInton = 1
-	seq.GlobalTempo = 1.0
-	seq.UseFixedIntonationParams = false
-}
-
-func (seq *Sequence) Init(config string, model *Model) {
-
 }
 
 func (seq *Sequence) SetIntonationParams(pitch, pretonicRange, pretonicLift, tonicRange, tonicMovement float64) {

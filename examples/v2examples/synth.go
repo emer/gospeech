@@ -5,6 +5,7 @@
 package main
 
 import (
+	"github.com/emer/gospeech/en/phoeticparse"
 	"github.com/emer/gospeech/en/textparse"
 	"github.com/emer/gospeech/v2"
 	"github.com/goki/gi/gi"
@@ -24,15 +25,16 @@ func main() {
 
 // Synth encapsulates
 type Synth struct {
-	win         *gi.Window
-	ToolBar     *gi.ToolBar `view:"-" desc:"the master toolbar"`
-	ModelConfig v2.ModelConfig
-	TrmConfig   v2.TrmConfig
-	Text        string `desc:"the text to be synthesized"`
-	Phonetic    string `desc:"the phonetic version of Text"`
-	TextParser  *textparse.TextParser
-	Model       *v2.Model
-	Control     *v2.Control
+	win            *gi.Window
+	ToolBar        *gi.ToolBar `view:"-" desc:"the master toolbar"`
+	ModelConfig    v2.ModelConfig
+	TrmConfig      v2.TrmConfig
+	Text           string `desc:"the text to be synthesized"`
+	Phonetic       string `desc:"the phonetic version of Text"`
+	TextParser     *textparse.TextParser
+	PhoneticParser *phoneticparse.PhoneticParser
+	Model          *v2.Model
+	Control        *v2.Control
 }
 
 func (syn *Synth) Defaults() {
@@ -63,8 +65,8 @@ func (syn *Synth) Synthesize() {
 	syn.Phonetic = syn.TextParser.ParseText(syn.Text)
 	fmt.Println(syn.Text, "phoneticaly is ", syn.Phonetic)
 
-	syn.Control.SynthPhoeticString()
-	trmController->synthesizePhoneticString(*phoneticStringParser, phoneticString.c_str(), trmParamFile, outputFile);
+	syn.Control.SynthPhoneticStringToFile(syn.PhoneticParser, syn.Phonetic, "trmParams.txt", "out.txt")
+	//syn.Control.SynthPhoneticStringToFile(syn.PhoneticParser, "/c // # /w /l i./*m_er_r.j_uh_n_t # // /c", "trmParams.txt", "out.txt")
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////

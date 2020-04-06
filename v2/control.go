@@ -51,20 +51,16 @@ type Control struct {
 func NewControl(path string, model *Model) *Control {
 	ctrl := Control{}
 	ctrl.Model = model
-	ctrl.Sequence.Init(path, model)
+	ctrl.Sequence = NewSequence(path, model)
 	ctrl.LoadConfigs("")
 	return &ctrl
 }
 
 // LoadConfigs
 func (ctrl *Control) LoadConfigs(path string) {
-
 	ctrl.ModelConfig.Load(path + modelConfigFn)
-
 	trmConfigPath := path + trmConfigFn
-
 	voiceConfigPath := path + voiceFilePrefix + ".config"
-
 	ctrl.TrmConfig.Load(trmConfigPath, voiceConfigPath)
 }
 
@@ -155,9 +151,15 @@ func (ctrl *Control) InitUtterance(w *bufio.Writer) {
 // There is always one /c at the begin and another at the end of the string.
 func (ctrl *Control) CalcChunks(text string) int {
 	tmp := 0
-	idx := 0
-	for text[idx] != '0' {
-		if (text[idx] == '/') && (text[idx+1] == 'c') {
+	var idx int
+	// C++ version relied on string terminator '\0'
+	for idx = 0; idx < len(text)-1; {
+		//if idx == len(text) {
+		//	break
+		//}
+		c := text[idx]
+		d := text[idx+1]
+		if c == '/' && d == 'c' {
 			tmp++
 			idx += 2
 		} else {
@@ -230,8 +232,7 @@ func (ctrl *Control) SetIntonation(intonation int64) {
 }
 
 type PhoneticParser interface {
-	SynthPhoneticString()
-	ParseString(s string)
+	ParseString(s string) int
 }
 
 func (ctrl *Control) SynthPhoneticStringToFile(psp PhoneticParser, pString, trmParamFile, outputFile string) {
