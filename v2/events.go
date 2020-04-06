@@ -127,7 +127,7 @@ func (ev *Event) SetValue(v float64, idx int) {
 }
 
 type PostureData struct {
-	Syllable  int
+	Syllable  bool
 	Onset     float64
 	RuleTempo float64
 	Posture   *Posture
@@ -147,7 +147,7 @@ type Foot struct {
 	Start  int
 	End    int
 	Marked bool
-	Last   int
+	Last   bool
 }
 
 func (ft *Foot) Defaults() {
@@ -157,7 +157,7 @@ func (ft *Foot) Defaults() {
 	ft.Start = 0
 	ft.End = 0
 	ft.Marked = false
-	ft.Last = 0
+	ft.Last = false
 }
 
 type ToneGroup struct {
@@ -210,7 +210,7 @@ type Sequence struct {
 	Feet                     []Foot
 	CurFoot                  int
 	ToneGroups               []ToneGroup
-	CurToneGroup             int
+	CurToneGroup             ToneType
 	RuleDatum                []RuleData
 	CurRule                  int
 	Min                      [16]float64
@@ -828,7 +828,7 @@ func (seq *Sequence) ApplyIntonation() {
 		randDist3.Max = seq.TgCount[3] - 1
 	}
 
-	for i := 0; i < seq.CurToneGroup; i++ {
+	for i := 0; i < int(seq.CurToneGroup); i++ {
 		firstFoot := seq.ToneGroups[i].StartFoot
 		endFoot := seq.ToneGroups[i].EndFoot
 
