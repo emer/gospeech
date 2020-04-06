@@ -30,7 +30,6 @@ package v2
 import (
 	"bufio"
 	"fmt"
-	"github.com/go-audio/audio"
 	"log"
 	"os"
 	"strconv"
@@ -232,6 +231,7 @@ func (ctrl *Control) SetIntonation(intonation int64) {
 
 type PhoneticParser interface {
 	SynthPhoneticString()
+	ParseString(s string)
 }
 
 func (ctrl *Control) SynthPhoneticStringToFile(psp PhoneticParser, pString, trmParamFile, outputFile string) {
@@ -266,21 +266,18 @@ func (ctrl *Control) PhoneticParse(psp PhoneticParser, pString string, writer *b
 	idx := 0
 	for chunks > 0 {
 		log.Println("Speaking ", pString[idx])
-		ctrl.PhoneticParseChunk(psp, &pString[index], writer)
-		idx += ctrl.NextChunk(&pString[idx+2]) + 2
+		ctrl.SynthPhoneticStringChunk(psp, string(pString[idx]), writer)
+		idx += ctrl.NextChunk(string(pString[idx+2])) + 2
 		chunks--
 	}
 	writer.Reset(writer)
 }
 
-func (ctrl *Control) PhoneticParseChunk(psp PhoneticParser, pschunk, writer *bufio.Writer) {
+func (ctrl *Control) SynthPhoneticStringChunk(psp PhoneticParser, pschunk string, writer *bufio.Writer) {
 	ctrl.Sequence = NewSequence("", ctrl.Model)
-	PhoneticParser.parseString(phoneticStringChunk)
-
-	eventList_.generateEventList()
-
-	eventList_.applyIntonation()
-	eventList_.applyIntonationSmooth()
-
-	eventList_.generateOutput(trmParamStream)
+	psp.ParseString(pschunk)
+	ctrl.Sequence.GenerateEventList()
+	ctrl.Sequence.ApplyIntonation()
+	ctrl.Sequence.ApplyIntonationSmooth()
+	ctrl.Sequence.GenOutput(writer)
 }
