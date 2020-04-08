@@ -27,12 +27,15 @@
 
 package v2
 
+import "encoding/xml"
+
 type Param struct {
-	Name    string
-	Min     float64
-	Max     float64
-	Default float64
-	Comment string
+	XMLName xml.Name `xml:"parameter"`
+	Name    string   `xml:"name,attr"`
+	Min     float64  `xml:"minimum,attr."`
+	Max     float64  `xml:"maximum,attr"`
+	Default float64  `xml:"default,attr"`
+	Comment string   `xml:"comment,attr"`
 }
 
 func (prm *Param) Set(nm string, min, max, dflt float64, comment string) {

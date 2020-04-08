@@ -27,7 +27,10 @@
 
 package v2
 
-import "github.com/goki/ki/kit"
+import (
+	"encoding/xml"
+	"github.com/goki/ki/kit"
+)
 
 // TransitionType
 type TransitionType int
@@ -56,6 +59,7 @@ const (
 var Kit_TransitionType = kit.Enums.AddEnum(TransTypeN, kit.NotBitFlag, nil)
 
 type PointOrSlope struct {
+	XMLName xml.Name `xml:"point-or-slopes"`
 }
 
 func (pos *PointOrSlope) IsSlopeRatio() bool {
@@ -63,14 +67,15 @@ func (pos *PointOrSlope) IsSlopeRatio() bool {
 }
 
 type Point struct {
+	XMLName xml.Name `xml:"point"`
 	PointOrSlope
-	TType     TransitionType
-	Value     float64
+	TType     TransitionType `xml:"type,attr"`
+	Value     float64        `xml:"value,attr"`
 	IsPhantom bool
 
 	// If timeExpression is not empty, time = timeExpression, otherwise time = freeTime.
-	timeExpr *Equation
-	FreeTime float64 `desc:"milliseconds""`
+	timeExpr *Equation `xml:"time-expression,attr"`
+	FreeTime float64   `desc:"milliseconds""`
 }
 
 func NewPoint() *Point {
@@ -88,9 +93,10 @@ func (pt *Point) IsSlopeRatio() bool {
 }
 
 type Slope struct {
+	XMLName xml.Name `xml:"slope"`
 	PointOrSlope
-	Slope       float64
-	DisplayTime float64
+	Slope       float64 `xml:"slope,attr"`
+	DisplayTime float64 `xml:"display-time,attr"`
 }
 
 func NewSlope() *Slope {
@@ -128,8 +134,9 @@ func (sr *SlopeRatio) NSlopeUnits() float64 {
 
 // Transition
 type Transition struct {
-	Name      string
-	TType     TransitionType
+	XMLName   xml.Name       `xml:"transition"`
+	Name      string         `xml:"name"`
+	TType     TransitionType `xml:"type"`
 	Special   bool
 	PtSlpList []interface{}
 }
@@ -171,7 +178,7 @@ func PointDataMinMax(pt Point, model *Model, baseline, delta, min, max float64) 
 	return time, value
 }
 
-type TransGroup struct {
+type TransGrp struct {
 	Name        string
 	Transitions []Transition
 }

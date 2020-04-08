@@ -45,15 +45,17 @@ func (syn *Synth) Defaults() {
 }
 
 func (syn *Synth) Config() {
-	syn.ModelConfig.Load("./trmControl.json")
+	syn.ModelConfig.Load("trmControl.json")
 	vfp := "./voice_" + syn.ModelConfig.Voice + ".json"
-	syn.TrmConfig.Load("./trm.json", vfp)
+	syn.TrmConfig.Load("trm.json", vfp)
+
+	syn.Model = v2.NewModel("../../data/en/monet_go.xml")
+	syn.Control = v2.NewControl("", syn.Model)
 
 	syn.TextParser = textparse.NewTextParser()
 	syn.Text = "emergent"
 
-	syn.Model = &v2.Model{}
-	syn.Control = v2.NewControl("", syn.Model)
+	syn.PhoneticParser = phoneticparse.NewPhoneticParser(syn.Model, syn.Control, "../data/en/")
 }
 
 func (syn *Synth) Synthesize() {
@@ -64,7 +66,7 @@ func (syn *Synth) Synthesize() {
 
 	syn.Phonetic = syn.TextParser.ParseText(syn.Text)
 	fmt.Println(syn.Text, "phoneticaly is ", syn.Phonetic)
-
+	syn.PhoneticParser = phoneticparse.NewPhoneticParser(syn.Model, syn.Control, "../../data/en/")
 	syn.Control.SynthPhoneticStringToFile(syn.PhoneticParser, syn.Phonetic, "trmParams.txt", "out.txt")
 	//syn.Control.SynthPhoneticStringToFile(syn.PhoneticParser, "/c // # /w /l i./*m_er_r.j_uh_n_t # // /c", "trmParams.txt", "out.txt")
 }
@@ -96,6 +98,7 @@ func (syn *Synth) ConfigGui() *gi.Window {
 	split.SetStretchMax()
 
 	sv := giv.AddNewStructView(split, "sv")
+
 	sv.SetStruct(syn)
 
 	// tview := gi.AddNewTabView(split, "tv")

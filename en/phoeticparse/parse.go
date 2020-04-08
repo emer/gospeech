@@ -50,8 +50,8 @@ type RewriterData struct {
 type PhoneticParser struct {
 	Model            *v2.Model
 	Sequence         *v2.Sequence
-	Categories       []v2.Category
-	ReturnPhone      []v2.Posture
+	Categories       []*v2.Category
+	ReturnPhone      []*v2.Posture
 	VowelTransitions [][]int
 }
 
@@ -59,14 +59,18 @@ func NewPhoneticParser(mdl *v2.Model, c *v2.Control, configPath string) *Phoneti
 	pp := PhoneticParser{}
 	pp.Model = mdl
 	pp.Sequence = c.Sequence
-	pp.Categories = make([]v2.Category, 18) // why 18?
-	pp.ReturnPhone = make([]v2.Posture, 7)  // why 7?
+	pp.Categories = make([]*v2.Category, 18) // why 18?
+	pp.ReturnPhone = make([]*v2.Posture, 7)  // why 7?
 	pp.VowelTransitions = make([][]int, 13)
 
-	pp.Categories[0] = *pp.Model.CategoryTry("stopped")
-	pp.Categories[1] = *pp.Model.CategoryTry("affricate")
-	pp.Categories[2] = *pp.Model.CategoryTry("hlike")
-	pp.Categories[3] = *pp.Model.CategoryTry("vocoid")
+	foo := pp.Model.CategoryTry("stopped")
+	if foo == nil {
+
+	}
+	pp.Categories[0] = pp.Model.CategoryTry("stopped")
+	pp.Categories[1] = pp.Model.CategoryTry("affricate")
+	pp.Categories[2] = pp.Model.CategoryTry("hlike")
+	pp.Categories[3] = pp.Model.CategoryTry("vocoid")
 
 	postureList := []string{"h", "h'", "hv", "hv'", "ll", "ll'", "s", "s'", "z", "z'"}
 	for i, pname := range postureList {
@@ -80,22 +84,22 @@ func NewPhoneticParser(mdl *v2.Model, c *v2.Control, configPath string) *Phoneti
 			log.Println("NewPhoneticParser: category not found")
 			return nil
 		}
-		pp.Categories[i] = *tc //	pp.Categories[i + 4U] = tp->findCategory(posture);
+		pp.Categories[i] = tc //	pp.Categories[i + 4U] = tp->findCategory(posture);
 
 	}
 
-	pp.Categories[14] = *pp.Model.CategoryTry("whistlehack")
-	pp.Categories[15] = *pp.Model.CategoryTry("lhack")
-	pp.Categories[16] = *pp.Model.CategoryTry("whistlehack")
-	pp.Categories[17] = *pp.Model.CategoryTry("whistlehack")
+	pp.Categories[14] = pp.Model.CategoryTry("whistlehack")
+	pp.Categories[15] = pp.Model.CategoryTry("lhack")
+	pp.Categories[16] = pp.Model.CategoryTry("whistlehack")
+	pp.Categories[17] = pp.Model.CategoryTry("whistlehack")
 
-	pp.ReturnPhone[0] = *pp.Model.PostureTry("qc")
-	pp.ReturnPhone[1] = *pp.Model.PostureTry("qt")
-	pp.ReturnPhone[2] = *pp.Model.PostureTry("qp")
-	pp.ReturnPhone[3] = *pp.Model.PostureTry("qk")
-	pp.ReturnPhone[4] = *pp.Model.PostureTry("gs")
-	pp.ReturnPhone[5] = *pp.Model.PostureTry("qs")
-	pp.ReturnPhone[6] = *pp.Model.PostureTry("qz")
+	pp.ReturnPhone[0] = pp.Model.PostureTry("qc")
+	pp.ReturnPhone[1] = pp.Model.PostureTry("qt")
+	pp.ReturnPhone[2] = pp.Model.PostureTry("qp")
+	pp.ReturnPhone[3] = pp.Model.PostureTry("qk")
+	pp.ReturnPhone[4] = pp.Model.PostureTry("gs")
+	pp.ReturnPhone[5] = pp.Model.PostureTry("qs")
+	pp.ReturnPhone[6] = pp.Model.PostureTry("qz")
 
 	pp.InitVowelTransitions(configPath)
 
@@ -177,7 +181,7 @@ func (pp *PhoneticParser) Rewrite(nextPosture *v2.Posture, wordMarker bool, data
 	transitionMade := false
 	for i := 0; i < 18; i++ {
 		c := pp.Categories[i]
-		if nextPosture.IsMemberOfCategory(&c) {
+		if nextPosture.IsMemberOfCategory(c) {
 			//printf("Found %s %s state %d -> %d\n", nextPhone.name().c_str(), pp.Categories[i]->name.c_str(), //
 			//	data.currentState, stateTable[data.currentState][i]);
 			data.curState = stateTable[data.curState][i]
@@ -203,51 +207,51 @@ func (pp *PhoneticParser) Rewrite(nextPosture *v2.Posture, wordMarker bool, data
 			switch temp[0] {
 			case 'd':
 			case 't':
-				rv = &pp.ReturnPhone[1]
+				rv = pp.ReturnPhone[1]
 				break
 			case 'p':
 			case 'b':
-				rv = &pp.ReturnPhone[2]
+				rv = pp.ReturnPhone[2]
 				break
 			case 'k':
 			case 'g':
-				rv = &pp.ReturnPhone[3]
+				rv = pp.ReturnPhone[3]
 				break
 			}
 			break
 		case 6:
-			tp := v2.Posture{}
+			var tp *v2.Posture
 			if strings.Contains(nextPosture.Name, "'") {
-				tp = *pp.Model.PostureTry("l'")
+				tp = pp.Model.PostureTry("l'")
 			} else {
-				tp = *pp.Model.PostureTry("l")
+				tp = pp.Model.PostureTry("l")
 			}
-			pp.Sequence.PostureDatum[pp.Sequence.CurPosture].Posture = &tp
+			pp.Sequence.PostureDatum[pp.Sequence.CurPosture].Posture = tp
 		case 8:
 			if wordMarker {
 				rv = pp.CalcVowelTransition(nextPosture, &data)
 			}
 		case 10:
-			rv = &pp.ReturnPhone[0]
+			rv = pp.ReturnPhone[0]
 		case 12:
-			rv = &pp.ReturnPhone[0]
+			rv = pp.ReturnPhone[0]
 		case 14:
-			rv = &pp.ReturnPhone[5]
+			rv = pp.ReturnPhone[5]
 		case 16:
-			rv = &pp.ReturnPhone[6]
+			rv = pp.ReturnPhone[6]
 		case 18:
 			//printf("Case 18\n");
 			if !wordMarker {
 				break
 			}
-			tp := v2.Posture{}
+			var tp *v2.Posture
 			if strings.Contains(nextPosture.Name, "'") {
-				tp = *pp.Model.PostureTry("lll'")
+				tp = pp.Model.PostureTry("lll'")
 			} else {
-				tp = *pp.Model.PostureTry("l")
+				tp = pp.Model.PostureTry("l")
 			}
 			//printf("Replacing with ll\n");
-			pp.Sequence.PostureDatum[pp.Sequence.CurPosture].Posture = &tp
+			pp.Sequence.PostureDatum[pp.Sequence.CurPosture].Posture = tp
 		}
 		data.lastPosture = nextPosture
 	} else {

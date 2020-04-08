@@ -27,18 +27,37 @@
 
 package v2
 
-import "errors"
+import (
+	"encoding/xml"
+	"errors"
+	"io/ioutil"
+)
 
 type Model struct {
-	Categories       []Category
-	Params           []Param
-	Symbols          []Symbol
-	Postures         []Posture
-	Rules            []Rule
-	EquationGrps     []EqGroup
-	TransitionGrps   []TransGroup
-	TransitionGrpsSp []TransGroup
-	FormulaSymbols   *FormulaSymbols
+	XMLName        xml.Name   `xml:"model"`
+	Categories     []Category `xml:"category"`
+	Params         []Param    `xml:"parameter"`
+	Symbols        []Symbol   `xml:"symbol"`
+	Postures       []Posture  `xml:"posture"`
+	Rules          []Rule     `xml:"rule"`
+	EqGrps         []EqGrp
+	TransGrps      []TransGrp
+	TransGrpsSp    []TransGrp // "special"
+	FormulaSymbols *FormulaSymbols
+}
+
+func NewModel(fullpath string) *Model {
+	m := Model{}
+	m.Categories = make([]Category, 0)
+	m.Params = make([]Param, 0)
+	m.Symbols = make([]Symbol, 0)
+	m.Postures = make([]Posture, 0)
+	m.Rules = make([]Rule, 0)
+	m.EqGrps = make([]EqGrp, 0)
+	m.TransGrps = make([]TransGrp, 0)
+	m.TransGrpsSp = make([]TransGrp, 0)
+	m.Load(fullpath) // load config file -- monet_go.xml - our own version - ToDo: add notes to readme
+	return &m
 }
 
 // Reset
@@ -48,20 +67,27 @@ func (mdl *Model) Reset() {
 	mdl.Symbols = mdl.Symbols[:0]
 	mdl.Postures = mdl.Postures[:0]
 	mdl.Rules = mdl.Rules[:0]
-	mdl.EquationGrps = mdl.EquationGrps[:0]
-	mdl.TransitionGrps = mdl.TransitionGrps[:0]
-	mdl.TransitionGrpsSp = mdl.TransitionGrpsSp[:0]
+	mdl.EqGrps = mdl.EqGrps[:0]
+	mdl.TransGrps = mdl.TransGrps[:0]
+	mdl.TransGrpsSp = mdl.TransGrpsSp[:0]
 	mdl.FormulaSymbols.Clear()
 }
 
-// Load
-func (mdl *Model) Load(configDir, configFile string) {
-	//    Reset()
-	// 	fp := configDir + configFile
-	//
-	// 	LOG_DEBUG("Loading xml configuration: " << fp)
-	// 	XMLConfigFileReader cfg(*this, fp);
-	// 	cfg.loadModel();
+// Load the model configuration - the monet.xml file (postures, intonation, etc)
+func (mdl *Model) Load(path string) {
+	//Reset()
+	data, err := ioutil.ReadFile(path)
+
+	err = xml.Unmarshal([]byte(data), &mdl)
+	if err != nil {
+		panic(err)
+	}
+
+	//fmt.Printf(mdl.Categories[0].Name)
+
+	// LOG_DEBUG("Loading xml configuration: " << fp)
+	// XMLConfigFileReader cfg(*this, fp);
+	// cfg.loadModel();
 }
 
 // Save
@@ -110,8 +136,8 @@ func (mdl *Model) EvalEquationFormul(eq *Equation) float64 {
 }
 
 // FindEquationGroup
-func (mdl *Model) findEquationGroupTry(nm string) *EqGroup {
-	for _, eg := range mdl.EquationGrps {
+func (mdl *Model) findEquationGroupTry(nm string) *EqGrp {
+	for _, eg := range mdl.EqGrps {
 		if eg.Name == nm {
 			return &eg
 		}
@@ -121,7 +147,7 @@ func (mdl *Model) findEquationGroupTry(nm string) *EqGroup {
 
 // EquationIndexTry returns the group and equation index if name is found, otherwise -1, -1
 func (mdl *Model) EquationIndexTry(nm string) (grpIdx, eqIdx int) {
-	for i, grp := range mdl.EquationGrps {
+	for i, grp := range mdl.EqGrps {
 		for j, eq := range grp.Equations {
 			if eq.Name == nm {
 				return i, j
@@ -133,7 +159,7 @@ func (mdl *Model) EquationIndexTry(nm string) (grpIdx, eqIdx int) {
 
 // EquationTry
 func (mdl *Model) EquationTry(nm string) *Equation {
-	for _, grp := range mdl.EquationGrps {
+	for _, grp := range mdl.EqGrps {
 		for _, eq := range grp.Equations {
 			if eq.Name == nm {
 				return &eq
@@ -189,7 +215,7 @@ func (mdl *Model) SymbolTry(nm string) *Symbol {
 
 // TransitionTry returns the address of the named Transition or nil if not found
 func (mdl *Model) TransitionTry(nm string) *Transition {
-	for _, grp := range mdl.TransitionGrps {
+	for _, grp := range mdl.TransGrps {
 		for _, tr := range grp.Transitions {
 			if tr.Name == nm {
 				return &tr
@@ -200,8 +226,8 @@ func (mdl *Model) TransitionTry(nm string) *Transition {
 }
 
 // TransitionGrpTry returns the address of the named TransitionGroup or nil if not found
-func (mdl *Model) TransitionGroupTry(nm string) *TransGroup {
-	for _, grp := range mdl.TransitionGrps {
+func (mdl *Model) TransitionGroupTry(nm string) *TransGrp {
+	for _, grp := range mdl.TransGrps {
 		if grp.Name == nm {
 			return &grp
 		}
@@ -211,7 +237,7 @@ func (mdl *Model) TransitionGroupTry(nm string) *TransGroup {
 
 // TransitionGroupIndexTry returns the group and transition index if name is found, otherwise -1, -1
 func (mdl *Model) TransitionGroupIndexTry(nm string) (grpIdx, eqIdx int) {
-	for i, grp := range mdl.TransitionGrps {
+	for i, grp := range mdl.TransGrps {
 		for j, tr := range grp.Transitions {
 			if tr.Name == nm {
 				return i, j
@@ -223,7 +249,7 @@ func (mdl *Model) TransitionGroupIndexTry(nm string) (grpIdx, eqIdx int) {
 
 // TransitionSpTry returns the address of the named special Transition or nil if not found
 func (mdl *Model) TransitionSpTry(nm string) *Transition {
-	for _, grp := range mdl.TransitionGrpsSp {
+	for _, grp := range mdl.TransGrpsSp {
 		for _, tr := range grp.Transitions {
 			if tr.Name == nm {
 				return &tr
@@ -234,8 +260,8 @@ func (mdl *Model) TransitionSpTry(nm string) *Transition {
 }
 
 // TransitionGroupSpTry returns the address of the named special TransitionGroup or nil if not found
-func (mdl *Model) TransitionGroupSpTry(nm string) *TransGroup {
-	for _, grp := range mdl.TransitionGrpsSp {
+func (mdl *Model) TransitionGroupSpTry(nm string) *TransGrp {
+	for _, grp := range mdl.TransGrpsSp {
 		if grp.Name == nm {
 			return &grp
 		}
@@ -245,7 +271,7 @@ func (mdl *Model) TransitionGroupSpTry(nm string) *TransGroup {
 
 // TransitionGroupSpIndexTry returns the special group and transition index if name is found, otherwise -1, -1
 func (mdl *Model) TransitionGroupSpIndexTry(nm string) (grpIdx, eqIdx int) {
-	for i, grp := range mdl.TransitionGrpsSp {
+	for i, grp := range mdl.TransGrpsSp {
 		for j, tr := range grp.Transitions {
 			if tr.Name == nm {
 				return i, j

@@ -37,9 +37,9 @@ import (
 	"github.com/goki/ki/bitflag"
 )
 
-const modelConfigFn = "/trm_control_model.config"
-const trmConfigFn = "/trm.config"
-const voiceFilePrefix = "/voice_"
+//const modelConfigFn = "/trm_control_model.config"
+//const trmConfigFn = "/trm.config"
+//const voiceFilePrefix = "/voice_"
 
 type Control struct {
 	Model       *Model
@@ -52,16 +52,7 @@ func NewControl(path string, model *Model) *Control {
 	ctrl := Control{}
 	ctrl.Model = model
 	ctrl.Sequence = NewSequence(path, model)
-	ctrl.LoadConfigs("")
 	return &ctrl
-}
-
-// LoadConfigs
-func (ctrl *Control) LoadConfigs(path string) {
-	ctrl.ModelConfig.Load(path + modelConfigFn)
-	trmConfigPath := path + trmConfigFn
-	voiceConfigPath := path + voiceFilePrefix + ".config"
-	ctrl.TrmConfig.Load(trmConfigPath, voiceConfigPath)
 }
 
 //SynthSequenceToFile synthesizes speech from data contained in the event list
@@ -154,9 +145,6 @@ func (ctrl *Control) CalcChunks(text string) int {
 	var idx int
 	// C++ version relied on string terminator '\0'
 	for idx = 0; idx < len(text)-1; {
-		//if idx == len(text) {
-		//	break
-		//}
 		c := text[idx]
 		d := text[idx+1]
 		if c == '/' && d == 'c' {

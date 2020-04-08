@@ -28,6 +28,7 @@
 package v2
 
 import (
+	"encoding/xml"
 	"errors"
 	"log"
 	"strings"
@@ -484,7 +485,8 @@ type ExprSymEquations struct {
 }
 
 type Rule struct {
-	BoolExprs                 []string
+	XMLName                   xml.Name `xml:"rule"`
+	BoolExprs                 []string `xml:"boolean-expression"`
 	ParamProfileTransitions   []Transition
 	SpecialProfileTransitions []Transition
 	ExprSymEquations          ExprSymEquations

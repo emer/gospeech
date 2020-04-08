@@ -49,7 +49,7 @@ type Equation struct {
 	FormulaRoot *FormulaNode
 }
 
-type EqGroup struct {
+type EqGrp struct {
 	Name      string
 	Equations []Equation
 }

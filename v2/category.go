@@ -28,7 +28,7 @@
 package v2
 
 type Category struct {
-	Name    string
-	Comment string
+	Name    string `xml:"name,attr"`
+	Comment string `xml:"comment"`
 	Native  bool
 }
