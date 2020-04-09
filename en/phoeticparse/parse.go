@@ -40,8 +40,6 @@ import (
 	"github.com/emer/gospeech/v2"
 )
 
-const vowelTransitionsConfig = "/vowelTransitions"
-
 type RewriterData struct {
 	curState    int
 	lastPosture *v2.Posture
@@ -55,7 +53,7 @@ type PhoneticParser struct {
 	VowelTransitions [][]int
 }
 
-func NewPhoneticParser(mdl *v2.Model, c *v2.Control, configPath string) *PhoneticParser {
+func NewPhoneticParser(mdl *v2.Model, c *v2.Control, vtpath string) *PhoneticParser {
 	pp := PhoneticParser{}
 	pp.Model = mdl
 	pp.Sequence = c.Sequence
@@ -101,15 +99,15 @@ func NewPhoneticParser(mdl *v2.Model, c *v2.Control, configPath string) *Phoneti
 	pp.ReturnPhone[5] = pp.Model.PostureTry("qs")
 	pp.ReturnPhone[6] = pp.Model.PostureTry("qz")
 
-	pp.InitVowelTransitions(configPath)
+	pp.InitVowelTransitions(vtpath)
 
 	return &pp
 }
 
-func (pp *PhoneticParser) InitVowelTransitions(configPath string) {
-	fp, err := os.Open(configPath + vowelTransitionsConfig)
+func (pp *PhoneticParser) InitVowelTransitions(vtpath string) {
+	fp, err := os.Open(vtpath)
 	if err != nil {
-		log.Println("Could not open the file " + configPath)
+		log.Println("Could not open the file " + vtpath)
 		return
 	}
 	f := bufio.NewReader(fp)

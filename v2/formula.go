@@ -38,7 +38,6 @@ import (
 type FormulaSymbolType int
 
 const (
-	//
 	FormulaSymTransition1 = iota
 	FormulaSymTransition2
 	FormulaSymTransition3

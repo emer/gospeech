@@ -134,10 +134,10 @@ func (sr *SlopeRatio) NSlopeUnits() float64 {
 
 // Transition
 type Transition struct {
-	XMLName   xml.Name       `xml:"transition"`
-	Name      string         `xml:"name"`
-	TType     TransitionType `xml:"type"`
-	Special   bool
+	Name      string `xml:"name,attr"`
+	TypeAsStr string `xml:"type,attr"`
+	Type      TransitionType
+	Special   bool ``
 	PtSlpList []interface{}
 }
 
@@ -179,6 +179,7 @@ func PointDataMinMax(pt Point, model *Model, baseline, delta, min, max float64) 
 }
 
 type TransGrp struct {
-	Name        string
-	Transitions []Transition
+	XMLName     xml.Name     `xml:"transition-group"`
+	Name        string       `xml:"name,attr"`
+	Transitions []Transition `xml:"transition"`
 }

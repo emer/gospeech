@@ -28,7 +28,6 @@
 package v2
 
 import (
-	"encoding/xml"
 	"errors"
 	"log"
 	"strings"
@@ -403,14 +402,14 @@ func (r *Rule) EvalExprSyms(tempos []float64, postures []Posture, model *Model, 
 
 	if len(postures) >= 2 {
 		pos := postures[0]
-		model.FormulaSymbols.CodeMap[FormulaSymTransition1] = pos.SymTargets[1]
-		model.FormulaSymbols.CodeMap[FormulaSymQssa1] = pos.SymTargets[2]
-		model.FormulaSymbols.CodeMap[FormulaSymQssb1] = pos.SymTargets[3]
+		model.FormulaSymbols.CodeMap[FormulaSymTransition1] = pos.SymTargets[1].Value
+		model.FormulaSymbols.CodeMap[FormulaSymQssa1] = pos.SymTargets[2].Value
+		model.FormulaSymbols.CodeMap[FormulaSymQssb1] = pos.SymTargets[3].Value
 
 		pos = postures[1]
-		model.FormulaSymbols.CodeMap[FormulaSymTransition2] = pos.SymTargets[1]
-		model.FormulaSymbols.CodeMap[FormulaSymQssa2] = pos.SymTargets[2]
-		model.FormulaSymbols.CodeMap[FormulaSymQssb2] = pos.SymTargets[3]
+		model.FormulaSymbols.CodeMap[FormulaSymTransition2] = pos.SymTargets[1].Value
+		model.FormulaSymbols.CodeMap[FormulaSymQssa2] = pos.SymTargets[2].Value
+		model.FormulaSymbols.CodeMap[FormulaSymQssb2] = pos.SymTargets[3].Value
 		localTempos[0] = tempos[0]
 		localTempos[1] = tempos[1]
 	} else {
@@ -420,9 +419,9 @@ func (r *Rule) EvalExprSyms(tempos []float64, postures []Posture, model *Model, 
 
 	if len(postures) >= 3 {
 		pos := postures[2]
-		model.FormulaSymbols.CodeMap[FormulaSymTransition3] = pos.SymTargets[1]
-		model.FormulaSymbols.CodeMap[FormulaSymQssa3] = pos.SymTargets[2]
-		model.FormulaSymbols.CodeMap[FormulaSymQssb3] = pos.SymTargets[3]
+		model.FormulaSymbols.CodeMap[FormulaSymTransition3] = pos.SymTargets[1].Value
+		model.FormulaSymbols.CodeMap[FormulaSymQssa3] = pos.SymTargets[2].Value
+		model.FormulaSymbols.CodeMap[FormulaSymQssb3] = pos.SymTargets[3].Value
 		localTempos[2] = tempos[2]
 	} else {
 		localTempos[2] = 0.0
@@ -430,9 +429,9 @@ func (r *Rule) EvalExprSyms(tempos []float64, postures []Posture, model *Model, 
 
 	if len(postures) >= 4 {
 		pos := postures[3]
-		model.FormulaSymbols.CodeMap[FormulaSymTransition4] = pos.SymTargets[1]
-		model.FormulaSymbols.CodeMap[FormulaSymQssa4] = pos.SymTargets[2]
-		model.FormulaSymbols.CodeMap[FormulaSymQssb4] = pos.SymTargets[3]
+		model.FormulaSymbols.CodeMap[FormulaSymTransition4] = pos.SymTargets[1].Value
+		model.FormulaSymbols.CodeMap[FormulaSymQssa4] = pos.SymTargets[2].Value
+		model.FormulaSymbols.CodeMap[FormulaSymQssb4] = pos.SymTargets[3].Value
 		localTempos[3] = tempos[3]
 	} else {
 		localTempos[3] = 0.0
@@ -485,12 +484,11 @@ type ExprSymEquations struct {
 }
 
 type Rule struct {
-	XMLName                   xml.Name `xml:"rule"`
-	BoolExprs                 []string `xml:"boolean-expression"`
-	ParamProfileTransitions   []Transition
+	BoolExprs                 []string     `xml:"boolean-expressions>boolean-expression"`
+	ParamProfileTransitions   []Transition `xml:"parameter-profiles>parameter-transition"`
 	SpecialProfileTransitions []Transition
-	ExprSymEquations          ExprSymEquations
-	Comment                   string
+	ExprSymEquations          ExprSymEquations `xml:"expression-symbols>symbol-equation"`
+	Comment                   string           `xml:"comment"`
 	RuleNodes                 []RuleBooleanNode
 }
 

@@ -598,15 +598,15 @@ func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos []float64,
 	/* Loop through the parameters */
 	for i := 0; i < len(seq.Model.Params); i++ {
 		/* Get actual parameter target values */
-		targets[0] = postures[0].ParamTargets[i]
-		targets[1] = postures[1].ParamTargets[i]
+		targets[0] = postures[0].ParamTargets[i].Value
+		targets[1] = postures[1].ParamTargets[i].Value
 		targets[2] = 0.0
 		targets[3] = 0.0
 		if len(postures) >= 3 {
-			targets[2] = postures[2].ParamTargets[i]
+			targets[2] = postures[2].ParamTargets[i].Value
 		}
 		if len(postures) == 4 {
-			targets[3] = postures[3].ParamTargets[i]
+			targets[3] = postures[3].ParamTargets[i].Value
 		}
 
 		/* Optimization, Don't calculate if no changes occur */

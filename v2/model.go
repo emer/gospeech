@@ -34,15 +34,14 @@ import (
 )
 
 type Model struct {
-	XMLName        xml.Name   `xml:"model"`
-	Categories     []Category `xml:"category"`
-	Params         []Param    `xml:"parameter"`
-	Symbols        []Symbol   `xml:"symbol"`
-	Postures       []Posture  `xml:"posture"`
-	Rules          []Rule     `xml:"rule"`
-	EqGrps         []EqGrp
-	TransGrps      []TransGrp
-	TransGrpsSp    []TransGrp // "special"
+	Categories     []Category `xml:"categories>category"`
+	Params         []Param    `xml:"parameters>parameter"`
+	Symbols        []Symbol   `xml:"symbols>symbol"`
+	Postures       []Posture  `xml:"postures>posture"`
+	Rules          []Rule     `xml:"rules>rule"`
+	EqGrps         []EqGrp    `xml:"equations>equation-group"`
+	TransGrps      []TransGrp `xml:"transitions>transition-group"`
+	TransGrpsSp    []TransGrp `xml:"special-transitions>transition-group"`
 	FormulaSymbols *FormulaSymbols
 }
 
@@ -81,6 +80,25 @@ func (mdl *Model) Load(path string) {
 	err = xml.Unmarshal([]byte(data), &mdl)
 	if err != nil {
 		panic(err)
+	}
+
+	// Some clean up after unmarshalling
+	// for enums we read in as a string and then set the enum value
+	// I could write the xml unmarshalling to handle this but I don't think there are
+	// enough cases to warrant
+	for _, tg := range mdl.TransGrps {
+		for _, t := range tg.Transitions {
+			switch t.TypeAsStr {
+			case "diphone":
+				t.Type = TransDiPhone
+			case "triphone":
+				t.Type = TransTriPhone
+			case "tetraphone":
+				t.Type = TransTetraPhone
+			default:
+				t.Type = TransInvalid
+			}
+		}
 	}
 
 	//fmt.Printf(mdl.Categories[0].Name)

@@ -31,12 +31,17 @@ import (
 	"log"
 )
 
+type Target struct {
+	Name  string  `xml:"name,attr"`
+	Value float64 `xml:"value,attr"`
+}
+
 type Posture struct {
-	Name         string
-	Categories   []Category
-	ParamTargets []float64
-	SymTargets   []float64
-	Comment      string
+	Name         string     `xml:"symbol,attr"`
+	Categories   []Category `xml:"posture-categories>category-ref"`
+	ParamTargets []Target   `xml:"parameter-targets>target"`
+	SymTargets   []Target   `xml:"symbol-targets>target"`
+	Comment      string     `xml:"comment"`
 }
 
 func NewPosture(nm string, paramN, symN int) *Posture {
@@ -46,8 +51,8 @@ func NewPosture(nm string, paramN, symN int) *Posture {
 		log.Println("paramN and symN must be > 0")
 		return nil
 	}
-	np.ParamTargets = make([]float64, paramN)
-	np.SymTargets = make([]float64, symN)
+	np.ParamTargets = make([]Target, paramN)
+	np.SymTargets = make([]Target, symN)
 
 	var cat Category
 	cat.Name = nm
