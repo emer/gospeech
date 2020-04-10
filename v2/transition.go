@@ -29,6 +29,7 @@ package v2
 
 import (
 	"encoding/xml"
+
 	"github.com/goki/ki/kit"
 )
 
@@ -59,32 +60,31 @@ const (
 var Kit_TransitionType = kit.Enums.AddEnum(TransTypeN, kit.NotBitFlag, nil)
 
 type PointOrSlope struct {
-	XMLName xml.Name `xml:"point-or-slopes"`
+	//XMLName xml.Name `xml:"point-or-slopes"`
 }
 
 func (pos *PointOrSlope) IsSlopeRatio() bool {
 	return false
 }
 
+// Point -- If timeExpression is not empty, time = timeExpression, otherwise time = freeTime.
 type Point struct {
-	XMLName xml.Name `xml:"point"`
 	PointOrSlope
-	TType     TransitionType `xml:"type,attr"`
+	Type      TransitionType `xml:"type,attr"`
 	Value     float64        `xml:"value,attr"`
-	IsPhantom bool
-
-	// If timeExpression is not empty, time = timeExpression, otherwise time = freeTime.
-	timeExpr *Equation `xml:"time-expression,attr"`
-	FreeTime float64   `desc:"milliseconds""`
+	IsPhantom bool           `xml:"is-phantom,attr"`
+	FreeTime  float64        `xml:"free-time,attr" desc:"milliseconds"`
+	TimeExpr  *Equation      `xml:"time-expression,attr"`
 }
 
+// NewPoint
 func NewPoint() *Point {
 	pt := Point{}
-	pt.TType = TransInvalid
+	pt.Type = TransInvalid
 	pt.Value = 0.0
 	pt.IsPhantom = false
 	pt.FreeTime = 0.0
-	pt.timeExpr = &Equation{}
+	pt.TimeExpr = &Equation{}
 	return &pt
 }
 
@@ -93,7 +93,6 @@ func (pt *Point) IsSlopeRatio() bool {
 }
 
 type Slope struct {
-	XMLName xml.Name `xml:"slope"`
 	PointOrSlope
 	Slope       float64 `xml:"slope,attr"`
 	DisplayTime float64 `xml:"display-time,attr"`
@@ -112,8 +111,8 @@ func (pos *Slope) IsSlopeRatio() bool {
 
 type SlopeRatio struct {
 	PointOrSlope
-	Points []Point
-	Slopes []Slope
+	Points []Point `xml:"points>point"`
+	Slopes []Slope `xml:"slopes>slope"`
 }
 
 func NewSlopeRatio() *SlopeRatio {
@@ -137,25 +136,25 @@ type Transition struct {
 	Name      string `xml:"name,attr"`
 	TypeAsStr string `xml:"type,attr"`
 	Type      TransitionType
-	Special   bool ``
-	PtSlpList []interface{}
+	Special   bool          ``
+	PtSlpList []interface{} `xml:"point-or-slopes>slope-ratio>points>point"`
 }
 
 // PointTime
 func PointTime(pt Point, model *Model) float64 {
-	if pt.timeExpr != nil {
+	if pt.TimeExpr != nil {
 		return pt.FreeTime
 	} else {
-		return pt.timeExpr.Eval(model.FormulaSymbols)
+		return pt.TimeExpr.Eval(model.FormulaSymbols)
 	}
 }
 
 // PointData
 func PointData(pt Point, model *Model) (time, value float64) {
-	if pt.timeExpr != nil {
+	if pt.TimeExpr != nil {
 		time = pt.FreeTime
 	} else {
-		time = pt.timeExpr.Eval(model.FormulaSymbols)
+		time = pt.TimeExpr.Eval(model.FormulaSymbols)
 	}
 	value = pt.Value
 	return time, value
@@ -163,10 +162,10 @@ func PointData(pt Point, model *Model) (time, value float64) {
 
 // PointDataMinMax
 func PointDataMinMax(pt Point, model *Model, baseline, delta, min, max float64) (time, value float64) {
-	if pt.timeExpr != nil {
+	if pt.TimeExpr != nil {
 		time = pt.FreeTime
 	} else {
-		time = pt.timeExpr.Eval(model.FormulaSymbols)
+		time = pt.TimeExpr.Eval(model.FormulaSymbols)
 	}
 
 	value = baseline + (value/100.0)*delta

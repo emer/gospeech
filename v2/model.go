@@ -31,9 +31,11 @@ import (
 	"encoding/xml"
 	"errors"
 	"io/ioutil"
+	"strconv"
 )
 
 type Model struct {
+	//XMLName        xml.Name     `xml:"model"`
 	Categories     []Category `xml:"categories>category"`
 	Params         []Param    `xml:"parameters>parameter"`
 	Symbols        []Symbol   `xml:"symbols>symbol"`
@@ -70,6 +72,69 @@ func (mdl *Model) Reset() {
 	mdl.TransGrps = mdl.TransGrps[:0]
 	mdl.TransGrpsSp = mdl.TransGrpsSp[:0]
 	mdl.FormulaSymbols.Clear()
+}
+
+func (tr *Transition) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	for {
+		t, err := d.Token()
+		if err != nil {
+			return err
+		}
+		//var i PointOrSlope
+		switch tt := t.(type) {
+		case xml.StartElement:
+			switch tt.Name.Local {
+			case "point":
+				p := new(Point)
+				tr.PtSlpList = append(tr.PtSlpList, &p)
+				for _, attr := range tt.Attr {
+					switch attr.Name.Local {
+					case "value":
+						p.Value, err = strconv.ParseFloat(attr.Value, 64)
+					case "type":
+						switch attr.Value {
+						case "diphone":
+							p.Type = TransDiPhone
+						case "triphone":
+							p.Type = TransTriPhone
+						case "tetraphone":
+							p.Type = TransTetraPhone
+						default:
+							p.Type = TransInvalid
+						}
+					case "time-expression":
+						e := new(Equation)
+						p.TimeExpr = e
+						e.Name = attr.Value
+					case "free-time":
+						ft := attr.Value
+						p.FreeTime, err = strconv.ParseFloat(ft, 64)
+					case "is-phantom":
+						if attr.Value == "yes" {
+							p.IsPhantom = true
+						}
+					}
+				}
+			case "slope":
+				s := new(Slope)
+				tr.PtSlpList = append(tr.PtSlpList, &s)
+				for _, attr := range tt.Attr {
+					switch attr.Name.Local {
+					case "slope":
+						sl := attr.Value
+						s.Slope, err = strconv.ParseFloat(sl, 64)
+					case "display-time":
+						dt := attr.Value
+						s.DisplayTime, err = strconv.ParseFloat(dt, 64)
+					}
+				}
+			}
+		case xml.EndElement:
+			if tt == start.End() {
+				return nil
+			}
+		}
+	}
 }
 
 // Load the model configuration - the monet.xml file (postures, intonation, etc)

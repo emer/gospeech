@@ -648,8 +648,8 @@ func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos []float64,
 				pointOrSlope := transition.PtSlpList[j]
 				slopeRatio, ok := pointOrSlope.(SlopeRatio)
 				if ok { // is SlopeRatio
-					if int(slopeRatio.Points[0].TType) != curType { //TODO: check pointList.size() > 0
-						curType = int(slopeRatio.Points[0].TType)
+					if int(slopeRatio.Points[0].Type) != curType { //TODO: check pointList.size() > 0
+						curType = int(slopeRatio.Points[0].Type)
 						targets[curType-2] = lastVal
 						curDelta = targets[curType-1] - lastVal
 					}
@@ -659,8 +659,8 @@ func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos []float64,
 				} else {
 					pt, ok := pointOrSlope.(Point)
 					if ok { // is SlopeRatio
-						if int(pt.TType) != curType {
-							curType = int(pt.TType)
+						if int(pt.Type) != curType {
+							curType = int(pt.Type)
 							targets[curType-2] = lastVal
 							curDelta = targets[curType-1] - lastVal
 						}
