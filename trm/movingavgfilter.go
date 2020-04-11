@@ -49,8 +49,8 @@ func (maf *MovingAvgFilter) Init(rate, period float64) {
 
 // Reset sets the buffer values to zero, resets position and sets sum to zero
 func (maf *MovingAvgFilter) Reset() {
-	for _, v := range maf.Buf {
-		v = 0.0
+	for i := 0; i < len(maf.Buf); i++ {
+		maf.Buf[i] = 0
 	}
 	maf.Pos = len(maf.Buf)
 	maf.Sum = 0.0
