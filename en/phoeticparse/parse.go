@@ -30,14 +30,13 @@ package phoneticparse
 import (
 	"bufio"
 	"fmt"
+	"github.com/emer/gospeech/v2"
 	"io"
 	"log"
 	"os"
 	"strconv"
 	"strings"
 	"unicode"
-
-	"github.com/emer/gospeech/v2"
 )
 
 type RewriterData struct {
@@ -60,6 +59,9 @@ func NewPhoneticParser(mdl *v2.Model, c *v2.Control, vtpath string) *PhoneticPar
 	pp.Categories = make([]*v2.Category, 18) // why 18?
 	pp.ReturnPhone = make([]*v2.Posture, 7)  // why 7?
 	pp.VowelTransitions = make([][]int, 13)
+	for i := 0; i < 13; i++ {
+		pp.VowelTransitions[i] = make([]int, 13)
+	}
 
 	foo := pp.Model.CategoryTry("stopped")
 	if foo == nil {
@@ -111,6 +113,7 @@ func (pp *PhoneticParser) InitVowelTransitions(vtpath string) {
 		return
 	}
 	f := bufio.NewReader(fp)
+	v_vtransition := ""
 	i := 0
 	for {
 		line, isP, err := f.ReadLine()
@@ -123,18 +126,18 @@ func (pp *PhoneticParser) InitVowelTransitions(vtpath string) {
 		if i == 13 {
 			break
 		}
-		if line[0] == '#' || line[0] == ' ' {
+		if rune(line[0]) == '#' || rune(line[0]) == ' ' {
 			// skip
 		} else {
-
+			vt := pp.VowelTransitions
+			_, err := fmt.Sscanf(string(line), "%s %d %d %d %d %d %d %d %d %d %d %d %d %d",
+				&v_vtransition, &vt[i][0], &vt[i][1], &vt[i][2], &vt[i][3], &vt[i][4], &vt[i][5],
+				&vt[i][6], &vt[i][7], &vt[i][8], &vt[i][9], &vt[i][10], &vt[i][11], &vt[i][12])
+			if err != nil {
+				log.Println(err)
+			}
+			i++
 		}
-		fmt.Sscanf(string(line), "%s %d %d %d %d %d %d %d %d %d %d %d %d %d",
-			pp.VowelTransitions[i][0], pp.VowelTransitions[i][1], pp.VowelTransitions[i][2],
-			pp.VowelTransitions[i][3], pp.VowelTransitions[i][4], pp.VowelTransitions[i][5],
-			pp.VowelTransitions[i][6], pp.VowelTransitions[i][7], pp.VowelTransitions[i][8],
-			pp.VowelTransitions[i][9], pp.VowelTransitions[i][10], pp.VowelTransitions[i][11],
-			pp.VowelTransitions[i][12])
-		i++
 	}
 	fp.Close()
 }
