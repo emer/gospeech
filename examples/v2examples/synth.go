@@ -55,7 +55,7 @@ func (syn *Synth) Config() {
 	syn.TextParser = textparse.NewTextParser()
 	syn.Text = "emergent"
 
-	syn.PhoneticParser = phoneticparse.NewPhoneticParser(syn.Model, syn.Control, "../data/en/vowelTransitions")
+	syn.PhoneticParser = phoneticparse.NewPhoneticParser(syn.Model, syn.Control, "../../data/en/vowelTransitions")
 }
 
 func (syn *Synth) Synthesize() {
