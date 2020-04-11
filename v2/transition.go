@@ -133,10 +133,9 @@ func (sr *SlopeRatio) NSlopeUnits() float64 {
 
 // Transition
 type Transition struct {
-	Name      string `xml:"name,attr"`
-	TypeAsStr string `xml:"type,attr"`
-	Type      TransitionType
-	Special   bool          ``
+	Name      string         `xml:"name,attr"`
+	Type      TransitionType `xml:"type,attr"`
+	Special   bool
 	PtSlpList []interface{} `xml:"point-or-slopes>slope-ratio>points>point"`
 }
 

@@ -31,6 +31,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"io/ioutil"
+	"log"
 	"strconv"
 )
 
@@ -141,6 +142,9 @@ func (tr *Transition) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error
 func (mdl *Model) Load(path string) {
 	//Reset()
 	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		log.Println(err)
+	}
 
 	err = xml.Unmarshal([]byte(data), &mdl)
 	if err != nil {
@@ -153,12 +157,12 @@ func (mdl *Model) Load(path string) {
 	// enough cases to warrant
 	for _, tg := range mdl.TransGrps {
 		for _, t := range tg.Transitions {
-			switch t.TypeAsStr {
-			case "diphone":
+			switch t.Type {
+			case 2:
 				t.Type = TransDiPhone
-			case "triphone":
+			case 3:
 				t.Type = TransTriPhone
-			case "tetraphone":
+			case 4:
 				t.Type = TransTetraPhone
 			default:
 				t.Type = TransInvalid

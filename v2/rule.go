@@ -484,9 +484,9 @@ type ExprSymEquations struct {
 }
 
 type Rule struct {
-	BoolExprs                 []string     `xml:"boolean-expressions>boolean-expression"`
-	ParamProfileTransitions   []Transition `xml:"parameter-profiles>parameter-transition"`
-	SpecialProfileTransitions []Transition
+	BoolExprs                 []string         `xml:"boolean-expressions>boolean-expression"`
+	ParamProfileTransitions   []Transition     `xml:"parameter-profiles>parameter-transition"`
+	SpecialProfileTransitions []Transition     `xml:"special-profiles>parameter-transition"`
 	ExprSymEquations          ExprSymEquations `xml:"expression-symbols>symbol-equation"`
 	Comment                   string           `xml:"comment"`
 	RuleNodes                 []RuleBooleanNode

@@ -17,16 +17,16 @@ const rtParenChar = ')'
 const lftParenChar = '('
 
 type Equation struct {
-	Name        string       `xml:"name,attr"`
-	Comment     string       `xml:"comment"`
-	Formula     string       `xml:"formula,attr"`
-	FormulaRoot *FormulaNode `xml:"-"`
+	Name        string `xml:"name,attr"`
+	Comment     string `xml:"comment"`
+	Formula     string `xml:"formula,attr"`
+	FormulaRoot *FormulaNode
 }
 
 type EqGrp struct {
 	XMLName   xml.Name   `xml:"equation-group"`
 	Name      string     `xml:"name,attr"`
-	Equations []Equation `xml:"equation"`
+	Equations []Equation `xml:"equation,attr"`
 }
 
 type SymbolType int

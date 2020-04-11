@@ -143,5 +143,4 @@ func mainrun() {
 	Synther.Config()
 	Synther.win = Synther.ConfigGui()
 	Synther.win.StartEventLoop()
-	fmt.Println("post config gui")
 }
