@@ -266,7 +266,7 @@ func (pp *PhoneticParser) ParseString(str string) int {
 	var tp1 *v2.Posture
 	var tp2 *v2.Posture
 
-	buffer := ""
+	var buffer []rune
 	bufidx := 0
 	chunk := 0
 
@@ -289,142 +289,145 @@ func (pp *PhoneticParser) ParseString(str string) int {
 	for idx < length {
 		for (unicode.IsSpace(rune(str[idx])) || rune(str[idx]) == '_') && (idx < length) {
 			idx++
-			if idx > length {
-				break
-			}
-			bufidx = 0
+		}
+		if idx > length {
+			break
+		}
+		bufidx = 0
 
-			switch str[idx] {
-			case '/': /* Handle "/" escape sequences */
+		switch str[idx] {
+		case '/': /* Handle "/" escape sequences */
+			idx++
+			switch rune(str[idx]) {
+			case '0': /* Tone group 0. Statement */
 				idx++
-				switch rune(str[idx]) {
-				case '0': /* Tone group 0. Statement */
-					idx++
-					pp.Sequence.CurToneGroup = v2.ToneStatement
-				case '1': /* Tone group 1. Exclamation */
-					idx++
-					pp.Sequence.CurToneGroup = v2.ToneExclamation
-				case '2': /* Tone group 2. Question */
-					idx++
-					pp.Sequence.CurToneGroup = v2.ToneQuestion
-				case '3': /* Tone group 3. Continuation */
-					idx++
-					pp.Sequence.CurToneGroup = v2.ToneContinuation
-				case '4': /* Tone group 4. Semi-colon */
-					idx++
-					pp.Sequence.CurToneGroup = v2.ToneSemicolon
-				case ' ':
-					fallthrough
-				case '_': /* New foot */
-					pp.Sequence.NewFoot()
-					if lastFoot {
-						pp.Sequence.Feet[len(pp.Sequence.Feet)-1].Last = true
-					}
-					footTempo = 1.0
-					lastFoot = false
-					markedFoot = false
-					idx++
-				case '*': /* New Marked foot */
-					pp.Sequence.NewFoot()
-					pp.Sequence.Feet[pp.Sequence.CurFoot].Marked = true
-					if lastFoot {
-						pp.Sequence.Feet[pp.Sequence.CurFoot].Last = true
-					}
-					footTempo = 1.0
-					lastFoot = false
-					markedFoot = true
-					idx++
-				case '/': /* New Tone Group */
-					idx++
-					pp.Sequence.NewToneGroup()
-				case 'c': /* New Chunk */
-					if chunk > 0 {
-						tp1 = pp.Model.PostureTry("#")
-						pp.Sequence.NewPostureWithObject(tp1)
-						tp1 = pp.Model.PostureTry("^")
-						pp.Sequence.NewPostureWithObject(tp1)
-						idx--
-						return idx
-					} else {
-						chunk++
-						idx++
-					}
-				case 'l': /* Last Foot in tone group marker */
-					idx++
-					lastFoot = true
-				case 'w': /* word marker */
-					idx++
-					wordMarker = true
-				case 'f': /* Foot tempo indicator */
-					idx++
-					for (unicode.IsSpace(rune(str[idx])) || rune(str[idx]) == '_') && (idx < length) {
-						idx++
-					}
-					if idx > length {
-						break
-					}
-					for unicode.IsDigit(rune(str[idx])) || rune(str[idx]) == '.' {
-						replaceAtIndex(buffer, str[idx], bufidx)
-						bufidx++
-						idx++
-					}
-					footTempo, _ = strconv.ParseFloat(buffer, 64)
-					pp.Sequence.Feet[pp.Sequence.CurFoot].Tempo = footTempo
-				case 'r': /* Foot tempo indicator */
-					idx++
-					for unicode.IsSpace(rune(str[idx])) || rune(str[idx]) == '_' && idx < length {
-						idx++
-					}
-					if idx > length {
-						break
-					}
-					for unicode.IsDigit(rune(str[idx])) || rune(str[idx]) == '.' {
-						replaceAtIndex(buffer, str[idx], bufidx)
-						bufidx++
-						idx++
-					}
-					ruleTempo, _ = strconv.ParseFloat(buffer, 64)
-				default:
+				pp.Sequence.CurToneGroup = v2.ToneStatement
+			case '1': /* Tone group 1. Exclamation */
+				idx++
+				pp.Sequence.CurToneGroup = v2.ToneExclamation
+			case '2': /* Tone group 2. Question */
+				idx++
+				pp.Sequence.CurToneGroup = v2.ToneQuestion
+			case '3': /* Tone group 3. Continuation */
+				idx++
+				pp.Sequence.CurToneGroup = v2.ToneContinuation
+			case '4': /* Tone group 4. Semi-colon */
+				idx++
+				pp.Sequence.CurToneGroup = v2.ToneSemicolon
+			case ' ':
+				fallthrough
+			case '_': /* New foot */
+				pp.Sequence.AddFoot()
+				if lastFoot {
+					pp.Sequence.Feet[len(pp.Sequence.Feet)-1].Last = true
+				}
+				footTempo = 1.0
+				lastFoot = false
+				markedFoot = false
+				idx++
+			case '*': /* New Marked foot */
+				pp.Sequence.AddFoot()
+				pp.Sequence.Feet[pp.Sequence.CurFoot].Marked = true
+				if lastFoot {
+					pp.Sequence.Feet[pp.Sequence.CurFoot].Last = true
+				}
+				footTempo = 1.0
+				lastFoot = false
+				markedFoot = true
+				idx++
+			case '/': /* New Tone Group */
+				idx++
+				pp.Sequence.AddToneGroup()
+			case 'c': /* New Chunk */
+				if chunk > 0 {
+					tp1 = pp.Model.PostureTry("#")
+					pp.Sequence.NewPostureWithObject(tp1)
+					tp1 = pp.Model.PostureTry("^")
+					pp.Sequence.NewPostureWithObject(tp1)
+					idx--
+					return idx
+				} else {
+					chunk++
 					idx++
 				}
-				break
-			case '.': /* Syllable Marker */
-				pp.Sequence.PostureDatum[pp.Sequence.CurPosture].Syllable = true
+			case 'l': /* Last Foot in tone group marker */
 				idx++
-			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+				lastFoot = true
+			case 'w': /* word marker */
+				idx++
+				wordMarker = true
+			case 'f': /* Foot tempo indicator */
+				idx++
+				for (unicode.IsSpace(rune(str[idx])) || rune(str[idx]) == '_') && (idx < length) {
+					idx++
+				}
+				if idx > length {
+					break
+				}
 				for unicode.IsDigit(rune(str[idx])) || rune(str[idx]) == '.' {
-					replaceAtIndex(buffer, str[idx], bufidx)
+					replaceAtIndex(string(buffer), str[idx], bufidx)
 					bufidx++
 					idx++
 				}
-				postureTempo, _ = strconv.ParseFloat(buffer, 64)
-			default:
-				if unicode.IsLetter(rune(str[idx])) || rune(str[idx]) == '^' || rune(str[idx]) == '\'' || rune(str[idx]) == '#' {
-					for (unicode.IsLetter(rune(str[idx])) || rune(str[idx]) == '^' || rune(str[idx]) == '\'' || rune(str[idx]) == '#') && idx < length {
-						replaceAtIndex(buffer, str[idx], bufidx)
-						bufidx++
-						idx++
-					}
-					if markedFoot {
-						buffer = buffer + "'"
-					}
-					tp1 = pp.Model.PostureTry(buffer)
-					if tp1 != nil {
-						tp2 = pp.Rewrite(tp1, wordMarker, rewrite)
-						if tp2 != nil {
-							pp.Sequence.NewPostureWithObject(tp2)
-						}
-						pp.Sequence.NewPostureWithObject(tp1)
-						pp.Sequence.PostureTempos[pp.Sequence.CurPosture] = postureTempo
-						pp.Sequence.PostureDatum[pp.Sequence.CurPosture].RuleTempo = ruleTempo
-					}
-					postureTempo = 1.0
-					ruleTempo = 1.0
-					wordMarker = false
-				} else {
-					//printf("Unknown character %c\n", string[idx++]);
+				footTempo, _ = strconv.ParseFloat(string(buffer), 64)
+				pp.Sequence.Feet[pp.Sequence.CurFoot].Tempo = footTempo
+			case 'r': /* Foot tempo indicator */
+				idx++
+				for unicode.IsSpace(rune(str[idx])) || rune(str[idx]) == '_' && idx < length {
+					idx++
+				}
+				if idx > length {
 					break
 				}
+				for unicode.IsDigit(rune(str[idx])) || rune(str[idx]) == '.' {
+					replaceAtIndex(string(buffer), str[idx], bufidx)
+					bufidx++
+					idx++
+				}
+				ruleTempo, _ = strconv.ParseFloat(string(buffer), 64)
+			default:
+				idx++
+			}
+			break
+		case '.': /* Syllable Marker */
+			pp.Sequence.PostureDatum[pp.Sequence.CurPosture].Syllable = true
+			idx++
+		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+			for unicode.IsDigit(rune(str[idx])) || rune(str[idx]) == '.' {
+				replaceAtIndex(string(buffer), str[idx], bufidx)
+				bufidx++
+				idx++
+			}
+			postureTempo, _ = strconv.ParseFloat(string(buffer), 64)
+		default:
+			if unicode.IsLetter(rune(str[idx])) || rune(str[idx]) == '^' || rune(str[idx]) == '\'' || rune(str[idx]) == '#' {
+				for (unicode.IsLetter(rune(str[idx])) || rune(str[idx]) == '^' || rune(str[idx]) == '\'' || rune(str[idx]) == '#') && idx < length {
+					//replaceAtIndex(buffer, str[idx], bufidx)
+					buffer = append(buffer, rune(str[idx]))
+					bufidx++
+					idx++
+				}
+				if markedFoot {
+					buffer[bufidx] = rune('\'')
+					bufidx++
+				}
+				s := string(buffer)
+				tp1 = pp.Model.PostureTry(s)
+				if tp1 != nil {
+					tp2 = pp.Rewrite(tp1, wordMarker, rewrite)
+					if tp2 != nil {
+						pp.Sequence.NewPostureWithObject(tp2)
+					}
+					pp.Sequence.NewPostureWithObject(tp1)
+					pp.Sequence.PostureTempos[pp.Sequence.CurPosture] = postureTempo
+					pp.Sequence.PostureDatum[pp.Sequence.CurPosture].RuleTempo = ruleTempo
+				}
+				postureTempo = 1.0
+				ruleTempo = 1.0
+				wordMarker = false
+			} else {
+				//printf("Unknown character %c\n", string[idx++]);
+				break
 			}
 		}
 	}

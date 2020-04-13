@@ -37,10 +37,6 @@ import (
 	"github.com/goki/ki/bitflag"
 )
 
-//const modelConfigFn = "/trm_control_model.config"
-//const trmConfigFn = "/trm.config"
-//const voiceFilePrefix = "/voice_"
-
 type Control struct {
 	Model       *Model
 	Sequence    *Sequence
@@ -255,7 +251,7 @@ func (ctrl *Control) PhoneticParse(psp PhoneticParser, pString string, writer *b
 	idx := 0
 	for chunks > 0 {
 		log.Println("Speaking ", pString[idx])
-		ctrl.SynthPhoneticStringChunk(psp, string(pString[idx]), writer)
+		ctrl.SynthPhoneticStringChunk(psp, pString, writer)
 		idx += ctrl.NextChunk(string(pString[idx+2])) + 2
 		chunks--
 	}

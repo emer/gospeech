@@ -15,6 +15,8 @@ import (
 	"golang.org/x/exp/errors/fmt"
 )
 
+const intonationPath = "../../data/en/intonation"
+
 // this is the stub main for gogi that calls our actual
 // mainrun function, at end of file
 func main() {
@@ -50,7 +52,7 @@ func (syn *Synth) Config() {
 	syn.TrmConfig.Load("trm.json", vfp)
 
 	syn.Model = v2.NewModel("../../data/en/monet_go.xml")
-	syn.Control = v2.NewControl("", syn.Model)
+	syn.Control = v2.NewControl(intonationPath, syn.Model)
 
 	syn.TextParser = textparse.NewTextParser()
 	syn.Text = "emergent"
@@ -66,9 +68,7 @@ func (syn *Synth) Synthesize() {
 
 	syn.Phonetic = syn.TextParser.ParseText(syn.Text)
 	fmt.Println(syn.Text, "phoneticaly is ", syn.Phonetic)
-	syn.PhoneticParser = phoneticparse.NewPhoneticParser(syn.Model, syn.Control, "../../data/en/")
 	syn.Control.SynthPhoneticStringToFile(syn.PhoneticParser, syn.Phonetic, "trmParams.txt", "out.txt")
-	//syn.Control.SynthPhoneticStringToFile(syn.PhoneticParser, "/c // # /w /l i./*m_er_r.j_uh_n_t # // /c", "trmParams.txt", "out.txt")
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////

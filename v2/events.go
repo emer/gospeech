@@ -41,8 +41,6 @@ import (
 	"gonum.org/v1/gonum/mathext/prng"
 )
 
-const intonationConfig = "/intonation"
-
 const DiPhone = 2
 const TriPhone = 3
 const TetraPhone = 4
@@ -93,7 +91,8 @@ const (
 
 var Kit_ToneType = kit.Enums.AddEnum(ToneTypeN, kit.NotBitFlag, nil)
 
-const intonationConfigFileName = "/intonation"
+const intonationConfigDir = "../../data/en/"
+const intonationConfigFileName = "intonation"
 const eps = 1.0e-6
 
 var invalidEvent = math.Inf(1) // positive infinity
@@ -204,14 +203,14 @@ type Sequence struct {
 	GlobalTempo              float64
 	Multiplier               float64
 	IntonationParams         []float64
-	PostureDatum             []PostureData
+	PostureDatum             []*PostureData
 	PostureTempos            []float64
 	CurPosture               int
-	Feet                     []Foot
+	Feet                     []*Foot
 	CurFoot                  int
-	ToneGroups               []ToneGroup
+	ToneGroups               []*ToneGroup
 	CurToneGroup             ToneType
-	RuleDatum                []RuleData
+	RuleDatum                []*RuleData
 	CurRule                  int
 	Min                      [16]float64
 	Max                      [16]float64
@@ -230,7 +229,7 @@ type Sequence struct {
 	randDist IntRange
 }
 
-func NewSequence(config string, model *Model) *Sequence {
+func NewSequence(intonationPath string, model *Model) *Sequence {
 	seq := Sequence{}
 
 	seq.MacroFlag = 0
@@ -241,20 +240,59 @@ func NewSequence(config string, model *Model) *Sequence {
 	seq.UseFixedIntonationParams = false
 
 	seq.Model = model
+	seq.Events = []Event{}
+
+	// setup
+	seq.ZeroRef = 0
+	seq.ZeroIdx = 0
+	seq.Duration = 0
+	seq.TimeQuant = 4
+	seq.Multiplier = 1.0
+
+	seq.IntonationParams = []float64{}
+
+	seq.PostureDatum = []*PostureData{}
+	pd := new(PostureData)
+	seq.PostureDatum = append(seq.PostureDatum, pd)
+
+	seq.PostureTempos = make([]float64, 1)
+	seq.PostureTempos[0] = 1.0
+	seq.CurPosture = 0
+
+	seq.Feet = []*Foot{}
+	ft := new(Foot)
+	seq.Feet = append(seq.Feet, ft)
+	seq.CurFoot = 0
+
+	seq.ToneGroups = []*ToneGroup{}
+	tg := new(ToneGroup)
+	seq.ToneGroups = append(seq.ToneGroups, tg)
+	seq.CurToneGroup = 0
+
+	seq.RuleDatum = []*RuleData{}
+	rd := new(RuleData)
+	seq.RuleDatum = append(seq.RuleDatum, rd)
+	seq.CurRule = 0
+
+	seq.IntonationPts = []IntonationPt{}
+
 	seq.TgParams = make([][]float64, ToneTypeN)
-	seq.InitToneGroups(config)
+	seq.TgCount = make([]int, 5)
+
+	seq.InitToneGroups(intonationPath)
 
 	seq.FixedIntonationParams = make([]float64, 10) // why 10?
 	for i, _ := range seq.FixedIntonationParams {
 		seq.FixedIntonationParams[i] = 1.0
 	}
-	seq.RadiusCoef = make([]float64, 8) // TRM::Tube::TOTAL_REGIONS
+	seq.RadiusCoef = make([]float64, 8) // ToDo: TRM::Tube::TOTAL_REGIONS
 	for i, _ := range seq.RadiusCoef {
 		seq.RadiusCoef[i] = 1.0
 	}
-	seq.TgCount = make([]int, 5)
+
 	seq.randDist.Min = 0
 	seq.randDist.Max = 1
+
 	return &seq
 }
 
@@ -293,12 +331,11 @@ func (seq *Sequence) ParseGroups(idx int, count int, fp *os.File) {
 	}
 }
 
-func (seq *Sequence) InitToneGroups(configDirPath string) error {
+func (seq *Sequence) InitToneGroups(intonationPath string) error {
 	var fp *os.File
 	count := 0
 
-	path := configDirPath + intonationConfig
-	fp, err := os.Open(path) // For read access.
+	fp, err := os.Open(intonationPath) // For read access.
 	if err != nil {
 		return err
 	}
@@ -334,10 +371,10 @@ func (seq *Sequence) GetBeatAtIndex(idx int) float64 {
 	}
 }
 
-func (seq *Sequence) NewPosture() {
+func (seq *Sequence) AddPosture() {
 	if seq.PostureDatum[seq.CurPosture].Posture != nil {
 		pd := PostureData{}
-		seq.PostureDatum = append(seq.PostureDatum, pd)
+		seq.PostureDatum = append(seq.PostureDatum, &pd)
 		seq.PostureTempos = append(seq.PostureTempos, 1.0)
 		seq.CurPosture++
 	}
@@ -345,9 +382,9 @@ func (seq *Sequence) NewPosture() {
 }
 
 func (seq *Sequence) NewPostureWithObject(p *Posture) {
-	if seq.PostureDatum[seq.CurPosture].Posture != nil {
+	if seq.PostureDatum != nil {
 		pd := PostureData{}
-		seq.PostureDatum = append(seq.PostureDatum, pd)
+		seq.PostureDatum = append(seq.PostureDatum, &pd)
 		seq.PostureTempos = append(seq.PostureTempos, 1.0)
 		seq.CurPosture++
 	}
@@ -364,35 +401,36 @@ func (seq *Sequence) replaceCurrentPostureWith(p *Posture) {
 	}
 }
 
-func (seq *Sequence) NewFoot() {
+func (seq *Sequence) AddFoot() {
 	if seq.CurPosture == 0 {
 		return
 	}
 
 	seq.Feet[seq.CurFoot].End = seq.CurPosture
 	seq.CurFoot++
-	seq.NewPosture()
+	seq.AddPosture()
 
 	f := Foot{}
 	f.Start = seq.CurPosture
 	f.End = -1
+
 	f.Tempo = 1.0
-	seq.Feet = append(seq.Feet, f)
+	seq.Feet = append(seq.Feet, &f)
 }
 
-func (seq *Sequence) NewToneGroup() {
+func (seq *Sequence) AddToneGroup() {
 	if seq.CurFoot == 0 {
 		return
 	}
 
 	seq.ToneGroups[seq.CurToneGroup].EndFoot = seq.CurFoot
 	seq.CurToneGroup++
-	seq.NewFoot()
+	seq.AddFoot()
 
 	tg := ToneGroup{}
 	tg.StartFoot = seq.CurFoot
 	tg.EndFoot = -1
-	seq.ToneGroups = append(seq.ToneGroups, tg)
+	seq.ToneGroups = append(seq.ToneGroups, &tg)
 }
 
 // ToDo: check for correctness - especially later code doing actual insert!
@@ -559,7 +597,7 @@ func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos []float64,
 	seq.RuleDatum[seq.CurRule].Duration = ruleSyms[0] * seq.Multiplier
 	seq.CurRule++
 	rd := RuleData{}
-	seq.RuleDatum = append(seq.RuleDatum, rd)
+	seq.RuleDatum = append(seq.RuleDatum, &rd)
 
 	var tempEvent *Event
 
