@@ -52,9 +52,9 @@ type PhoneticParser struct {
 	VowelTransitions [][]int
 }
 
-func NewPhoneticParser(mdl *v2.Model, c *v2.Control, vtpath string) *PhoneticParser {
+func NewPhoneticParser(c *v2.Control, vtpath string) *PhoneticParser {
 	pp := PhoneticParser{}
-	pp.Model = mdl
+	pp.Model = c.Model
 	pp.Sequence = c.Sequence
 	pp.Categories = make([]*v2.Category, 18) // why 18?
 	pp.ReturnPhone = make([]*v2.Posture, 7)  // why 7?
