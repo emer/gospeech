@@ -51,13 +51,14 @@ func (syn *Synth) Config() {
 	vfp := "./voice_" + syn.ModelConfig.Voice + ".json"
 	syn.TrmConfig.Load("trm.json", vfp)
 
-	syn.Model = v2.NewModel("../../data/en/monet_go.xml")
+	//syn.Model = v2.NewModel("../../data/en/monet_go.xml")
+	syn.Model = v2.LoadModel("../../data/en/monet_go.xml")
 	syn.Control = v2.NewControl(intonationPath, syn.Model)
 
 	syn.TextParser = textparse.NewTextParser()
 	syn.Text = "emergent"
 
-	syn.PhoneticParser = phoneticparse.NewPhoneticParser(syn.Model, syn.Control, "../../data/en/vowelTransitions")
+	syn.PhoneticParser = phoneticparse.NewPhoneticParser(syn.Control, "../../data/en/vowelTransitions")
 }
 
 func (syn *Synth) Synthesize() {
