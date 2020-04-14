@@ -259,7 +259,6 @@ func (ctrl *Control) PhoneticParse(psp PhoneticParser, pString string, writer *b
 }
 
 func (ctrl *Control) SynthPhoneticStringChunk(psp PhoneticParser, pschunk string, writer *bufio.Writer) {
-	ctrl.Sequence = NewSequence("", ctrl.Model)
 	psp.ParseString(pschunk)
 	ctrl.Sequence.GenerateEventList()
 	ctrl.Sequence.ApplyIntonation()

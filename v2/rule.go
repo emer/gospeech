@@ -132,8 +132,8 @@ func (pars *Parser) NextSymbol() {
 	}
 
 	c := string(pars.Str[pars.Pos])
+	pars.Symbol = c
 	pars.Pos++
-	//pars.SymType = c
 
 	switch c {
 	case rtParen:
@@ -147,6 +147,9 @@ func (pars *Parser) NextSymbol() {
 		for !pars.Finished() && !IsSeparator(cnext) {
 			pars.Symbol += cnext
 			pars.Pos++
+			if pars.Pos < len(pars.Str) {
+				cnext = string(pars.Str[pars.Pos])
+			}
 		}
 		if pars.Symbol == orSym {
 			pars.SymType = LogicSymOr
@@ -525,21 +528,17 @@ const (
 
 var Kit_LogicNodeType = kit.Enums.AddEnum(LogicNodeTypeN, kit.NotBitFlag, nil)
 
-// ToDo: Not right!
 func (r *Rule) SetExprList(exprs []string, model *Model) error {
-	length := len(exprs)
+	length := len(r.BoolExprs)
 	if length < 2 || length > 4 {
 		return errors.New("Invalid number of boolean expressions")
 	}
 	var testList []RuleBooleanNode
-	for _, e := range exprs {
-		p := Parser{}
-		p.Str = e
-		p.Model = model
+	for _, e := range r.BoolExprs {
+		p := NewParser(e, model)
 		node := p.Parse()
 		testList = append(testList, *node)
 	}
-	r.BoolExprs = exprs
 	// std::swap(booleanNodeList_, testBooleanNodeList);
 	return nil
 }

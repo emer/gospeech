@@ -349,14 +349,16 @@ func (seq *Sequence) InitToneGroups(intonationPath string) error {
 		if isP == true {
 			log.Println("ParseGroups: partial line read, will likely be a problem")
 		}
-		if (line[0] == '#') || (line[0] == ' ') {
-			// Skip.
-		} else if strings.HasPrefix(string(line), "TG") {
-			fmt.Sscanf(string(line[2]), " %d", seq.TgCount[count])
-			seq.ParseGroups(count, seq.TgCount[count], fp)
-			count++
-		} else if strings.HasPrefix(string(line), "RANDOM") {
-			fmt.Sscanf(string(line[6]), " %f", seq.IntonRandom)
+		if len(line) > 0 {
+			if (line[0] == '#') || (line[0] == ' ') {
+				// Skip.
+			} else if strings.HasPrefix(string(line), "TG") {
+				fmt.Sscanf(string(line[2]), " %d", seq.TgCount[count])
+				seq.ParseGroups(count, seq.TgCount[count], fp)
+				count++
+			} else if strings.HasPrefix(string(line), "RANDOM") {
+				fmt.Sscanf(string(line[6]), " %f", seq.IntonRandom)
+			}
 		}
 	}
 	fp.Close()
@@ -382,7 +384,7 @@ func (seq *Sequence) AddPosture() {
 }
 
 func (seq *Sequence) NewPostureWithObject(p *Posture) {
-	if seq.PostureDatum != nil {
+	if seq.PostureDatum[seq.CurPosture].Posture != nil {
 		pd := PostureData{}
 		seq.PostureDatum = append(seq.PostureDatum, &pd)
 		seq.PostureTempos = append(seq.PostureTempos, 1.0)
@@ -801,7 +803,7 @@ func (seq *Sequence) GenerateEventList() {
 		}
 
 		seq.RuleDatum[seq.CurRule].Number = ruleIndex + 1
-		seq.ApplyRule(tempRule, tempPostures, seq.PostureTempos, basePosIdx)
+		seq.ApplyRule(tempRule, tempPostures, seq.PostureTempos[basePosIdx:], basePosIdx)
 		basePosIdx += len(tempRule.BoolExprs) - 1
 	}
 

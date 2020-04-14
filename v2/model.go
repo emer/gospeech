@@ -36,7 +36,6 @@ import (
 )
 
 type Model struct {
-	//XMLName        xml.Name     `xml:"model"`
 	Categories     []Category `xml:"categories>category"`
 	Params         []Param    `xml:"parameters>parameter"`
 	Symbols        []Symbol   `xml:"symbols>symbol"`
@@ -46,20 +45,6 @@ type Model struct {
 	TransGrps      []TransGrp `xml:"transitions>transition-group"`
 	TransGrpsSp    []TransGrp `xml:"special-transitions>transition-group"`
 	FormulaSymbols *FormulaSymbols
-}
-
-func NewModel(fullpath string) *Model {
-	m := Model{}
-	m.Categories = make([]Category, 0)
-	m.Params = make([]Param, 0)
-	m.Symbols = make([]Symbol, 0)
-	m.Postures = make([]Posture, 0)
-	m.Rules = make([]Rule, 0)
-	m.EqGrps = make([]EqGrp, 0)
-	m.TransGrps = make([]TransGrp, 0)
-	m.TransGrpsSp = make([]TransGrp, 0)
-	m.Load(fullpath) // load config file -- monet_go.xml - our own version - ToDo: add notes to readme
-	return &m
 }
 
 // Reset
@@ -139,13 +124,14 @@ func (tr *Transition) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error
 }
 
 // Load the model configuration - the monet.xml file (postures, intonation, etc)
-func (mdl *Model) Load(path string) {
+func LoadModel(path string) *Model {
 	//Reset()
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		log.Println(err)
 	}
 
+	mdl := Model{}
 	err = xml.Unmarshal([]byte(data), &mdl)
 	if err != nil {
 		panic(err)
@@ -170,11 +156,11 @@ func (mdl *Model) Load(path string) {
 		}
 	}
 
-	//fmt.Printf(mdl.Categories[0].Name)
-
-	// LOG_DEBUG("Loading xml configuration: " << fp)
-	// XMLConfigFileReader cfg(*this, fp);
-	// cfg.loadModel();
+	// need to take bool expressions and build the list of bool nodes
+	for _, r := range mdl.Rules {
+		r.SetExprList(r.BoolExprs, &mdl)
+	}
+	return &mdl
 }
 
 // Save
