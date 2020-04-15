@@ -84,7 +84,7 @@ func NewPhoneticParser(c *v2.Control, vtpath string) *PhoneticParser {
 			log.Println("NewPhoneticParser: category not found")
 			return nil
 		}
-		pp.Categories[i] = tc //	pp.Categories[i + 4U] = tp->findCategory(posture);
+		pp.Categories[i+4] = tc //	pp.Categories[i + 4U] = tp->findCategory(posture);
 
 	}
 
