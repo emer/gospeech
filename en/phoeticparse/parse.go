@@ -293,6 +293,7 @@ func (pp *PhoneticParser) ParseString(str string) int {
 		if idx > length {
 			break
 		}
+		buffer = buffer[:0]
 		bufidx = 0
 
 		switch str[idx] {
@@ -408,7 +409,7 @@ func (pp *PhoneticParser) ParseString(str string) int {
 					idx++
 				}
 				if markedFoot {
-					buffer[bufidx] = rune('\'')
+					buffer = append(buffer, rune(('\'')))
 					bufidx++
 				}
 				s := string(buffer)
