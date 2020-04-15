@@ -28,7 +28,7 @@
 package v2
 
 import (
-	"errors"
+	"fmt"
 	"log"
 	"strings"
 	"unicode"
@@ -143,12 +143,14 @@ func (pars *Parser) NextSymbol() {
 		pars.SymType = SymLftParen
 		break
 	default:
-		cnext := string(pars.Str[pars.Pos]) // notice that Pos has been incremented already
-		for !pars.Finished() && !IsSeparator(cnext) {
-			pars.Symbol += cnext
-			pars.Pos++
+		for !pars.Finished() {
 			if pars.Pos < len(pars.Str) {
-				cnext = string(pars.Str[pars.Pos])
+				cnext := string(pars.Str[pars.Pos]) // notice that Pos has been incremented already
+				if IsSeparator(cnext) {
+					break
+				}
+				pars.Symbol += cnext
+				pars.Pos++
 			}
 		}
 		if pars.Symbol == orSym {
@@ -166,54 +168,56 @@ func (pars *Parser) NextSymbol() {
 }
 
 // GetNode returns the next boolean node
-func (pars *Parser) GetRuleNode() *RuleBooleanNode {
+func (pars *Parser) GetBoolNode() *BoolNode {
 	switch pars.SymType {
 
 	case SymLftParen:
 		{
-			var p *RuleBooleanNode
-
+			var bn *BoolNode
 			pars.NextSymbol()
 
 			if pars.SymType == LogicSymNot {
 				// operand.
 				pars.NextSymbol()
-				op := pars.GetRuleNode()
-				p = op
+				op := pars.GetBoolNode()
+				bn = op
 			} else {
 				// 1st operand
-				var op1 *RuleBooleanNode
-				op1 = pars.GetRuleNode()
+				var op1 *BoolNode
+				op1 = pars.GetBoolNode()
 
 				// operator.
-				var op2 *RuleBooleanNode
+				var op2 *BoolNode
 				switch pars.SymType {
 				case LogicSymOr:
 					{ // 2nd operand.
 						pars.NextSymbol()
-						op2 = pars.GetRuleNode()
-						ex := RuleOrExpr{}
-						ex.Child1 = op1
-						ex.Child2 = op2
-						p = &ex.RuleBooleanNode
+						op2 = pars.GetBoolNode()
+						n := BoolNode{}
+						n.Type = LogicNodeOr
+						n.Child1 = op1
+						n.Child2 = op2
+						bn = &n
 					}
 				case LogicSymAnd:
 					{ // 2nd operand.
 						pars.NextSymbol()
-						op2 = pars.GetRuleNode()
-						ex := RuleAndExpr{}
-						ex.Child1 = op1
-						ex.Child2 = op2
-						p = &ex.RuleBooleanNode
+						op2 = pars.GetBoolNode()
+						n := BoolNode{}
+						n.Type = LogicNodeAnd
+						n.Child1 = op1
+						n.Child2 = op2
+						bn = &n
 					}
 				case LogicSymXor:
 					{ // 2nd operand.
 						pars.NextSymbol()
-						op2 = pars.GetRuleNode()
-						ex := RuleXorExpr{}
-						ex.Child1 = op1
-						ex.Child2 = op2
-						p = &ex.RuleBooleanNode
+						op2 = pars.GetBoolNode()
+						n := BoolNode{}
+						n.Type = LogicNodeXor
+						n.Child1 = op1
+						n.Child2 = op2
+						bn = &n
 					}
 				case LogicSymNot:
 					log.Println("Invalid operator")
@@ -229,7 +233,7 @@ func (pars *Parser) GetRuleNode() *RuleBooleanNode {
 				return nil
 			}
 			pars.NextSymbol()
-			return p
+			return bn
 		}
 
 	case LogicSymString:
@@ -263,10 +267,11 @@ func (pars *Parser) GetRuleNode() *RuleBooleanNode {
 			}
 
 			pars.NextSymbol()
-			nt := RuleTerminalExpr{}
-			nt.Cat = category
-			nt.MatchAll = wild
-			return &nt.RuleBooleanNode
+			bn := BoolNode{}
+			bn.Type = LogicNodeTerminal
+			bn.Cat = category
+			bn.MatchAll = wild
+			return &bn
 		}
 	case LogicSymOr:
 		return nil
@@ -284,118 +289,78 @@ func (pars *Parser) GetRuleNode() *RuleBooleanNode {
 }
 
 // Parse
-func (pars *Parser) Parse() *RuleBooleanNode {
-	root := pars.GetRuleNode()
+func (pars *Parser) Parse() *BoolNode {
+	root := pars.GetBoolNode()
 	if pars.SymType != SymInvalid {
 		return nil // ToDo: this doesn't make sens
 	}
 	return root
 }
 
-func RuleNodeEval(node *RuleBooleanNode) bool {
-	return true
-}
-
-type RuleBooleanNode interface {
-	Eval(pos *Posture) bool
-}
-
-type RuleAndExpr struct {
-	RuleBooleanNode
-	Child1 *RuleBooleanNode
-	Child2 *RuleBooleanNode
-}
-
-func (ex *RuleAndExpr) Eval(pos *Posture) bool {
-	if ex.Child1 == nil || ex.Child2 == nil {
-		log.Println("RuleAndExpr: Eval error - one or both of Child1 and Child2 are nil")
-		return false
-	}
-	result := RuleNodeEval(ex.Child1) && RuleNodeEval(ex.Child2)
-	return result
-}
-
-type RuleXorExpr struct {
-	RuleBooleanNode
-	Child1 *RuleBooleanNode
-	Child2 *RuleBooleanNode
-}
-
-func (ex *RuleXorExpr) Eval(pos *Posture) bool {
-	if ex.Child1 == nil || ex.Child2 == nil {
-		log.Println("RuleAndExpr: Eval error - one or both of Child1 and Child2 are nil")
-		return false
-	}
-	result := RuleNodeEval(ex.Child1) != RuleNodeEval(ex.Child2)
-	return result
-}
-
-type RuleOrExpr struct {
-	RuleBooleanNode
-	Child1 *RuleBooleanNode
-	Child2 *RuleBooleanNode
-}
-
-func (ex *RuleOrExpr) Eval(pos *Posture) bool {
-	if ex.Child1 == nil || ex.Child2 == nil {
-		log.Println("RuleOrExpr: Eval error - one or both of Child1 and Child2 are nil")
-		return false
-	}
-	result := RuleNodeEval(ex.Child1) || RuleNodeEval(ex.Child2)
-	return result
-}
-
-type RuleNotExpr struct {
-	RuleBooleanNode
-	Child *RuleBooleanNode
-}
-
-func (ex *RuleNotExpr) Eval(pos *Posture) bool {
-	if ex.Child == nil {
-		log.Println("RuleAndExpr: Eval error - one or both of Child1 and Child2 are nil")
-		return false
-	}
-	result := !RuleNodeEval(ex.Child)
-	return result
-}
-
-type RuleTerminalExpr struct {
-	RuleBooleanNode
+type BoolNode struct {
+	Type     LogicNodeType
+	Child1   *BoolNode
+	Child2   *BoolNode
 	Cat      *Category
 	MatchAll bool
 }
 
-func (ex *RuleTerminalExpr) Eval(pos *Posture) bool {
-	if pos.IsMemberOfCategory(ex.Cat) {
-		return true
-	} else if ex.MatchAll {
-		return pos.Name == ex.Cat.Name+"'" // tried "\'" but got invalid escape sequence
+func (bn *BoolNode) BoolNodeEval(pos *Posture) bool {
+	switch bn.Type {
+	case LogicNodeOr:
+		if bn.Child1 == nil || bn.Child2 == nil {
+			log.Println("BoolNodeEval: Eval error - one or both of Child1 and Child2 are nil")
+			return false
+		}
+		result := bn.Child1.BoolNodeEval(pos) || bn.Child2.BoolNodeEval(pos)
+		return result
+	case LogicNodeAnd:
+		if bn.Child1 == nil || bn.Child2 == nil {
+			log.Println("BoolNodeEval: Eval error - one or both of Child1 and Child2 are nil")
+			return false
+		}
+		result := bn.Child1.BoolNodeEval(pos) && bn.Child2.BoolNodeEval(pos)
+		return result
+	case LogicNodeXor:
+		if bn.Child1 == nil || bn.Child2 == nil {
+			log.Println("BoolNodeEval: Eval error - one or both of Child1 and Child2 are nil")
+			return false
+		}
+		result := bn.Child1.BoolNodeEval(pos) != bn.Child2.BoolNodeEval(pos)
+
+		return result
+	case LogicNodeNot:
+		if bn.Child1 == nil {
+			log.Println("BoolNodeEval: Eval error - Child1 is nil")
+			return false
+		}
+		result := !bn.Child1.BoolNodeEval(pos)
+		return result
+	case LogicNodeTerminal:
+		if pos.IsMemberOfCategory(bn.Cat) {
+			return true
+		} else if bn.MatchAll {
+			return pos.Name == bn.Cat.Name+"'" // tried "\'" but got invalid escape sequence
+		}
+		return false
 	}
 	return false
 }
 
-func (r *Rule) EvalRuleExpr(postures []Posture) bool {
-	if len(postures) < len(r.RuleNodes) {
+func (r *Rule) EvalBoolExpr(postures []Posture) bool {
+	if len(postures) < len(r.BoolNodes) {
 		return false
 	}
-	if len(r.RuleNodes) == 0 {
+	if len(r.BoolNodes) == 0 {
 		return false
 	}
-	for i := 0; i < len(r.RuleNodes); i++ {
-		if !(r.RuleNodes[i].Eval(&postures[i])) {
+	for i := 0; i < len(r.BoolNodes); i++ {
+		if !(r.BoolNodes[i].BoolNodeEval(&postures[i])) {
 			return false
 		}
 	}
 	return true
 }
-
-//bool
-//Rule::evalBooleanExpression(const Posture& posture, unsigned int expressionIndex) const
-//{
-//if (expressionIndex >= booleanNodeList_.size()) return false;
-//
-//return booleanNodeList_[expressionIndex]->eval(posture);
-//}
 
 // EvalExpr
 func (r *Rule) EvalExprSyms(tempos []float64, postures []Posture, model *Model, syms []float64) {
@@ -492,7 +457,7 @@ type Rule struct {
 	SpecialProfileTransitions []Transition     `xml:"special-profiles>parameter-transition"`
 	ExprSymEquations          ExprSymEquations `xml:"expression-symbols>symbol-equation"`
 	Comment                   string           `xml:"comment"`
-	RuleNodes                 []RuleBooleanNode
+	BoolNodes                 []BoolNode
 }
 
 func (r *Rule) Init(nParams int) {
@@ -528,35 +493,18 @@ const (
 
 var Kit_LogicNodeType = kit.Enums.AddEnum(LogicNodeTypeN, kit.NotBitFlag, nil)
 
-func (r *Rule) SetExprList(exprs []string, model *Model) error {
+func (r *Rule) SetExprList(exprs []string, model *Model) *[]BoolNode {
 	length := len(r.BoolExprs)
 	if length < 2 || length > 4 {
-		return errors.New("Invalid number of boolean expressions")
+		log.Println("SetExprList: Invalid number of boolean expressions")
 	}
-	var testList []RuleBooleanNode
+	var testList []BoolNode
 	for _, e := range r.BoolExprs {
+		fmt.Println(e)
 		p := NewParser(e, model)
 		node := p.Parse()
 		testList = append(testList, *node)
 	}
 	// std::swap(booleanNodeList_, testBooleanNodeList);
-	return nil
+	return &testList
 }
-
-// Rule::setBooleanExpressionList(const std::vector<std::string>& exprList, const Model& model)
-// {
-// 	unsigned int size = exprList.size();
-// 	if (size < 2U || size > 4U) {
-// 		THROW_EXCEPTION(InvalidParameterException, "Invalid number of boolean expressions: " << size << '.');
-// 	}
-//
-// 	RuleBooleanNodeList testBooleanNodeList;
-//
-// 	for (unsigned int i = 0; i < size; ++i) {
-// 		Parse p(exprList[i], model);
-// 		testBooleanNodeList.push_back(p.parse());
-// 	}
-//
-// 	booleanExpressionList_ = exprList;
-// 	std::swap(booleanNodeList_, testBooleanNodeList);
-// }

@@ -30,6 +30,7 @@ package v2
 import (
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"strconv"
@@ -157,8 +158,14 @@ func LoadModel(path string) *Model {
 	}
 
 	// need to take bool expressions and build the list of bool nodes
-	for _, r := range mdl.Rules {
-		r.SetExprList(r.BoolExprs, &mdl)
+	for i, _ := range mdl.Rules {
+		mdl.Rules[i].BoolNodes = make([]BoolNode, 0)
+		nodes := mdl.Rules[i].SetExprList(mdl.Rules[i].BoolExprs, &mdl)
+		for _, n := range *nodes {
+			fmt.Printf("%v\n", n)
+			mdl.Rules[i].BoolNodes = append(mdl.Rules[i].BoolNodes, n)
+		}
+
 	}
 	return &mdl
 }
@@ -361,7 +368,7 @@ func (mdl *Model) FirstRule(postureSequence []Posture, ruleIdx int) (*Rule, int)
 	}
 	for i, r := range mdl.Rules {
 		if len(r.BoolExprs) <= len(postureSequence) {
-			if r.EvalRuleExpr(postureSequence) {
+			if r.EvalBoolExpr(postureSequence) {
 				return &r, i
 			}
 		}
