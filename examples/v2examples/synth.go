@@ -29,10 +29,8 @@ func main() {
 type Synth struct {
 	win            *gi.Window
 	ToolBar        *gi.ToolBar `view:"-" desc:"the master toolbar"`
-	ModelConfig    v2.ModelConfig
-	TrmConfig      v2.TrmConfig
-	Text           string `desc:"the text to be synthesized"`
-	Phonetic       string `desc:"the phonetic version of Text"`
+	Text           string      `desc:"the text to be synthesized"`
+	Phonetic       string      `desc:"the phonetic version of Text"`
 	TextParser     *textparse.TextParser
 	PhoneticParser *phoneticparse.PhoneticParser
 	Model          *v2.Model
@@ -47,13 +45,12 @@ func (syn *Synth) Defaults() {
 }
 
 func (syn *Synth) Config() {
-	syn.ModelConfig.Load("trmControl.json")
-	vfp := "./voice_" + syn.ModelConfig.Voice + ".json"
-	syn.TrmConfig.Load("trm.json", vfp)
-
-	//syn.Model = v2.NewModel("../../data/en/monet_go.xml")
 	syn.Model = v2.LoadModel("../../data/en/monet_go.xml")
 	syn.Control = v2.NewControl(intonationPath, syn.Model)
+
+	syn.Control.ModelConfig.Load("trmControl.json")
+	vfp := "./voice_" + syn.Control.ModelConfig.Voice + ".json"
+	syn.Control.TrmConfig.Load("trm.json", vfp)
 
 	syn.TextParser = textparse.NewTextParser()
 	syn.Text = "emergent"

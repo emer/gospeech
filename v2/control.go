@@ -84,7 +84,7 @@ func (ctrl *Control) SynthSequenceToBuf(trmParaFile string, buf []float64) {
 }
 
 func (ctrl *Control) InitUtterance(w *bufio.Writer) {
-	rc := NewTrmConfig()
+	rc := ctrl.TrmConfig
 	mc := ctrl.ModelConfig
 	if rc.OutputRate != 22050.0 && rc.OutputRate != 44100.0 {
 		rc.OutputRate = 44100.0

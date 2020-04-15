@@ -798,7 +798,7 @@ func (seq *Sequence) GenerateEventList() {
 		ruleIndex := 0
 		tempRule, ruleIndex := seq.Model.FirstRule(tempPostures, ruleIndex)
 		if tempRule == nil {
-			log.Println("Could not find a matching rule.")
+			log.Println("GenerateEventList: Could not find a matching rule.")
 			return
 		}
 
