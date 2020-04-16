@@ -459,11 +459,6 @@ type Rule struct {
 	BoolNodes                 []BoolNode
 }
 
-func (r *Rule) Init(nParams int) {
-	r.ParamProfileTransitions = make([]Transition, nParams)
-	r.SpecialProfileTransitions = make([]Transition, nParams)
-}
-
 type LogicNodeType int
 
 const (

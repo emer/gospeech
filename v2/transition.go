@@ -28,8 +28,6 @@
 package v2
 
 import (
-	"encoding/xml"
-
 	"github.com/goki/ki/kit"
 )
 
@@ -177,7 +175,6 @@ func PointDataMinMax(pt Point, model *Model, baseline, delta, min, max float64) 
 }
 
 type TransGrp struct {
-	XMLName     xml.Name     `xml:"transition-group"`
-	Name        string       `xml:"name,attr"`
-	Transitions []Transition `xml:"transition"`
+	Name        string        `xml:"name,attr"`
+	Transitions []*Transition `xml:"transition"`
 }

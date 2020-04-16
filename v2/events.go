@@ -721,23 +721,25 @@ func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos []float64,
 
 		/* Special Event Profiles */
 		for i := 0; i < len(seq.Model.Params); i++ {
-			spTrans := rule.SpecialProfileTransitions[i]
-			for j := 0; j < len(spTrans.PtSlpList); j++ {
-				pointOrSlope := spTrans.PtSlpList[j]
-				pt, ok := pointOrSlope.(Point)
-				if !ok {
-					log.Println("Apply Rule: type assertion failure - not a Point")
+			if rule.SpecialProfileTransitions != nil && len(rule.SpecialProfileTransitions) > i {
+				spTrans := rule.SpecialProfileTransitions[i]
+				for j := 0; j < len(spTrans.PtSlpList); j++ {
+					pointOrSlope := spTrans.PtSlpList[j]
+					pt, ok := pointOrSlope.(Point)
+					if !ok {
+						log.Println("Apply Rule: type assertion failure - not a Point")
+					}
+
+					/* calculate time of event */
+					tempTime := PointTime(pt, seq.Model)
+
+					/* Calculate value of event */
+					value := (pt.Value / 100.0) * (seq.Max[i] - seq.Min[i])
+					//maxValue = value; // commented out in C++
+
+					/* insert event into event list */
+					seq.InsertEvent(i+16, tempTime, value)
 				}
-
-				/* calculate time of event */
-				tempTime := PointTime(pt, seq.Model)
-
-				/* Calculate value of event */
-				value := (pt.Value / 100.0) * (seq.Max[i] - seq.Min[i])
-				//maxValue = value; // commented out in C++
-
-				/* insert event into event list */
-				seq.InsertEvent(i+16, tempTime, value)
 			}
 		}
 	}

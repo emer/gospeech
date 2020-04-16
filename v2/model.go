@@ -65,16 +65,40 @@ func (mdl *Model) ClearFormulaVals() {
 		mdl.FormulaVals[i] = 0
 	}
 }
-func (tr *Transition) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+
+func (grp *TransGrp) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	var tr *Transition
 	for {
 		t, err := d.Token()
 		if err != nil {
 			return err
 		}
-		//var i PointOrSlope
+		grp.Name = start.Attr[0].Value // the only attribute
+
 		switch tt := t.(type) {
 		case xml.StartElement:
 			switch tt.Name.Local {
+			case "transition":
+				tr = new(Transition)
+				tr.PtSlpList = make([]interface{}, 0)
+				grp.Transitions = append(grp.Transitions, tr)
+				for _, attr := range tt.Attr {
+					switch attr.Name.Local {
+					case "name":
+						tr.Name = attr.Value
+					case "type":
+						switch attr.Value {
+						case "diphone":
+							tr.Type = TransDiPhone
+						case "triphone":
+							tr.Type = TransTriPhone
+						case "tetraphone":
+							tr.Type = TransTetraPhone
+						default:
+							tr.Type = TransInvalid
+						}
+					}
+				}
 			case "point":
 				p := new(Point)
 				tr.PtSlpList = append(tr.PtSlpList, &p)
@@ -128,6 +152,37 @@ func (tr *Transition) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error
 	}
 }
 
+//func (r *Rule) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+//	for {
+//		t, err := d.Token()
+//		if err != nil {
+//			return err
+//		}
+//		//var i PointOrSlope
+//		switch tt := t.(type) {
+//		case xml.StartElement:
+//			var s string
+//			switch tt.Name.Local {
+//			case "boolean-expression":
+//				d.DecodeElement(&s, &start)
+//				r.BoolExprs = append(r.BoolExprs, s)
+//			case "parameter-transition":
+//				tr := new(Transition)
+//				r.ParamProfileTransitions = append(r.ParamProfileTransitions, *tr)
+//				for _, attr := range tt.Attr {
+//					switch attr.Name.Local {
+//					case "name":
+//						tr.Name = attr.Value
+//					case "transition":
+//						tr.
+//					}
+//				}
+//			}
+//		}
+//	}
+//	return nil
+//}
+
 // Load the model configuration - the monet.xml file (postures, intonation, etc)
 func LoadModel(path string) *Model {
 	//Reset()
@@ -142,26 +197,8 @@ func LoadModel(path string) *Model {
 		panic(err)
 	}
 
-	// Some clean up after unmarshalling
-	// for enums we read in as a string and then set the enum value
-	// I could write the xml unmarshalling to handle this but I don't think there are
-	// enough cases to warrant
-	for _, tg := range mdl.TransGrps {
-		for _, t := range tg.Transitions {
-			switch t.Type {
-			case 2:
-				t.Type = TransDiPhone
-			case 3:
-				t.Type = TransTriPhone
-			case 4:
-				t.Type = TransTetraPhone
-			default:
-				t.Type = TransInvalid
-			}
-		}
-	}
-
 	// need to take bool expressions and build the list of bool nodes
+	// could also do in custom unmarshall
 	for i, _ := range mdl.Rules {
 		mdl.Rules[i].BoolNodes = make([]BoolNode, 0)
 		nodes := mdl.Rules[i].SetExprList(mdl.Rules[i].BoolExprs, &mdl)
@@ -170,7 +207,6 @@ func LoadModel(path string) *Model {
 		}
 	}
 
-	//NewFormulaSymMap(&mdl.FormulaVals)
 	return &mdl
 }
 
@@ -302,7 +338,7 @@ func (mdl *Model) TransitionTry(nm string) *Transition {
 	for _, grp := range mdl.TransGrps {
 		for _, tr := range grp.Transitions {
 			if tr.Name == nm {
-				return &tr
+				return tr
 			}
 		}
 	}
@@ -336,7 +372,7 @@ func (mdl *Model) TransitionSpTry(nm string) *Transition {
 	for _, grp := range mdl.TransGrpsSp {
 		for _, tr := range grp.Transitions {
 			if tr.Name == nm {
-				return &tr
+				return tr
 			}
 		}
 	}
