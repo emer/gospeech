@@ -104,14 +104,15 @@ type Event struct {
 	Flag   int
 }
 
-func (ev *Event) Defaults() {
-	ev.Size = 36
-	ev.Time = 0.0
-	ev.Flag = 0
-	ev.Events = make([]float64, ev.Size)
-	for i := 0; i < len(ev.Events); i++ {
-		ev.Events[i] = invalidEvent
+func NewEvent() *Event {
+	e := new(Event)
+	e.Time = 0
+	e.Flag = 0
+	e.Events = make([]float64, 36)
+	for i := 0; i < len(e.Events); i++ {
+		e.Events[i] = invalidEvent
 	}
+	return e
 }
 
 func (ev *Event) Value(idx int) float64 {
@@ -453,13 +454,13 @@ func (seq *Sequence) InsertEvent(n int, t, v float64) *Event {
 	//}
 
 	if len(seq.Events) == 0 {
-		ev := Event{}
+		ev := NewEvent()
 		ev.Time = time
 		if n >= 0 {
 			ev.SetValue(v, n)
 		}
 
-		seq.Events = append(seq.Events, ev)
+		seq.Events = append(seq.Events, *ev)
 		return &seq.Events[len(seq.Events)-1]
 	}
 
@@ -472,28 +473,28 @@ func (seq *Sequence) InsertEvent(n int, t, v float64) *Event {
 			return &seq.Events[i]
 		}
 		if seq.Events[i].Time < time {
-			ev := Event{}
+			ev := NewEvent()
 			ev.Time = time
 			if n >= 0 {
 				ev.SetValue(v, n)
 			}
 			// Insert into slice
-			seq.Events = append(seq.Events, ev) // can reuse ev, will be overwritten
+			seq.Events = append(seq.Events, *ev) // can reuse ev, will be overwritten
 			copy(seq.Events[i+2:], seq.Events[i+1:])
-			seq.Events[i+1] = ev
+			seq.Events[i+1] = *ev
 			return &seq.Events[i+1]
 		}
 	}
 
-	ev := Event{}
+	ev := NewEvent()
 	ev.Time = time
 	if n >= 0 {
 		ev.SetValue(v, n)
 	}
 	// Insert into slice
-	seq.Events = append(seq.Events, ev) // can reuse ev, will be overwritten
+	seq.Events = append(seq.Events, *ev) // can reuse ev, will be overwritten
 	copy(seq.Events[i+2:], seq.Events[i+1:])
-	seq.Events[i+1] = ev
+	seq.Events[i+1] = *ev
 	return &seq.Events[i+1]
 }
 

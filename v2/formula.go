@@ -29,8 +29,6 @@ package v2
 
 import (
 	"fmt"
-	"log"
-
 	"github.com/goki/ki/kit"
 )
 
@@ -66,55 +64,35 @@ const (
 
 var Kit_FormulaSymbolType = kit.Enums.AddEnum(FormulaSymTypeN, kit.NotBitFlag, nil)
 
-type FormulaSymbols struct {
-	Code    FormulaSymbolType
-	CodeMap map[FormulaSymbolType]float64
-}
+type FormulaValueList [FormulaSymTypeN]float64
+type FormulaSymMap map[FormulaSymbolType]float64
 
-func NewFormulaSymbol(tt TransitionType) *FormulaSymbols {
-	fs := FormulaSymbols{}
-	fs.CodeMap = make(map[FormulaSymbolType]float64)
+func NewFormulaSymMap(fsm *FormulaSymMap) {
+	fs := make(FormulaSymMap)
 
-	fs.CodeMap[FormulaSymTransition1] = 33.3333
-	fs.CodeMap[FormulaSymTransition2] = 33.3333
-	fs.CodeMap[FormulaSymTransition3] = 33.3333
-	fs.CodeMap[FormulaSymTransition4] = 33.3333
-	fs.CodeMap[FormulaSymQssa1] = 33.3333
-	fs.CodeMap[FormulaSymQssa2] = 33.3333
-	fs.CodeMap[FormulaSymQssa3] = 33.3333
-	fs.CodeMap[FormulaSymQssa4] = 33.3333
-	fs.CodeMap[FormulaSymQssb1] = 33.3333
-	fs.CodeMap[FormulaSymQssb2] = 33.3333
-	fs.CodeMap[FormulaSymQssb3] = 33.3333
-	fs.CodeMap[FormulaSymQssb4] = 33.3333
-	fs.CodeMap[FormulaSymTempo1] = 1.0
-	fs.CodeMap[FormulaSymTempo2] = 1.0
-	fs.CodeMap[FormulaSymTempo3] = 1.0
-	fs.CodeMap[FormulaSymTempo4] = 1.0
+	fs[FormulaSymTransition1] = 33.3333
+	fs[FormulaSymTransition2] = 33.3333
+	fs[FormulaSymTransition3] = 33.3333
+	fs[FormulaSymTransition4] = 33.3333
+	fs[FormulaSymQssa1] = 33.3333
+	fs[FormulaSymQssa2] = 33.3333
+	fs[FormulaSymQssa3] = 33.3333
+	fs[FormulaSymQssa4] = 33.3333
+	fs[FormulaSymQssb1] = 33.3333
+	fs[FormulaSymQssb2] = 33.3333
+	fs[FormulaSymQssb3] = 33.3333
+	fs[FormulaSymQssb4] = 33.3333
+	fs[FormulaSymTempo1] = 1.0
+	fs[FormulaSymTempo2] = 1.0
+	fs[FormulaSymTempo3] = 1.0
+	fs[FormulaSymTempo4] = 1.0
+	fs[FormulaSymBeat] = 33.0
+	fs[FormulaSymRd] = 100.0
+	fs[FormulaSymMark1] = 100.0
+	fs[FormulaSymMark2] = 0.0
+	fs[FormulaSymMark3] = 0.0
 
-	fs.CodeMap[FormulaSymBeat] = 33.0
-	fs.CodeMap[FormulaSymMark1] = 100.0
-	switch tt {
-	case TransDiPhone:
-		fs.CodeMap[FormulaSymRd] = 100.0
-		fs.CodeMap[FormulaSymMark2] = 0.0
-		fs.CodeMap[FormulaSymMark3] = 0.0
-
-	case TransTriPhone:
-		fs.CodeMap[FormulaSymRd] = 200.0
-		fs.CodeMap[FormulaSymMark2] = 200.0
-		fs.CodeMap[FormulaSymMark3] = 0.0
-
-	case TransTetraPhone:
-		fs.CodeMap[FormulaSymRd] = 300.0
-		fs.CodeMap[FormulaSymMark2] = 200.0
-		fs.CodeMap[FormulaSymMark3] = 300.0
-
-	default:
-		log.Printf("Formula.Default: Unknown TransactionType")
-		//return errors.New("Formula.Default: Unknown TransactionType")
-	}
-	return nil
+	fsm = &fs
 }
 
 //func NewFormulaSymbolList(n int) *FormulaSymbolList {
@@ -123,8 +101,8 @@ func NewFormulaSymbol(tt TransitionType) *FormulaSymbols {
 //	return &s
 //}
 
-func (fs *FormulaSymbols) Clear() {
-	for _, v := range fs.CodeMap {
+func (fs *FormulaSymMap) Clear() {
+	for _, v := range *fs {
 		v = 0.0
 		fmt.Printf("%f, ", v)
 	}

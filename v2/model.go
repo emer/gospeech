@@ -30,22 +30,21 @@ package v2
 import (
 	"encoding/xml"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"strconv"
 )
 
 type Model struct {
-	Categories     []Category `xml:"categories>category"`
-	Params         []Param    `xml:"parameters>parameter"`
-	Symbols        []Symbol   `xml:"symbols>symbol"`
-	Postures       []Posture  `xml:"postures>posture"`
-	Rules          []Rule     `xml:"rules>rule"`
-	EqGrps         []EqGrp    `xml:"equations>equation-group"`
-	TransGrps      []TransGrp `xml:"transitions>transition-group"`
-	TransGrpsSp    []TransGrp `xml:"special-transitions>transition-group"`
-	FormulaSymbols *FormulaSymbols
+	Categories  []Category `xml:"categories>category"`
+	Params      []Param    `xml:"parameters>parameter"`
+	Symbols     []Symbol   `xml:"symbols>symbol"`
+	Postures    []Posture  `xml:"postures>posture"`
+	Rules       []Rule     `xml:"rules>rule"`
+	EqGrps      []EqGrp    `xml:"equations>equation-group"`
+	TransGrps   []TransGrp `xml:"transitions>transition-group"`
+	TransGrpsSp []TransGrp `xml:"special-transitions>transition-group"`
+	FormulaVals FormulaValueList
 }
 
 // Reset
@@ -58,9 +57,14 @@ func (mdl *Model) Reset() {
 	mdl.EqGrps = mdl.EqGrps[:0]
 	mdl.TransGrps = mdl.TransGrps[:0]
 	mdl.TransGrpsSp = mdl.TransGrpsSp[:0]
-	mdl.FormulaSymbols.Clear()
+	mdl.ClearFormulaVals()
 }
 
+func (mdl *Model) ClearFormulaVals() {
+	for i, _ := range mdl.FormulaVals {
+		mdl.FormulaVals[i] = 0
+	}
+}
 func (tr *Transition) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	for {
 		t, err := d.Token()
@@ -162,11 +166,11 @@ func LoadModel(path string) *Model {
 		mdl.Rules[i].BoolNodes = make([]BoolNode, 0)
 		nodes := mdl.Rules[i].SetExprList(mdl.Rules[i].BoolExprs, &mdl)
 		for _, n := range *nodes {
-			fmt.Printf("%v\n", n)
 			mdl.Rules[i].BoolNodes = append(mdl.Rules[i].BoolNodes, n)
 		}
-
 	}
+
+	//NewFormulaSymMap(&mdl.FormulaVals)
 	return &mdl
 }
 
@@ -210,9 +214,9 @@ func (mdl *Model) PostureTry(nm string) *Posture {
 }
 
 // EvalEquationFormula
-func (mdl *Model) EvalEquationFormul(eq *Equation) float64 {
+func (mdl *Model) EvalEquationFormula(eq *Equation) float64 {
 
-	return eq.Eval(mdl.FormulaSymbols)
+	return eq.EvalFormula(&mdl.FormulaVals)
 }
 
 // FindEquationGroup

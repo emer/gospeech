@@ -58,7 +58,7 @@ var Kit_SymbolType = kit.Enums.AddEnum(SymTypeN, kit.NotBitFlag, nil)
 type FormulaNode struct { // Parser returns the pi.Parser for this language
 }
 
-func (fn *FormulaNode) Eval(sl *FormulaSymbols) float64 {
+func (fn *FormulaNode) Eval(sl *FormulaValueList) float64 {
 	return 0.0
 }
 
@@ -73,7 +73,7 @@ func NewFormulaMinusUnaryOp(c *FormulaNode) *FormulaMinusUnaryOp {
 	return &f
 }
 
-func (fmu *FormulaMinusUnaryOp) Eval(sl *FormulaSymbols) float64 {
+func (fmu *FormulaMinusUnaryOp) Eval(sl *FormulaValueList) float64 {
 	return -(fmu.Eval(sl))
 }
 
@@ -90,7 +90,7 @@ func NewFormulaAddOp(c1, c2 *FormulaNode) *FormulaAddOp {
 	return &f
 }
 
-func (fmu *FormulaAddOp) Eval(sl *FormulaSymbols) float64 {
+func (fmu *FormulaAddOp) Eval(sl *FormulaValueList) float64 {
 	return fmu.Eval(sl) + fmu.Eval(sl)
 }
 
@@ -107,7 +107,7 @@ func NewFormulaSubOp(c1, c2 *FormulaNode) *FormulaSubOp {
 	return &f
 }
 
-func (fmu *FormulaSubOp) Eval(sl *FormulaSymbols) float64 {
+func (fmu *FormulaSubOp) Eval(sl *FormulaValueList) float64 {
 	return fmu.Eval(sl) - fmu.Eval(sl)
 }
 
@@ -124,7 +124,7 @@ func NewFormulaMultOp(c1, c2 *FormulaNode) *FormulaMultOp {
 	return &f
 }
 
-func (fmu *FormulaMultOp) Eval(sl *FormulaSymbols) float64 {
+func (fmu *FormulaMultOp) Eval(sl *FormulaValueList) float64 {
 	return fmu.Eval(sl) * fmu.Eval(sl)
 }
 
@@ -141,7 +141,7 @@ func NewFormulaDivOp(c1, c2 *FormulaNode) *FormulaDivOp {
 	return &f
 }
 
-func (fmu *FormulaDivOp) Eval(sl *FormulaSymbols) float64 {
+func (fmu *FormulaDivOp) Eval(sl *FormulaValueList) float64 {
 	return fmu.Eval(sl) / fmu.Eval(sl)
 }
 
@@ -156,7 +156,7 @@ func NewFormulaConst(value float64) *FormulaConst {
 	return &f
 }
 
-func (fmu *FormulaConst) Eval(sl *FormulaSymbols) float64 {
+func (fmu *FormulaConst) Eval(sl *FormulaValueList) float64 {
 	return fmu.Value
 }
 
@@ -171,16 +171,16 @@ func NewFormulaSymbolVal(symbol FormulaSymbolType) *FormulaSymbolVal {
 	return &f
 }
 
-func (fmu *FormulaSymbolVal) Eval(sl *FormulaSymbols) float64 {
-	return sl.CodeMap[fmu.Symbol]
+func (fmu *FormulaSymbolVal) Eval(sl *FormulaValueList) float64 {
+	return sl[fmu.Symbol]
 }
 
 type FormulaNodeParser struct {
-	FormulaSymbols FormulaSymbols
-	S              string
-	Pos            int
-	Symbol         string
-	SymbolType     SymbolType
+	FormulaValueList FormulaValueList
+	S                string
+	Pos              int
+	Symbol           string
+	SymbolType       SymbolType
 }
 
 func NewFormulaNodeParser(s string) *FormulaNodeParser {
@@ -269,7 +269,7 @@ func (fnp *FormulaNodeParser) ParseFactor() *FormulaNode {
 		// ToDo: !!!
 		fnp.NextSymbol()
 
-	//	for k, v := range fnp.FormulaSymbols.Syms { // .Syms is the map
+	//	for k, v := range fnp.FormulaValueList.Syms { // .Syms is the map
 	//		if k == fnp.Symbol {
 	//			return NewFormulaConst(strconv.ParseFloat(temp))
 	//}
@@ -371,13 +371,10 @@ func (eq *Equation) SetFormula(formula string) {
 	tempFormulaRoot = temp
 }
 
-func (eq *Equation) Eval(sl *FormulaSymbols) float64 {
+func (eq *Equation) EvalFormula(sl *FormulaValueList) float64 {
 	if eq.FormulaRoot == nil {
-		panic("EmptyFormula")
+		log.Println("EvalFormula: root is nil")
+		return 0.0
 	}
-
-	// ToDo: what to do here
-	// NextSymbol and switch on symbol?
-	//return eq.FormulaRoot.Eval(sl)
-	return 0.0 // temp to compile
+	return eq.FormulaRoot.Eval(sl)
 }

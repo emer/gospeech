@@ -28,7 +28,6 @@
 package v2
 
 import (
-	"fmt"
 	"log"
 	"strings"
 	"unicode"
@@ -364,20 +363,20 @@ func (r *Rule) EvalBoolExpr(postures []Posture) bool {
 
 // EvalExpr
 func (r *Rule) EvalExprSyms(tempos []float64, postures []Posture, model *Model, syms []float64) {
-	var localTempos []float64
+	var localTempos [4]float64
 
-	model.FormulaSymbols.Clear()
+	model.ClearFormulaVals()
 
 	if len(postures) >= 2 {
 		pos := postures[0]
-		model.FormulaSymbols.CodeMap[FormulaSymTransition1] = pos.SymTargets[1].Value
-		model.FormulaSymbols.CodeMap[FormulaSymQssa1] = pos.SymTargets[2].Value
-		model.FormulaSymbols.CodeMap[FormulaSymQssb1] = pos.SymTargets[3].Value
+		model.FormulaVals[FormulaSymTransition1] = pos.SymTargets[1].Value
+		model.FormulaVals[FormulaSymQssa1] = pos.SymTargets[2].Value
+		model.FormulaVals[FormulaSymQssb1] = pos.SymTargets[3].Value
 
 		pos = postures[1]
-		model.FormulaSymbols.CodeMap[FormulaSymTransition2] = pos.SymTargets[1].Value
-		model.FormulaSymbols.CodeMap[FormulaSymQssa2] = pos.SymTargets[2].Value
-		model.FormulaSymbols.CodeMap[FormulaSymQssb2] = pos.SymTargets[3].Value
+		model.FormulaVals[FormulaSymTransition2] = pos.SymTargets[1].Value
+		model.FormulaVals[FormulaSymQssa2] = pos.SymTargets[2].Value
+		model.FormulaVals[FormulaSymQssb2] = pos.SymTargets[3].Value
 		localTempos[0] = tempos[0]
 		localTempos[1] = tempos[1]
 	} else {
@@ -387,9 +386,9 @@ func (r *Rule) EvalExprSyms(tempos []float64, postures []Posture, model *Model, 
 
 	if len(postures) >= 3 {
 		pos := postures[2]
-		model.FormulaSymbols.CodeMap[FormulaSymTransition3] = pos.SymTargets[1].Value
-		model.FormulaSymbols.CodeMap[FormulaSymQssa3] = pos.SymTargets[2].Value
-		model.FormulaSymbols.CodeMap[FormulaSymQssb3] = pos.SymTargets[3].Value
+		model.FormulaVals[FormulaSymTransition3] = pos.SymTargets[1].Value
+		model.FormulaVals[FormulaSymQssa3] = pos.SymTargets[2].Value
+		model.FormulaVals[FormulaSymQssb3] = pos.SymTargets[3].Value
 		localTempos[2] = tempos[2]
 	} else {
 		localTempos[2] = 0.0
@@ -397,46 +396,46 @@ func (r *Rule) EvalExprSyms(tempos []float64, postures []Posture, model *Model, 
 
 	if len(postures) >= 4 {
 		pos := postures[3]
-		model.FormulaSymbols.CodeMap[FormulaSymTransition4] = pos.SymTargets[1].Value
-		model.FormulaSymbols.CodeMap[FormulaSymQssa4] = pos.SymTargets[2].Value
-		model.FormulaSymbols.CodeMap[FormulaSymQssb4] = pos.SymTargets[3].Value
+		model.FormulaVals[FormulaSymTransition4] = pos.SymTargets[1].Value
+		model.FormulaVals[FormulaSymQssa4] = pos.SymTargets[2].Value
+		model.FormulaVals[FormulaSymQssb4] = pos.SymTargets[3].Value
 		localTempos[3] = tempos[3]
 	} else {
 		localTempos[3] = 0.0
 	}
 
-	model.FormulaSymbols.CodeMap[FormulaSymTempo1] = localTempos[0]
-	model.FormulaSymbols.CodeMap[FormulaSymTempo2] = localTempos[1]
-	model.FormulaSymbols.CodeMap[FormulaSymTempo3] = localTempos[2]
-	model.FormulaSymbols.CodeMap[FormulaSymTempo4] = localTempos[3]
-	model.FormulaSymbols.CodeMap[FormulaSymRd] = syms[0]
-	model.FormulaSymbols.CodeMap[FormulaSymBeat] = syms[1]
-	model.FormulaSymbols.CodeMap[FormulaSymMark1] = syms[2]
-	model.FormulaSymbols.CodeMap[FormulaSymMark2] = syms[3]
-	model.FormulaSymbols.CodeMap[FormulaSymMark3] = syms[4]
+	model.FormulaVals[FormulaSymTempo1] = localTempos[0]
+	model.FormulaVals[FormulaSymTempo2] = localTempos[1]
+	model.FormulaVals[FormulaSymTempo3] = localTempos[2]
+	model.FormulaVals[FormulaSymTempo4] = localTempos[3]
+	model.FormulaVals[FormulaSymRd] = syms[0]
+	model.FormulaVals[FormulaSymBeat] = syms[1]
+	model.FormulaVals[FormulaSymMark1] = syms[2]
+	model.FormulaVals[FormulaSymMark2] = syms[3]
+	model.FormulaVals[FormulaSymMark3] = syms[4]
 
 	// Execute in this order.
 	if r.ExprSymEquations.Duration != nil {
-		model.FormulaSymbols.CodeMap[FormulaSymRd] = model.EvalEquationFormul(r.ExprSymEquations.Duration)
+		model.FormulaVals[FormulaSymRd] = model.EvalEquationFormula(r.ExprSymEquations.Duration)
 	}
 	if r.ExprSymEquations.Mark1 != nil {
-		model.FormulaSymbols.CodeMap[FormulaSymMark1] = model.EvalEquationFormul(r.ExprSymEquations.Mark1)
+		model.FormulaVals[FormulaSymMark1] = model.EvalEquationFormula(r.ExprSymEquations.Mark1)
 	}
 	if r.ExprSymEquations.Mark2 != nil {
-		model.FormulaSymbols.CodeMap[FormulaSymMark2] = model.EvalEquationFormul(r.ExprSymEquations.Mark2)
+		model.FormulaVals[FormulaSymMark2] = model.EvalEquationFormula(r.ExprSymEquations.Mark2)
 	}
 	if r.ExprSymEquations.Mark3 != nil {
-		model.FormulaSymbols.CodeMap[FormulaSymMark3] = model.EvalEquationFormul(r.ExprSymEquations.Mark3)
+		model.FormulaVals[FormulaSymMark3] = model.EvalEquationFormula(r.ExprSymEquations.Mark3)
 	}
 	if r.ExprSymEquations.Beat != nil {
-		model.FormulaSymbols.CodeMap[FormulaSymBeat] = model.EvalEquationFormul(r.ExprSymEquations.Beat)
+		model.FormulaVals[FormulaSymBeat] = model.EvalEquationFormula(r.ExprSymEquations.Beat)
 	}
 
-	syms[0] = model.FormulaSymbols.CodeMap[FormulaSymRd]
-	syms[1] = model.FormulaSymbols.CodeMap[FormulaSymBeat]
-	syms[2] = model.FormulaSymbols.CodeMap[FormulaSymMark1]
-	syms[3] = model.FormulaSymbols.CodeMap[FormulaSymMark2]
-	syms[4] = model.FormulaSymbols.CodeMap[FormulaSymMark3]
+	syms[0] = model.FormulaVals[FormulaSymRd]
+	syms[1] = model.FormulaVals[FormulaSymBeat]
+	syms[2] = model.FormulaVals[FormulaSymMark1]
+	syms[3] = model.FormulaVals[FormulaSymMark2]
+	syms[4] = model.FormulaVals[FormulaSymMark3]
 }
 
 //////////////////////////////////////////////////
@@ -500,7 +499,6 @@ func (r *Rule) SetExprList(exprs []string, model *Model) *[]BoolNode {
 	}
 	var testList []BoolNode
 	for _, e := range r.BoolExprs {
-		fmt.Println(e)
 		p := NewParser(e, model)
 		node := p.Parse()
 		testList = append(testList, *node)
