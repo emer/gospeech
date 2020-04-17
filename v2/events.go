@@ -678,7 +678,7 @@ func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos []float64,
 			lastVal := targets[0]
 			//lastValue = 0.0 // commented out in C++
 
-			transition := &rule.ParamProfileTransitions[i]
+			transition := rule.ParamTransitions[i].Transition
 			if transition == nil {
 				log.Println("Rule tranisition not found")
 				return
@@ -721,8 +721,8 @@ func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos []float64,
 
 		/* Special Event Profiles */
 		for i := 0; i < len(seq.Model.Params); i++ {
-			if rule.SpecialProfileTransitions != nil && len(rule.SpecialProfileTransitions) > i {
-				spTrans := rule.SpecialProfileTransitions[i]
+			if rule.SpecialTransitions[i].Transition != nil && len(rule.SpecialTransitions) > i {
+				spTrans := rule.SpecialTransitions[i].Transition
 				for j := 0; j < len(spTrans.PtSlpList); j++ {
 					pointOrSlope := spTrans.PtSlpList[j]
 					pt, ok := pointOrSlope.(Point)

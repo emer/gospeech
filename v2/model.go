@@ -40,7 +40,7 @@ type Model struct {
 	Params      []Param    `xml:"parameters>parameter"`
 	Symbols     []Symbol   `xml:"symbols>symbol"`
 	Postures    []Posture  `xml:"postures>posture"`
-	Rules       []Rule     `xml:"rules>rule"`
+	Rules       []*Rule    `xml:"rules>rule"`
 	EqGrps      []EqGrp    `xml:"equations>equation-group"`
 	TransGrps   []TransGrp `xml:"transitions>transition-group"`
 	TransGrpsSp []TransGrp `xml:"special-transitions>transition-group"`
@@ -152,40 +152,55 @@ func (grp *TransGrp) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error 
 	}
 }
 
-//func (r *Rule) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
-//	for {
-//		t, err := d.Token()
-//		if err != nil {
-//			return err
-//		}
-//		//var i PointOrSlope
-//		switch tt := t.(type) {
-//		case xml.StartElement:
-//			var s string
-//			switch tt.Name.Local {
-//			case "boolean-expression":
-//				d.DecodeElement(&s, &start)
-//				r.BoolExprs = append(r.BoolExprs, s)
-//			case "parameter-transition":
-//				tr := new(Transition)
-//				r.ParamProfileTransitions = append(r.ParamProfileTransitions, *tr)
-//				for _, attr := range tt.Attr {
-//					switch attr.Name.Local {
-//					case "name":
-//						tr.Name = attr.Value
-//					case "transition":
-//						tr.
-//					}
-//				}
-//			}
-//		}
-//	}
-//	return nil
-//}
+func (r *Rule) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	// context -- either param-profiles or special-profiles -
+	// needed a way to know which parameter-transition list to add to
+	context := ""
+	for {
+		t, err := d.Token()
+		if err != nil {
+			return err
+		}
+		switch tt := t.(type) {
+		case xml.StartElement:
+			var s string
+			switch tt.Name.Local {
+			case "boolean-expression":
+				d.DecodeElement(&s, &start)
+				r.BoolExprs = append(r.BoolExprs, s)
+			case "parameter-profiles":
+				context = "param"
+			case "special-profiles":
+				context = "special"
+			case "parameter-transition":
+				pt := new(ParamTransition)
+				if context == "param" {
+					r.ParamTransitions = append(r.ParamTransitions, pt)
+				} else {
+					r.SpecialTransitions = append(r.SpecialTransitions, pt)
+				}
+				for _, attr := range tt.Attr {
+					switch attr.Name.Local {
+					case "transition":
+						pt.Type = attr.Value
+					case "name":
+						pt.Name = attr.Value
+					}
+				}
+				// after loading set pt.Transition to point to the transition
+				pt.Transition = nil
+			}
+		case xml.EndElement:
+			if tt == start.End() {
+				return nil
+			}
+		}
+	}
+	return nil
+}
 
 // Load the model configuration - the monet.xml file (postures, intonation, etc)
 func LoadModel(path string) *Model {
-	//Reset()
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		log.Println(err)
@@ -207,6 +222,56 @@ func LoadModel(path string) *Model {
 		}
 	}
 
+	// for each rule's paramtransitions and specialtransitions we need to find
+	// the transition to point to - we do this based on the ParamTransition name and type
+	for _, r := range mdl.Rules {
+		for _, pt := range r.ParamTransitions {
+			t := pt.Type
+			tr := mdl.TransitionTry(t)
+			if tr == nil {
+				panic(errors.New("Model.Load() : TransitionTry failed!"))
+			}
+			pt.Transition = tr
+		}
+		for _, pt := range r.SpecialTransitions {
+			t := pt.Type
+			tr := mdl.TransitionSpTry(t)
+			if tr == nil {
+				panic(errors.New("Model.Load() : TransitionTry failed!"))
+			}
+			pt.Transition = tr
+		}
+	}
+
+	//Now some additional processing of the special transitions
+	//Because there isn't always a special transition for each parameter transition we need
+	//to move the ones we found to the matching index and set the others to nil
+	for _, r := range mdl.Rules {
+		lp := len(r.ParamTransitions)
+		ls := len(r.SpecialTransitions)
+		// create nil transitions for those that don't exist
+		if r.SpecialTransitions == nil {
+			r.SpecialTransitions = make([]*ParamTransition, 0)
+		}
+		for i := ls; i < lp; i++ {
+			pt := new(ParamTransition)
+			r.SpecialTransitions = append(r.SpecialTransitions, pt)
+		}
+		// move the non-nil special transitions into place
+		for i := ls - 1; i >= 0; i-- {
+			nm := r.SpecialTransitions[i].Name
+			idx := mdl.ParamIdx(nm)
+			if idx == -1 {
+				panic(errors.New("Model.Load() : ParamIdx lookup failed!"))
+			}
+			r.SpecialTransitions[idx].Name = r.SpecialTransitions[i].Name
+			r.SpecialTransitions[idx].Type = r.SpecialTransitions[i].Type
+			r.SpecialTransitions[idx].Transition = r.SpecialTransitions[i].Transition
+			r.SpecialTransitions[i].Name = ""
+			r.SpecialTransitions[i].Type = ""
+			r.SpecialTransitions[i].Transition = nil
+		}
+	}
 	return &mdl
 }
 
@@ -255,8 +320,8 @@ func (mdl *Model) EvalEquationFormula(eq *Equation) float64 {
 	return eq.EvalFormula(&mdl.FormulaVals)
 }
 
-// FindEquationGroup
-func (mdl *Model) findEquationGroupTry(nm string) *EqGrp {
+// EquationGroupTry
+func (mdl *Model) EquationGroupTry(nm string) *EqGrp {
 	for _, eg := range mdl.EqGrps {
 		if eg.Name == nm {
 			return &eg
@@ -409,7 +474,7 @@ func (mdl *Model) FirstRule(postureSequence []Posture, ruleIdx int) (*Rule, int)
 	for i, r := range mdl.Rules {
 		if len(r.BoolExprs) <= len(postureSequence) {
 			if r.EvalBoolExpr(postureSequence) {
-				return &r, i
+				return r, i
 			}
 		}
 	}

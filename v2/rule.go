@@ -450,13 +450,19 @@ type ExprSymEquations struct {
 	Mark3    *Equation
 }
 
+type ParamTransition struct {
+	Name       string `xml:"attr,name"`
+	Type       string `xml:"attr,transition"`
+	Transition *Transition
+}
+
 type Rule struct {
-	BoolExprs                 []string         `xml:"boolean-expressions>boolean-expression"`
-	ParamProfileTransitions   []Transition     `xml:"parameter-profiles>parameter-transition"`
-	SpecialProfileTransitions []Transition     `xml:"special-profiles>parameter-transition"`
-	ExprSymEquations          ExprSymEquations `xml:"expression-symbols>symbol-equation"`
-	Comment                   string           `xml:"comment"`
-	BoolNodes                 []BoolNode
+	BoolExprs          []string           `xml:"boolean-expressions>boolean-expression"`
+	ParamTransitions   []*ParamTransition `xml:"parameter-profiles>parameter-transition"`
+	SpecialTransitions []*ParamTransition `xml:"special-profiles>parameter-transition"`
+	ExprSymEquations   ExprSymEquations   `xml:"expression-symbols>symbol-equation"`
+	Comment            string             `xml:"comment"`
+	BoolNodes          []BoolNode
 }
 
 type LogicNodeType int
