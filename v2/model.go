@@ -101,7 +101,7 @@ func (grp *TransGrp) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error 
 				}
 			case "point":
 				p := new(Point)
-				tr.PtSlpList = append(tr.PtSlpList, &p)
+				tr.PtSlpList = append(tr.PtSlpList, *p)
 				for _, attr := range tt.Attr {
 					switch attr.Name.Local {
 					case "value":
@@ -119,7 +119,7 @@ func (grp *TransGrp) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error 
 						}
 					case "time-expression":
 						e := new(Equation)
-						p.TimeExpr = e
+						p.TimeExpr = *e
 						e.Name = attr.Value
 					case "free-time":
 						ft := attr.Value
@@ -132,7 +132,7 @@ func (grp *TransGrp) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error 
 				}
 			case "slope":
 				s := new(Slope)
-				tr.PtSlpList = append(tr.PtSlpList, &s)
+				tr.PtSlpList = append(tr.PtSlpList, *s)
 				for _, attr := range tt.Attr {
 					switch attr.Name.Local {
 					case "slope":

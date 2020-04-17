@@ -354,11 +354,13 @@ func (seq *Sequence) InitToneGroups(intonationPath string) error {
 			if (line[0] == '#') || (line[0] == ' ') {
 				// Skip.
 			} else if strings.HasPrefix(string(line), "TG") {
-				fmt.Sscanf(string(line[2]), " %d", seq.TgCount[count])
+				tg := "" // dummy
+				fmt.Sscanf(string(line), "%s %d", &tg, &seq.TgCount[count])
 				seq.ParseGroups(count, seq.TgCount[count], fp)
 				count++
 			} else if strings.HasPrefix(string(line), "RANDOM") {
-				fmt.Sscanf(string(line[6]), " %f", seq.IntonRandom)
+				r := "" // dummy
+				fmt.Sscanf(string(line), "%s %f", &r, &seq.IntonRandom)
 			}
 		}
 	}
@@ -698,48 +700,51 @@ func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos []float64,
 						seq.Min[i], seq.Max[i])
 					val = v
 				} else {
-					pt, ok := pointOrSlope.(Point)
-					if ok { // is SlopeRatio
-						if int(pt.Type) != curType {
-							curType = int(pt.Type)
-							targets[curType-2] = lastVal
-							curDelta = targets[curType-1] - lastVal
-						}
-						ptTime, v := PointData(pt, seq.Model)
-						val = v
-						if !pt.IsPhantom {
-							seq.InsertEvent(i, ptTime, val)
-						}
+					_, ok := pointOrSlope.(Point)
+					if !ok {
+						log.Println("ApplyRule error: pointOrSlope is Neither!")
+					}
+					if ok { // is Point
+						//if int(pt.Type) != curType {
+						//	curType = int(pt.Type)
+						//	targets[curType-2] = lastVal
+						//	curDelta = targets[curType-1] - lastVal
+						//}
+						//ptTime, v := PointData(pt, seq.Model)
+						//val = v
+						//if !pt.IsPhantom {
+						//	seq.InsertEvent(i, ptTime, val)
+						//}
 					}
 					lastVal = val
 				}
 			}
 		}
-		//else {
-		//	insertEvent(i, 0.0, targets[0])
-		//}
+	}
+	//else { // commented out in C++ version
+	//	insertEvent(i, 0.0, targets[0])
+	//}
 
-		/* Special Event Profiles */
-		for i := 0; i < len(seq.Model.Params); i++ {
-			if rule.SpecialTransitions[i].Transition != nil && len(rule.SpecialTransitions) > i {
-				spTrans := rule.SpecialTransitions[i].Transition
-				for j := 0; j < len(spTrans.PtSlpList); j++ {
-					pointOrSlope := spTrans.PtSlpList[j]
-					pt, ok := pointOrSlope.(Point)
-					if !ok {
-						log.Println("Apply Rule: type assertion failure - not a Point")
-					}
-
-					/* calculate time of event */
-					tempTime := PointTime(pt, seq.Model)
-
-					/* Calculate value of event */
-					value := (pt.Value / 100.0) * (seq.Max[i] - seq.Min[i])
-					//maxValue = value; // commented out in C++
-
-					/* insert event into event list */
-					seq.InsertEvent(i+16, tempTime, value)
+	/* Special Event Profiles */
+	for i := 0; i < len(seq.Model.Params); i++ {
+		if rule.SpecialTransitions[i].Transition != nil && len(rule.SpecialTransitions) > i {
+			spTrans := rule.SpecialTransitions[i].Transition
+			for j := 0; j < len(spTrans.PtSlpList); j++ {
+				pointOrSlope := spTrans.PtSlpList[j]
+				pt, ok := pointOrSlope.(Point)
+				if !ok {
+					log.Println("Apply Rule: type assertion failure - not a Point")
 				}
+
+				// calculate time of event
+				tempTime := PointTime(pt, seq.Model)
+
+				// Calculate value of event
+				value := (pt.Value / 100.0) * (seq.Max[i] - seq.Min[i])
+				//maxValue = value; // commented out in C++
+
+				// insert event into event list
+				seq.InsertEvent(i+16, tempTime, value)
 			}
 		}
 	}
