@@ -192,38 +192,38 @@ type Sequence struct {
 	Model  *Model
 	Events []Event
 
-	ZeroRef                  int
-	ZeroIdx                  int
-	Duration                 int
-	TimeQuant                int
-	MacroFlag                int
-	MicroFlag                int
-	DriftFlag                int
-	SmoothInton              int
-	PitchMean                float64
-	GlobalTempo              float64
-	Multiplier               float64
-	IntonationParams         []float64
-	PostureDatum             []*PostureData
-	PostureTempos            []float64
-	CurPosture               int
-	Feet                     []*Foot
-	CurFoot                  int
-	ToneGroups               []*ToneGroup
-	CurToneGroup             ToneType
-	RuleDatum                []*RuleData
-	CurRule                  int
-	Min                      [16]float64
-	Max                      [16]float64
-	IntonationPts            []IntonationPt
-	Drift                    Drift
-	TgUseRandom              bool
-	IntonRandom              float64
-	TgParams                 [][]float64
-	TgCount                  []int
-	UseFixedIntonationParams bool
-	FixedIntonationParams    []float64
-	RadiusCoef               []float64 // TRM::Tube::TOTAL_REGIONS
+	ZeroRef               int
+	ZeroIdx               int
+	Duration              int
+	TimeQuant             int
+	MacroFlag             int
+	MicroFlag             int
+	DriftFlag             int
+	SmoothInton           int
+	PitchMean             float64
+	GlobalTempo           float64
+	Multiplier            float64
+	PostureDatum          []*PostureData
+	PostureTempos         []float64
+	CurPosture            int
+	Feet                  []*Foot
+	CurFoot               int
+	ToneGroups            []*ToneGroup
+	CurToneGroup          ToneType
+	RuleDatum             []*RuleData
+	CurRule               int
+	Min                   [16]float64
+	Max                   [16]float64
+	IntonationPts         []IntonationPt
+	Drift                 Drift
+	TgUseRandom           bool
+	IntonRandom           float64
+	TgParams              [][]float64
+	TgCount               []int
+	UseFixedIntonation    bool
+	IntonationParams      []float64 `desc:"these will be the random intonation values or the fixed if useFixed is true"`
+	IntonationParamsFixed []float64
+	RadiusCoef            []float64 // TRM::Tube::TOTAL_REGIONS
 
 	// std::random_device randDev_;
 	randSrc  prng.MT19937_64
@@ -238,7 +238,7 @@ func NewSequence(intonationPath string, model *Model) *Sequence {
 	seq.DriftFlag = 0
 	seq.SmoothInton = 1
 	seq.GlobalTempo = 1.0
-	seq.UseFixedIntonationParams = false
+	seq.UseFixedIntonation = false
 
 	seq.Model = model
 	seq.Events = []Event{}
@@ -249,8 +249,6 @@ func NewSequence(intonationPath string, model *Model) *Sequence {
 	seq.Duration = 0
 	seq.TimeQuant = 4
 	seq.Multiplier = 1.0
-
-	seq.IntonationParams = []float64{}
 
 	seq.PostureDatum = []*PostureData{}
 	pd := new(PostureData)
@@ -282,9 +280,10 @@ func NewSequence(intonationPath string, model *Model) *Sequence {
 
 	seq.InitToneGroups(intonationPath)
 
-	seq.FixedIntonationParams = make([]float64, 10) // why 10?
-	for i, _ := range seq.FixedIntonationParams {
-		seq.FixedIntonationParams[i] = 1.0
+	seq.IntonationParams = make([]float64, 10)
+	seq.IntonationParamsFixed = make([]float64, 10) // why 10?
+	for i, _ := range seq.IntonationParamsFixed {
+		seq.IntonationParamsFixed[i] = 1.0
 	}
 	seq.RadiusCoef = make([]float64, 8) // ToDo: TRM::Tube::TOTAL_REGIONS
 	for i, _ := range seq.RadiusCoef {
@@ -297,12 +296,12 @@ func NewSequence(intonationPath string, model *Model) *Sequence {
 	return &seq
 }
 
-func (seq *Sequence) SetIntonationParams(pitch, pretonicRange, pretonicLift, tonicRange, tonicMovement float64) {
-	seq.FixedIntonationParams[1] = pitch
-	seq.FixedIntonationParams[2] = pretonicRange
-	seq.FixedIntonationParams[3] = pretonicLift
-	seq.FixedIntonationParams[5] = tonicRange
-	seq.FixedIntonationParams[6] = tonicMovement
+func (seq *Sequence) SetFixedIntonationParams(pitch, pretonicRange, pretonicLift, tonicRange, tonicMovement float64) {
+	seq.IntonationParamsFixed[1] = pitch
+	seq.IntonationParamsFixed[2] = pretonicRange
+	seq.IntonationParamsFixed[3] = pretonicLift
+	seq.IntonationParamsFixed[5] = tonicRange
+	seq.IntonationParamsFixed[6] = tonicMovement
 }
 
 func (seq *Sequence) SetRadiusCoefs(values []float64) {
@@ -311,24 +310,20 @@ func (seq *Sequence) SetRadiusCoefs(values []float64) {
 	}
 }
 
-func (seq *Sequence) ParseGroups(idx int, count int, fp *os.File) {
+func (seq *Sequence) ParseGroups(idx int, count int, f *bufio.Reader) {
 	seq.TgParams[idx] = make([]float64, 10*count)
-	f := bufio.NewReader(fp)
 	for i := 0; i < count; i++ {
-		for {
-			line, isP, err := f.ReadLine()
-			if err == io.EOF {
-				break
-			}
-			if isP == true {
-				log.Println("ParseGroups: partial line read, will likely be a problem")
-			}
-			seq.TgParams[idx] = make([]float64, i*10)
-			temp := seq.TgParams
-			fmt.Sscanf(string(line), " %f %f %f %f %f %f %f %f %f %f",
-				&temp[0], &temp[1], &temp[2], &temp[3], &temp[4],
-				&temp[5], &temp[6], &temp[7], &temp[8], &temp[9])
+		line, isP, err := f.ReadLine()
+		if err == io.EOF {
+			break
 		}
+		if isP == true {
+			log.Println("ParseGroups: partial line read, will likely be a problem")
+		}
+		m := 10 * i
+		fmt.Sscanf(string(line), "%f %f %f %f %f %f %f %f %f %f",
+			&seq.TgParams[idx][m+0], &seq.TgParams[idx][m+1], &seq.TgParams[idx][m+2], &seq.TgParams[idx][m+3], &seq.TgParams[idx][m+4],
+			&seq.TgParams[idx][m+5], &seq.TgParams[idx][m+6], &seq.TgParams[idx][m+7], &seq.TgParams[idx][m+8], &seq.TgParams[idx][m+9])
 	}
 }
 
@@ -356,7 +351,7 @@ func (seq *Sequence) InitToneGroups(intonationPath string) error {
 			} else if strings.HasPrefix(string(line), "TG") {
 				tg := "" // dummy
 				fmt.Sscanf(string(line), "%s %d", &tg, &seq.TgCount[count])
-				seq.ParseGroups(count, seq.TgCount[count], fp)
+				seq.ParseGroups(count, seq.TgCount[count], f)
 				count++
 			} else if strings.HasPrefix(string(line), "RANDOM") {
 				r := "" // dummy
@@ -831,8 +826,8 @@ type IntRange struct {
 }
 
 func (seq *Sequence) ApplyIntonation() {
-	var tgRandom int
 	ruleIndex := 0
+	tgRandom := 0
 
 	seq.ZeroRef = 0
 	seq.ZeroIdx = 0
@@ -872,53 +867,55 @@ func (seq *Sequence) ApplyIntonation() {
 
 		//printf("Tg: %d First: %d  end: %d  StartTime: %f  endTime: %f\n", i, firstFoot, endFoot, startTime, endTime)
 
-		if seq.UseFixedIntonationParams {
-			seq.IntonationParams = seq.FixedIntonationParams
+		if seq.UseFixedIntonation {
+			for i, _ := range seq.IntonationParamsFixed {
+				seq.IntonationParams[i] = seq.IntonationParamsFixed[i]
+			}
 		} else {
+			idx1 := 0
+			idx2 := 0
 			switch seq.ToneGroups[i].Type {
 			default:
 			case ToneStatement:
+				idx1 = 0
 				if seq.TgUseRandom {
 					tgRandom = rand.Intn(randDist0.Max)
-				} else {
-					tgRandom = 0
 				}
-				seq.IntonationParams[0] = seq.TgParams[0][tgRandom*10]
+				idx2 = tgRandom * 10
 			case ToneExclamation:
+				idx1 = 0
 				if seq.TgUseRandom {
 					tgRandom = rand.Intn(randDist0.Max)
-				} else {
-					tgRandom = 0
 				}
-				seq.IntonationParams[0] = seq.TgParams[0][tgRandom*10]
+				idx2 = tgRandom * 10
 			case ToneQuestion:
+				idx1 = 1
 				if seq.TgUseRandom {
 					tgRandom = rand.Intn(randDist1.Max)
-				} else {
-					tgRandom = 0
 				}
-				seq.IntonationParams[0] = seq.TgParams[1][tgRandom*10]
+				idx2 = tgRandom * 10
 			case ToneContinuation:
+				idx1 = 2
 				if seq.TgUseRandom {
 					tgRandom = rand.Intn(randDist2.Max)
-				} else {
-					tgRandom = 0
 				}
-				seq.IntonationParams[0] = seq.TgParams[2][tgRandom*10]
+				idx2 = tgRandom * 10
 			case ToneSemicolon:
+				idx1 = 3
 				if seq.TgUseRandom {
 					tgRandom = rand.Intn(randDist3.Max)
-				} else {
-					tgRandom = 0
 				}
-				seq.IntonationParams[0] = seq.TgParams[3][tgRandom*10]
+				idx2 = tgRandom * 10
+			}
+			for i := 0; i < 10; i++ {
+				seq.IntonationParams[i] = seq.TgParams[idx1][idx2+i]
 			}
 		}
-
-		//printf("Intonation Parameters: Type : %d  random: %d\n", toneGroups[i].type, tgRandom)
-		//for (j = 0; j<6; j++
-		//	printf("%f ", intonParms[j])
-		//printf("\n")
+		//fmt.Printf("Intonation Parameters: Type : %d  random: %d\n", seq.ToneGroups[i].Type, tgRandom)
+		//for j := 0; j<6; j++ {
+		//	fmt.Printf("%f ", seq.IntonationParams[j])
+		//	fmt.Printf("\n")
+		//}
 
 		offsetTime := 0.0
 		pretonicDelta := 0.0
@@ -926,7 +923,11 @@ func (seq *Sequence) ApplyIntonation() {
 		if deltaTime < eps {
 			pretonicDelta = 0
 		} else {
-			pretonicDelta = seq.IntonationParams[1] / deltaTime
+			if seq.UseFixedIntonation {
+
+			} else {
+				pretonicDelta = seq.IntonationParams[1] / deltaTime
+			}
 		}
 		//printf("Pretonic Delta = %f time = %f\n", pretonicDelta, (endTime - startTime))
 
