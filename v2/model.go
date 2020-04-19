@@ -292,7 +292,17 @@ func LoadModel(path string) *Model {
 				panic(errors.New("Model.Load() : EquationTry failed!"))
 			}
 			se.Equation = e
-			se.Equation.SetFormula(se.Equation.Formula)
+			root := se.Equation.SetFormula(se.Equation.Formula)
+			se.Equation.FormulaRoot = root
+		}
+	}
+
+	for _, grp := range mdl.EqGrps {
+		for _, eq := range grp.Equations {
+			if len(eq.Formula) > 0 {
+				root := eq.SetFormula(eq.Formula)
+				eq.FormulaRoot = root
+			}
 		}
 	}
 
@@ -371,7 +381,7 @@ func (mdl *Model) EquationTry(nm string) *Equation {
 	for _, grp := range mdl.EqGrps {
 		for _, eq := range grp.Equations {
 			if eq.Name == nm {
-				return &eq
+				return eq
 			}
 		}
 	}

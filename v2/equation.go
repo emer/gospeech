@@ -26,9 +26,9 @@ type Equation struct {
 }
 
 type EqGrp struct {
-	XMLName   xml.Name   `xml:"equation-group"`
-	Name      string     `xml:"name,attr"`
-	Equations []Equation `xml:"equation"`
+	XMLName   xml.Name    `xml:"equation-group"`
+	Name      string      `xml:"name,attr"`
+	Equations []*Equation `xml:"equation"`
 }
 
 type SymbolType int
@@ -107,13 +107,13 @@ func (fn *FormulaNode) Eval(sl *FormulaValueList) float64 {
 	case NodeMinusUnary:
 		return -(fn.Eval(sl))
 	case NodeAdd:
-		return fn.Eval(sl) + fn.Eval(sl)
+		return fn.Child1.Eval(sl) + fn.Child2.Eval(sl)
 	case NodeSub:
-		return fn.Eval(sl) - fn.Eval(sl)
+		return fn.Child1.Eval(sl) - fn.Child2.Eval(sl)
 	case NodeMult:
-		return fn.Eval(sl) * fn.Eval(sl)
+		return fn.Child1.Eval(sl) * fn.Child2.Eval(sl)
 	case NodeDiv:
-		return fn.Eval(sl) / fn.Eval(sl)
+		return fn.Child1.Eval(sl) / fn.Child2.Eval(sl)
 	}
 	return 0.0
 }
@@ -310,7 +310,7 @@ func (fnp *FormulaNodeParser) ParseExpr() *FormulaNode {
 		term2 := fnp.ParseTerm()
 
 		var expr *FormulaNode
-		if symType == SymMult {
+		if symType == SymAdd {
 			op := NewFormulaNode(term1, term2, NodeAdd)
 			expr = op
 		} else {
@@ -336,14 +336,11 @@ func (fnp *FormulaNodeParser) Parse() *FormulaNode {
 	return formulaRoot
 }
 
-func (eq *Equation) SetFormula(formula string) {
+func (eq *Equation) SetFormula(formula string) *FormulaNode {
 	np := NewFormulaNodeParser(formula)
-	tempFormulaRoot := np.Parse()
 	eq.Formula = formula
-
-	temp := eq.FormulaRoot
-	eq.FormulaRoot = tempFormulaRoot
-	tempFormulaRoot = temp
+	root := np.Parse()
+	return root
 }
 
 func (eq *Equation) EvalFormula(sl *FormulaValueList) float64 {
