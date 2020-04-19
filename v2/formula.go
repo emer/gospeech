@@ -28,7 +28,6 @@
 package v2
 
 import (
-	"fmt"
 	"github.com/goki/ki/kit"
 )
 
@@ -65,45 +64,35 @@ const (
 var Kit_FormulaSymbolType = kit.Enums.AddEnum(FormulaSymTypeN, kit.NotBitFlag, nil)
 
 type FormulaValueList [FormulaSymTypeN]float64
-type FormulaSymMap map[FormulaSymbolType]float64
 
-func NewFormulaSymMap(fsm *FormulaSymMap) {
-	fs := make(FormulaSymMap)
-
-	fs[FormulaSymTransition1] = 33.3333
-	fs[FormulaSymTransition2] = 33.3333
-	fs[FormulaSymTransition3] = 33.3333
-	fs[FormulaSymTransition4] = 33.3333
-	fs[FormulaSymQssa1] = 33.3333
-	fs[FormulaSymQssa2] = 33.3333
-	fs[FormulaSymQssa3] = 33.3333
-	fs[FormulaSymQssa4] = 33.3333
-	fs[FormulaSymQssb1] = 33.3333
-	fs[FormulaSymQssb2] = 33.3333
-	fs[FormulaSymQssb3] = 33.3333
-	fs[FormulaSymQssb4] = 33.3333
-	fs[FormulaSymTempo1] = 1.0
-	fs[FormulaSymTempo2] = 1.0
-	fs[FormulaSymTempo3] = 1.0
-	fs[FormulaSymTempo4] = 1.0
-	fs[FormulaSymBeat] = 33.0
-	fs[FormulaSymRd] = 100.0
-	fs[FormulaSymMark1] = 100.0
-	fs[FormulaSymMark2] = 0.0
-	fs[FormulaSymMark3] = 0.0
-
-	fsm = &fs
+type FormulaSymMap struct {
+	SymMap map[string]FormulaSymbolType
 }
 
-//func NewFormulaSymbolList(n int) *FormulaSymbolList {
-//	s := FormulaSymbolList{}
-//	s.Symbols = make([]float64, n)
-//	return &s
-//}
+func NewFormulaSymMap() *map[string]FormulaSymbolType {
+	fs := make(map[string]FormulaSymbolType)
 
-func (fs *FormulaSymMap) Clear() {
-	for _, v := range *fs {
-		v = 0.0
-		fmt.Printf("%f, ", v)
-	}
+	fs["transition1"] = FormulaSymTransition1
+	fs["transition2"] = FormulaSymTransition2
+	fs["transition3"] = FormulaSymTransition3
+	fs["transition4"] = FormulaSymTransition4
+	fs["qssa1"] = FormulaSymQssa1
+	fs["qssa2"] = FormulaSymQssa2
+	fs["qssa3"] = FormulaSymQssa3
+	fs["qssa4"] = FormulaSymQssa4
+	fs["qssb1"] = FormulaSymQssb1
+	fs["qssb2"] = FormulaSymQssb2
+	fs["qssb3"] = FormulaSymQssb3
+	fs["qssb4"] = FormulaSymQssb4
+	fs["tempo1"] = FormulaSymTempo1
+	fs["tempo2"] = FormulaSymTempo2
+	fs["tempo3"] = FormulaSymTempo3
+	fs["tempo4"] = FormulaSymTempo4
+	fs["rd"] = FormulaSymRd
+	fs["beat"] = FormulaSymBeat
+	fs["mark1"] = FormulaSymMark1
+	fs["mark2"] = FormulaSymMark2
+	fs["mark3"] = FormulaSymMark3
+
+	return &fs
 }

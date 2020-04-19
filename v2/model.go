@@ -189,7 +189,19 @@ func (r *Rule) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 				}
 				// after loading set pt.Transition to point to the transition
 				pt.Transition = nil
+			case "symbol-equation":
+				se := new(ExprSymEquation)
+				for _, attr := range tt.Attr {
+					switch attr.Name.Local {
+					case "name":
+						se.SymName = attr.Value
+					case "equation":
+						se.EqName = attr.Value
+					}
+				}
+				r.ExprSymEquations = append(r.ExprSymEquations, se)
 			}
+
 		case xml.EndElement:
 			if tt == start.End() {
 				return nil
@@ -272,6 +284,18 @@ func LoadModel(path string) *Model {
 			r.SpecialTransitions[i].Transition = nil
 		}
 	}
+
+	for _, r := range mdl.Rules {
+		for _, se := range r.ExprSymEquations {
+			e := mdl.EquationTry(se.EqName)
+			if e == nil {
+				panic(errors.New("Model.Load() : EquationTry failed!"))
+			}
+			se.Equation = e
+			se.Equation.SetFormula(se.Equation.Formula)
+		}
+	}
+
 	return &mdl
 }
 

@@ -252,6 +252,7 @@ func NewSequence(intonationPath string, model *Model) *Sequence {
 
 	seq.PostureDatum = []*PostureData{}
 	pd := new(PostureData)
+	pd.Defaults()
 	seq.PostureDatum = append(seq.PostureDatum, pd)
 
 	seq.PostureTempos = make([]float64, 1)
@@ -260,16 +261,19 @@ func NewSequence(intonationPath string, model *Model) *Sequence {
 
 	seq.Feet = []*Foot{}
 	ft := new(Foot)
+	ft.Defaults()
 	seq.Feet = append(seq.Feet, ft)
 	seq.CurFoot = 0
 
 	seq.ToneGroups = []*ToneGroup{}
 	tg := new(ToneGroup)
+	tg.Defaults()
 	seq.ToneGroups = append(seq.ToneGroups, tg)
 	seq.CurToneGroup = 0
 
 	seq.RuleDatum = []*RuleData{}
 	rd := new(RuleData)
+	rd.Defaults()
 	seq.RuleDatum = append(seq.RuleDatum, rd)
 	seq.CurRule = 0
 
@@ -584,17 +588,21 @@ func (seq *Sequence) SlopeRatioEvents(evIdx int, sr *SlopeRatio, baseline, param
 // ApplyRule
 func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos []float64, postureIdx int) {
 	var val float64
-	ruleSyms := []float64{0.0, 0.0, 0.0, 0.0, 0.0}
+	ruleSymVals := []float64{0.0, 0.0, 0.0, 0.0, 0.0}
+	ruleSyms := make([]*float64, 5)
+	for i, _ := range ruleSymVals {
+		ruleSyms[i] = &ruleSymVals[i]
+	}
 
 	rule.EvalExprSyms(tempos, postures, seq.Model, ruleSyms)
 	seq.Multiplier = 1.0 / seq.PostureDatum[postureIdx].RuleTempo
 	phtype := len(rule.BoolExprs)
-	seq.Duration = int(ruleSyms[0] * seq.Multiplier)
+	seq.Duration = int(*ruleSyms[0] * seq.Multiplier)
 
 	seq.RuleDatum[seq.CurRule].FirstPosture = postureIdx
 	seq.RuleDatum[seq.CurRule].LastPosture = postureIdx + int(phtype-1)
-	seq.RuleDatum[seq.CurRule].Beat = (ruleSyms[1] * seq.Multiplier) + float64(seq.ZeroRef)
-	seq.RuleDatum[seq.CurRule].Duration = ruleSyms[0] * seq.Multiplier
+	seq.RuleDatum[seq.CurRule].Beat = (*ruleSyms[1] * seq.Multiplier) + float64(seq.ZeroRef)
+	seq.RuleDatum[seq.CurRule].Duration = *ruleSyms[0] * seq.Multiplier
 	seq.CurRule++
 	rd := RuleData{}
 	seq.RuleDatum = append(seq.RuleDatum, &rd)
@@ -605,8 +613,8 @@ func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos []float64,
 	/* Note: Case 4 should execute all of the below, case 3 the last two */
 	case TetraPhone:
 		if len(postures) == 4 {
-			seq.PostureDatum[postureIdx+3].Onset = float64(seq.ZeroRef) + ruleSyms[1]
-			tempEvent = seq.InsertEvent(-1, ruleSyms[3], 0.0)
+			seq.PostureDatum[postureIdx+3].Onset = float64(seq.ZeroRef) + *ruleSyms[1]
+			tempEvent = seq.InsertEvent(-1, *ruleSyms[3], 0.0)
 			if tempEvent != nil {
 				tempEvent.Flag = 1
 			}
@@ -614,15 +622,15 @@ func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos []float64,
 		fallthrough
 	case TriPhone:
 		if len(postures) >= 3 {
-			seq.PostureDatum[postureIdx+2].Onset = float64(seq.ZeroRef) + ruleSyms[1]
-			tempEvent = seq.InsertEvent(-1, ruleSyms[2], 0.0)
+			seq.PostureDatum[postureIdx+2].Onset = float64(seq.ZeroRef) + *ruleSyms[1]
+			tempEvent = seq.InsertEvent(-1, *ruleSyms[2], 0.0)
 			if tempEvent != nil {
 				tempEvent.Flag = 1
 			}
 		}
 		fallthrough
 	case DiPhone:
-		seq.PostureDatum[postureIdx+1].Onset = float64(seq.ZeroRef) + ruleSyms[1]
+		seq.PostureDatum[postureIdx+1].Onset = float64(seq.ZeroRef) + *ruleSyms[1]
 		tempEvent = seq.InsertEvent(-1, 0.0, 0.0)
 		if tempEvent != nil {
 			tempEvent.Flag = 1
@@ -744,7 +752,7 @@ func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos []float64,
 		}
 	}
 
-	seq.SetZeroRef(int(ruleSyms[0]*seq.Multiplier) + seq.ZeroRef)
+	seq.SetZeroRef(int(*ruleSyms[0]*seq.Multiplier) + seq.ZeroRef)
 	tempEvent = seq.InsertEvent(-1, 0.0, 0.0)
 	if tempEvent != nil {
 		tempEvent.Flag = 1

@@ -26,7 +26,7 @@ type Equation struct {
 type EqGrp struct {
 	XMLName   xml.Name   `xml:"equation-group"`
 	Name      string     `xml:"name,attr"`
-	Equations []Equation `xml:"equation,attr"`
+	Equations []Equation `xml:"equation"`
 }
 
 type SymbolType int
@@ -179,7 +179,7 @@ type FormulaNodeParser struct {
 	FormulaValueList FormulaValueList
 	S                string
 	Pos              int
-	Symbol           string
+	Symbol           rune
 	SymbolType       SymbolType
 }
 
@@ -210,7 +210,6 @@ func (fnp *FormulaNodeParser) SkipSpaces() {
 
 func (fnp *FormulaNodeParser) NextSymbol() {
 	fnp.SkipSpaces()
-	fnp.Symbol = ""
 
 	if fnp.Finished() {
 		fnp.SymbolType = SymInvalid
@@ -218,8 +217,8 @@ func (fnp *FormulaNodeParser) NextSymbol() {
 	}
 
 	c := rune(fnp.S[fnp.Pos])
+	fnp.Symbol = c
 	fnp.Pos++
-	//fnp.SymType = c
 
 	switch c {
 	case addChar:
@@ -236,16 +235,21 @@ func (fnp *FormulaNodeParser) NextSymbol() {
 		fnp.SymbolType = SymLftParen
 	default:
 		fnp.SymbolType = SymString
-		cnext := string(fnp.S[fnp.Pos]) // notice that Pos has been incremented already
-		for !fnp.Finished() && !IsSeparator(cnext) {
-			fnp.Symbol += cnext
+		c = rune(fnp.S[fnp.Pos]) // notice that Pos has been incremented already
+		for !fnp.Finished() && !IsSeparator(string(rune(c))) {
+			fnp.Symbol += rune(c)
 			fnp.Pos++
+			if fnp.Pos >= len(fnp.S) {
+				break
+			}
+			c = rune(fnp.S[fnp.Pos]) // notice that Pos has been incremented already
 		}
 	}
 }
 
 // Parse Factor -- FACTOR -> "(" EXPRESSION ")" | SYMBOL | CONST | ADD_OP FACTOR
 func (fnp *FormulaNodeParser) ParseFactor() *FormulaNode {
+	//tempMap := NewFormulaSymMap()
 	switch fnp.SymbolType {
 	case SymLftParen: // expression
 		fnp.NextSymbol()
@@ -264,21 +268,26 @@ func (fnp *FormulaNodeParser) ParseFactor() *FormulaNode {
 		op := NewFormulaMinusUnaryOp(fnp.ParseFactor())
 		return &op.FormulaNode
 	case SymString: // const / symbol
-		//temp := fnp.Symbol
-
-		// ToDo: !!!
 		fnp.NextSymbol()
 
-	//	for k, v := range fnp.FormulaValueList.Syms { // .Syms is the map
-	//		if k == fnp.Symbol {
-	//			return NewFormulaConst(strconv.ParseFloat(temp))
-	//}
-	//	if (iter == formulaSymbolMap_.end()) {
-	//		// It's not a symbol.
-	//		return NewFormulaConst(strconv.ParseFloat(temp))
-	//	} else {
-	//		return NewFormulaSymbolValue(iter->second)
-	//	}
+		//for k, _ := range *tempMap {
+		//	//fmt.Printf("%s \n", k)
+		//	if fnp.Symbol == k {
+		//		;
+		//	}
+		//}
+
+		//for i := 0; i < len(*tempMap); i++ {
+		//	if tempMap[i]. == fnp.Symbol{
+		//		return NewFormulaConst(strconv.ParseFloat(temp))
+		//	}
+		//}
+		//if (iter == formulaSymbolMap_.end()) {
+		//	// It's not a symbol.
+		//	return NewFormulaConst(strconv.ParseFloat(temp))
+		//} else {
+		//	return NewFormulaSymbolValue(iter->second)
+		//}
 	case SymRtParen:
 		//msg := fmt.Sprintf("ParseFactor: Unexpected symbol: %s", rtParenChar)
 		//return nil, errors.New(msg)

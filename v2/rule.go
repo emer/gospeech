@@ -362,7 +362,7 @@ func (r *Rule) EvalBoolExpr(postures []Posture) bool {
 }
 
 // EvalExpr
-func (r *Rule) EvalExprSyms(tempos []float64, postures []Posture, model *Model, syms []float64) {
+func (r *Rule) EvalExprSyms(tempos []float64, postures []Posture, model *Model, syms []*float64) {
 	var localTempos [4]float64
 
 	model.ClearFormulaVals()
@@ -408,46 +408,42 @@ func (r *Rule) EvalExprSyms(tempos []float64, postures []Posture, model *Model, 
 	model.FormulaVals[FormulaSymTempo2] = localTempos[1]
 	model.FormulaVals[FormulaSymTempo3] = localTempos[2]
 	model.FormulaVals[FormulaSymTempo4] = localTempos[3]
-	model.FormulaVals[FormulaSymRd] = syms[0]
-	model.FormulaVals[FormulaSymBeat] = syms[1]
-	model.FormulaVals[FormulaSymMark1] = syms[2]
-	model.FormulaVals[FormulaSymMark2] = syms[3]
-	model.FormulaVals[FormulaSymMark3] = syms[4]
+	model.FormulaVals[FormulaSymRd] = *syms[0]
+	model.FormulaVals[FormulaSymBeat] = *syms[1]
+	model.FormulaVals[FormulaSymMark1] = *syms[2]
+	model.FormulaVals[FormulaSymMark2] = *syms[3]
+	model.FormulaVals[FormulaSymMark3] = *syms[4]
 
-	// Execute in this order.
-	if r.ExprSymEquations.Duration != nil {
-		model.FormulaVals[FormulaSymRd] = model.EvalEquationFormula(r.ExprSymEquations.Duration)
-	}
-	if r.ExprSymEquations.Mark1 != nil {
-		model.FormulaVals[FormulaSymMark1] = model.EvalEquationFormula(r.ExprSymEquations.Mark1)
-	}
-	if r.ExprSymEquations.Mark2 != nil {
-		model.FormulaVals[FormulaSymMark2] = model.EvalEquationFormula(r.ExprSymEquations.Mark2)
-	}
-	if r.ExprSymEquations.Mark3 != nil {
-		model.FormulaVals[FormulaSymMark3] = model.EvalEquationFormula(r.ExprSymEquations.Mark3)
-	}
-	if r.ExprSymEquations.Beat != nil {
-		model.FormulaVals[FormulaSymBeat] = model.EvalEquationFormula(r.ExprSymEquations.Beat)
+	// Execute in this order
+	for _, se := range r.ExprSymEquations {
+		if se.SymName == "rd" {
+			model.FormulaVals[FormulaSymRd] = model.EvalEquationFormula(se.Equation)
+		} else if se.SymName == "beat" {
+			model.FormulaVals[FormulaSymBeat] = model.EvalEquationFormula(se.Equation)
+		} else if se.SymName == "mark1" {
+			model.FormulaVals[FormulaSymMark1] = model.EvalEquationFormula(se.Equation)
+		} else if se.SymName == "mark2" {
+			model.FormulaVals[FormulaSymMark2] = model.EvalEquationFormula(se.Equation)
+		} else if se.SymName == "mark3" {
+			model.FormulaVals[FormulaSymMark3] = model.EvalEquationFormula(se.Equation)
+		}
 	}
 
-	syms[0] = model.FormulaVals[FormulaSymRd]
-	syms[1] = model.FormulaVals[FormulaSymBeat]
-	syms[2] = model.FormulaVals[FormulaSymMark1]
-	syms[3] = model.FormulaVals[FormulaSymMark2]
-	syms[4] = model.FormulaVals[FormulaSymMark3]
+	*syms[0] = model.FormulaVals[FormulaSymRd]
+	*syms[1] = model.FormulaVals[FormulaSymBeat]
+	*syms[2] = model.FormulaVals[FormulaSymMark1]
+	*syms[3] = model.FormulaVals[FormulaSymMark2]
+	*syms[4] = model.FormulaVals[FormulaSymMark3]
 }
 
 //////////////////////////////////////////////////
 // Rule
 //////////////////////////////////////////////////
 
-type ExprSymEquations struct {
-	Duration *Equation
-	Beat     *Equation
-	Mark1    *Equation
-	Mark2    *Equation
-	Mark3    *Equation
+type ExprSymEquation struct {
+	SymName  string `xml:"attr,name"`
+	EqName   string `xml:"attr,equation"`
+	Equation *Equation
 }
 
 type ParamTransition struct {
@@ -460,7 +456,7 @@ type Rule struct {
 	BoolExprs          []string           `xml:"boolean-expressions>boolean-expression"`
 	ParamTransitions   []*ParamTransition `xml:"parameter-profiles>parameter-transition"`
 	SpecialTransitions []*ParamTransition `xml:"special-profiles>parameter-transition"`
-	ExprSymEquations   ExprSymEquations   `xml:"expression-symbols>symbol-equation"`
+	ExprSymEquations   []*ExprSymEquation `xml:"expression-symbols>symbol-equation"`
 	Comment            string             `xml:"comment"`
 	BoolNodes          []BoolNode
 }
