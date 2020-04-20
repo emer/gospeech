@@ -72,7 +72,7 @@ type Point struct {
 	Value     float64        `xml:"value,attr"`
 	IsPhantom bool           `xml:"is-phantom,attr"`
 	FreeTime  float64        `xml:"free-time,attr" desc:"milliseconds"`
-	TimeExpr  Equation       `xml:"time-expression,attr"`
+	TimeExpr  *Equation      `xml:"time-expression,attr"`
 }
 
 // NewPoint
@@ -82,7 +82,7 @@ func NewPoint() *Point {
 	pt.Value = 0.0
 	pt.IsPhantom = false
 	pt.FreeTime = 0.0
-	pt.TimeExpr = Equation{}
+	pt.TimeExpr = nil
 	return &pt
 }
 
@@ -147,27 +147,26 @@ func PointTime(pt Point, model *Model) float64 {
 }
 
 // PointData
-func PointData(pt Point, model *Model, baseline, delta, min, max float64) (time, value float64) {
-	if &pt.TimeExpr == nil {
+func PointData(pt Point, model *Model) (time, value float64) {
+	if pt.TimeExpr == nil {
 		time = pt.FreeTime
 	} else {
-		time = model.EvalEquationFormula(&pt.TimeExpr)
+		if &pt.TimeExpr.Formula != nil {
+			time = model.EvalEquationFormula(pt.TimeExpr)
+		}
 	}
-	value = baseline + ((pt.Value / 100.0) * delta)
-	if value < min {
-		value = min
-	} else if value > max {
-		value = max
-	}
+	value = pt.Value
 	return time, value
 }
 
 // PointDataMinMax
 func PointDataMinMax(pt Point, model *Model, baseline, delta, min, max float64) (time, value float64) {
-	if &pt.TimeExpr != nil {
+	if pt.TimeExpr == nil {
 		time = pt.FreeTime
 	} else {
-		time = pt.TimeExpr.EvalFormula(&model.FormulaVals)
+		if &pt.TimeExpr.Formula != nil {
+			time = model.EvalEquationFormula(pt.TimeExpr)
+		}
 	}
 
 	value = baseline + (value/100.0)*delta
