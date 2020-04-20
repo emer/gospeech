@@ -68,6 +68,10 @@ func (mdl *Model) ClearFormulaVals() {
 
 func (grp *TransGrp) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	var tr *Transition
+	// the PtSlpList can hold points and slopes with SlopeRatio or just bare so
+	// we need to hold on to the SlopeRatio struct and know if we are processing one currently
+	var sr *SlopeRatio
+	inSlopeRatio := false
 	for {
 		t, err := d.Token()
 		if err != nil {
@@ -99,9 +103,13 @@ func (grp *TransGrp) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error 
 						}
 					}
 				}
+
+			case "slope-ratio":
+				inSlopeRatio = true
+				sr = new(SlopeRatio)
+
 			case "point":
 				p := new(Point)
-				tr.PtSlpList = append(tr.PtSlpList, *p)
 				for _, attr := range tt.Attr {
 					switch attr.Name.Local {
 					case "value":
@@ -130,9 +138,13 @@ func (grp *TransGrp) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error 
 						}
 					}
 				}
+				if inSlopeRatio {
+					sr.Points = append(sr.Points, *p)
+				} else {
+					tr.PtSlpList = append(tr.PtSlpList, *p)
+				}
 			case "slope":
 				s := new(Slope)
-				tr.PtSlpList = append(tr.PtSlpList, *s)
 				for _, attr := range tt.Attr {
 					switch attr.Name.Local {
 					case "slope":
@@ -143,8 +155,18 @@ func (grp *TransGrp) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error 
 						s.DisplayTime, err = strconv.ParseFloat(dt, 64)
 					}
 				}
+				if inSlopeRatio {
+					sr.Slopes = append(sr.Slopes, *s)
+				} else {
+					tr.PtSlpList = append(tr.PtSlpList, *s)
+				}
 			}
+
 		case xml.EndElement:
+			if tt.Name.Local == "slope-ratio" {
+				inSlopeRatio = false
+				tr.PtSlpList = append(tr.PtSlpList, sr)
+			}
 			if tt == start.End() {
 				return nil
 			}
