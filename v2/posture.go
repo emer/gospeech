@@ -28,7 +28,6 @@
 package v2
 
 import (
-	"fmt"
 	"log"
 )
 
@@ -75,8 +74,6 @@ func (pos *Posture) Copy(newNm string) *Posture {
 
 func (pos *Posture) IsMemberOfCategory(category *Category) bool {
 	for _, c := range pos.Categories {
-		fmt.Println(c.Name)
-		// if &c == category {
 		if c.Name == category.Name {
 			return true
 		}
