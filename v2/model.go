@@ -30,6 +30,7 @@ package v2
 import (
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"strconv"
@@ -129,7 +130,7 @@ func (grp *TransGrp) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error 
 						}
 					case "time-expression":
 						e := new(Equation)
-						p.TimeExpr = *e
+						p.TimeExpr = e
 						e.Name = attr.Value
 					case "free-time":
 						ft := attr.Value
@@ -160,7 +161,7 @@ func (grp *TransGrp) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error 
 				if inSlopeRatio {
 					sr.Slopes = append(sr.Slopes, *s)
 				} else {
-					tr.PtSlpList = append(tr.PtSlpList, *s)
+					tr.PtSlpList = append(tr.PtSlpList, s)
 				}
 			}
 
@@ -330,6 +331,21 @@ func LoadModel(path string) *Model {
 		}
 	}
 
+	for _, tg := range mdl.TransGrps {
+		for _, tr := range tg.Transitions {
+			ptslps := tr.PtSlpList
+			for i, pt := range ptslps {
+				point, ok := pt.(Point)
+				if ok {
+					if point.TimeExpr != nil {
+						e := mdl.EquationTry(point.TimeExpr.Name)
+						point.TimeExpr = e
+						ptslps[i] = point
+					}
+				}
+			}
+		}
+	}
 	return &mdl
 }
 
@@ -374,7 +390,9 @@ func (mdl *Model) PostureTry(nm string) *Posture {
 
 // EvalEquationFormula
 func (mdl *Model) EvalEquationFormula(eq *Equation) float64 {
-
+	if eq == nil {
+		fmt.Println("eq is nil - check if these are all legitimate nil cases")
+	}
 	return eq.EvalFormula(&mdl.FormulaVals)
 }
 
