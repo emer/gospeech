@@ -134,6 +134,7 @@ type Transition struct {
 	Name      string         `xml:"name,attr"`
 	Type      TransitionType `xml:"type,attr"`
 	PtSlpList []interface{}  `xml:"point-or-slopes>slope-ratio>points>point"`
+	Comment   string         `xml:"comment"`
 }
 
 // PointTime
@@ -146,13 +147,18 @@ func PointTime(pt Point, model *Model) float64 {
 }
 
 // PointData
-func PointData(pt Point, model *Model) (time, value float64) {
-	if &pt.TimeExpr != nil {
+func PointData(pt Point, model *Model, baseline, delta, min, max float64) (time, value float64) {
+	if &pt.TimeExpr == nil {
 		time = pt.FreeTime
 	} else {
-		time = pt.TimeExpr.EvalFormula(&model.FormulaVals)
+		time = model.EvalEquationFormula(&pt.TimeExpr)
 	}
-	value = pt.Value
+	value = baseline + ((pt.Value / 100.0) * delta)
+	if value < min {
+		value = min
+	} else if value > max {
+		value = max
+	}
 	return time, value
 }
 
