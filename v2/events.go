@@ -98,7 +98,7 @@ const eps = 1.0e-6
 var invalidEvent = math.Inf(1) // positive infinity
 
 type Event struct {
-	Events []float64
+	Params []float64
 	Size   int
 	Time   int
 	Flag   int
@@ -108,22 +108,22 @@ func NewEvent() *Event {
 	e := new(Event)
 	e.Time = 0
 	e.Flag = 0
-	e.Events = make([]float64, 36)
-	for i := 0; i < len(e.Events); i++ {
-		e.Events[i] = invalidEvent
+	e.Params = make([]float64, 36)
+	for i := 0; i < len(e.Params); i++ {
+		e.Params[i] = invalidEvent
 	}
 	return e
 }
 
 func (ev *Event) Value(idx int) float64 {
-	return ev.Events[idx]
+	return ev.Params[idx]
 }
 
 func (ev *Event) SetValue(v float64, idx int) {
 	if idx < 0 {
 		return
 	}
-	ev.Events[idx] = v
+	ev.Params[idx] = v
 }
 
 type PostureData struct {
