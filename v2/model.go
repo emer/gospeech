@@ -103,11 +103,13 @@ func (grp *TransGrp) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error 
 						}
 					}
 				}
-
+			case "comment":
+				var s = ""
+				d.DecodeElement(&s, &start)
+				tr.Comment = s
 			case "slope-ratio":
 				inSlopeRatio = true
 				sr = new(SlopeRatio)
-
 			case "point":
 				p := new(Point)
 				for _, attr := range tt.Attr {
@@ -165,7 +167,7 @@ func (grp *TransGrp) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error 
 		case xml.EndElement:
 			if tt.Name.Local == "slope-ratio" {
 				inSlopeRatio = false
-				tr.PtSlpList = append(tr.PtSlpList, sr)
+				tr.PtSlpList = append(tr.PtSlpList, *sr)
 			}
 			if tt == start.End() {
 				return nil

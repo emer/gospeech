@@ -160,7 +160,8 @@ func (ctrl *Control) CalcChunks(text string) int {
 // NextChunk returns the position of the next /c (the position of the /).
 func (ctrl *Control) NextChunk(text string) int {
 	idx := 0
-	for text[idx] != '0' {
+	length := len(text)
+	for idx < length {
 		if (text[idx] == '/') && (text[idx+1] == 'c') {
 			return idx
 		} else {
