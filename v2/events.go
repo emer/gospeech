@@ -520,12 +520,12 @@ func (seq *Sequence) SlopeRatioEvents(evIdx int, sr *SlopeRatio, baseline, param
 	var pointTime float64
 	var pointValue float64
 
-	pointTime, pointValue = PointData(sr.Points[0], seq.Model)
+	pointTime, pointValue = PointData(sr.Points[0], seq.Model, baseline, paramDelta, min, max)
 	baseTime := pointTime
 	startValue := pointValue
 
 	l := len(sr.Points)
-	pointTime, pointValue = PointData(sr.Points[l-1], seq.Model)
+	pointTime, pointValue = PointData(sr.Points[l-1], seq.Model, baseline, paramDelta, min, max)
 	endTime := pointTime
 	delta := pointValue - startValue
 
@@ -568,7 +568,7 @@ func (seq *Sequence) SlopeRatioEvents(evIdx int, sr *SlopeRatio, baseline, param
 			pointValue += temp
 			temp = pointValue
 		} else {
-			pointTime, pointValue = PointData(pt, seq.Model)
+			pointTime, pointValue = PointData(pt, seq.Model, baseline, paramDelta, min, max)
 		}
 
 		value = baseline + ((pointValue / 100.0) * paramDelta)
@@ -692,35 +692,31 @@ func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos []float64,
 			/* Apply lists to parameter */
 			for j := 0; j < len(transition.PtSlpList); j++ {
 				pointOrSlope := transition.PtSlpList[j]
-				slopeRatio, ok := pointOrSlope.(SlopeRatio)
-				if ok { // is SlopeRatio
-					if int(slopeRatio.Points[0].Type) != curType { //TODO: check pointList.size() > 0
-						curType = int(slopeRatio.Points[0].Type)
+				switch x := pointOrSlope.(type) {
+				case SlopeRatio:
+					if int(x.Points[0].Type) != curType { //TODO: check pointList.size() > 0
+						curType = int(x.Points[0].Type)
 						targets[curType-2] = lastVal
 						curDelta = targets[curType-1] - lastVal
 					}
-					v := seq.SlopeRatioEvents(i, &slopeRatio, targets[curType-2], curDelta,
+					v := seq.SlopeRatioEvents(i, &x, targets[curType-2], curDelta,
 						seq.Min[i], seq.Max[i])
 					val = v
-				} else {
-					_, ok := pointOrSlope.(Point)
-					if !ok {
-						log.Println("ApplyRule error: pointOrSlope is Neither!")
+				case Point:
+					if int(x.Type) != curType {
+						curType = int(x.Type)
+						targets[curType-2] = lastVal
+						curDelta = targets[curType-1] - lastVal
 					}
-					if ok { // is Point
-						//if int(pt.Type) != curType {
-						//	curType = int(pt.Type)
-						//	targets[curType-2] = lastVal
-						//	curDelta = targets[curType-1] - lastVal
-						//}
-						//ptTime, v := PointData(pt, seq.Model)
-						//val = v
-						//if !pt.IsPhantom {
-						//	seq.InsertEvent(i, ptTime, val)
-						//}
+					ptTime, v := PointData(x, seq.Model, targets[curType-2], curDelta, seq.Min[i], seq.Max[i])
+					val = v
+					if !x.IsPhantom {
+						seq.InsertEvent(i, ptTime, val)
 					}
-					lastVal = val
+				default:
+					log.Println("ApplyRule error: pointOrSlope is Neither!")
 				}
+				lastVal = val
 			}
 		}
 	}
@@ -728,7 +724,8 @@ func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos []float64,
 	//	insertEvent(i, 0.0, targets[0])
 	//}
 
-	/* Special Event Profiles */
+	// Special Event Profiles
+	// For special transitions they are all Points
 	for i := 0; i < len(seq.Model.Params); i++ {
 		if rule.SpecialTransitions[i].Transition != nil && len(rule.SpecialTransitions) > i {
 			spTrans := rule.SpecialTransitions[i].Transition
@@ -736,7 +733,7 @@ func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos []float64,
 				pointOrSlope := spTrans.PtSlpList[j]
 				pt, ok := pointOrSlope.(Point)
 				if !ok {
-					log.Println("Apply Rule: type assertion failure - not a Point")
+					log.Println("Apply Rule: special transitions type assertion failure - not a Point")
 				}
 
 				// calculate time of event
@@ -766,7 +763,7 @@ func (seq *Sequence) GenerateEventList() {
 		seq.Max[i] = param.Max
 	}
 
-	/* Calculate Rhythm including regression */
+	// Calculate Rhythm including regression
 	for i := 0; i < seq.CurFoot; i++ {
 		rus := seq.Feet[i].End - seq.Feet[i].Start + 1
 		/* Apply rhythm model */
@@ -818,7 +815,7 @@ func (seq *Sequence) GenerateEventList() {
 		basePosIdx += len(tempRule.BoolExprs) - 1
 	}
 
-	//[dataPtr[numElements-1] setFlag:1];
+	//[dataPtr[numElements-1] setFlag:1]; //commented out in C++ version
 }
 
 func (seq *Sequence) SetFullTimeScale() {
