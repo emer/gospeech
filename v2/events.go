@@ -520,12 +520,12 @@ func (seq *Sequence) SlopeRatioEvents(evIdx int, sr *SlopeRatio, baseline, param
 	var pointTime float64
 	var pointValue float64
 
-	pointTime, pointValue = PointData(sr.Points[0], seq.Model, baseline, paramDelta, min, max)
+	pointTime, pointValue = PointData(sr.Points[0], seq.Model)
 	baseTime := pointTime
 	startValue := pointValue
 
 	l := len(sr.Points)
-	pointTime, pointValue = PointData(sr.Points[l-1], seq.Model, baseline, paramDelta, min, max)
+	pointTime, pointValue = PointData(sr.Points[l-1], seq.Model)
 	endTime := pointTime
 	delta := pointValue - startValue
 
@@ -568,7 +568,7 @@ func (seq *Sequence) SlopeRatioEvents(evIdx int, sr *SlopeRatio, baseline, param
 			pointValue += temp
 			temp = pointValue
 		} else {
-			pointTime, pointValue = PointData(pt, seq.Model, baseline, paramDelta, min, max)
+			pointTime, pointValue = PointData(pt, seq.Model)
 		}
 
 		value = baseline + ((pointValue / 100.0) * paramDelta)
@@ -708,7 +708,7 @@ func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos []float64,
 						targets[curType-2] = lastVal
 						curDelta = targets[curType-1] - lastVal
 					}
-					ptTime, v := PointData(x, seq.Model, targets[curType-2], curDelta, seq.Min[i], seq.Max[i])
+					ptTime, v := PointDataMinMax(x, seq.Model, targets[curType-2], curDelta, seq.Min[i], seq.Max[i])
 					val = v
 					if !x.IsPhantom {
 						seq.InsertEvent(i, ptTime, val)
