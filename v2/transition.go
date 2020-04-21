@@ -169,7 +169,7 @@ func PointDataMinMax(pt Point, model *Model, baseline, delta, min, max float64) 
 		}
 	}
 
-	value = baseline + (value/100.0)*delta
+	value = baseline + (pt.Value/100.0)*delta
 	if value < min {
 		value = min
 	} else if value > max {
