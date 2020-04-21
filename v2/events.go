@@ -460,7 +460,6 @@ func (seq *Sequence) InsertEvent(n int, t, v float64) *Event {
 		if n >= 0 {
 			ev.SetValue(v, n)
 		}
-
 		seq.Events = append(seq.Events, *ev)
 		return &seq.Events[len(seq.Events)-1]
 	}
@@ -480,7 +479,8 @@ func (seq *Sequence) InsertEvent(n int, t, v float64) *Event {
 				ev.SetValue(v, n)
 			}
 			// Insert into slice
-			seq.Events = append(seq.Events, *ev) // can reuse ev, will be overwritten
+			seq.Events = append(seq.Events, *ev) // can reuse ev, will be
+			//fmt.Println("insert event 1")
 			copy(seq.Events[i+2:], seq.Events[i+1:])
 			seq.Events[i+1] = *ev
 			return &seq.Events[i+1]
@@ -589,7 +589,7 @@ func (seq *Sequence) SlopeRatioEvents(evIdx int, sr *SlopeRatio, baseline, param
 func (seq *Sequence) ApplyRule(rule *Rule, postures []Posture, tempos []float64, postureIdx int) {
 	var val float64
 	ruleSymVals := []float64{0.0, 0.0, 0.0, 0.0, 0.0}
-	ruleSyms := make([]*float64, 5)
+	ruleSyms := make([]*float64, len(ruleSymVals))
 	for i, _ := range ruleSymVals {
 		ruleSyms[i] = &ruleSymVals[i]
 	}
@@ -1069,7 +1069,7 @@ func (seq *Sequence) AddIntonationPoint(semiTone, offsetTime, slope float64, rul
 		return
 	}
 
-	iPt := IntonationPt{}
+	iPt := NewIntonationPt(seq)
 	iPt.RuleIdx = ruleIdx
 	iPt.Offset = offsetTime
 	iPt.SemiTone = semiTone
@@ -1079,13 +1079,13 @@ func (seq *Sequence) AddIntonationPoint(semiTone, offsetTime, slope float64, rul
 	for i := 0; i < len(seq.IntonationPts); i++ {
 		if time < seq.IntonationPts[i].AbsTime() {
 			// insert into slice
-			seq.IntonationPts = append(seq.IntonationPts, iPt)
+			seq.IntonationPts = append(seq.IntonationPts, *iPt)
 			copy(seq.IntonationPts[i+2:], seq.IntonationPts[i+1:])
-			seq.IntonationPts[i+1] = iPt
+			seq.IntonationPts[i+1] = *iPt
 			return
 		}
 	}
-	seq.IntonationPts = append(seq.IntonationPts, iPt)
+	seq.IntonationPts = append(seq.IntonationPts, *iPt)
 }
 
 func (seq *Sequence) GenOutput(w *bufio.Writer) {

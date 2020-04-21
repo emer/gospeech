@@ -28,24 +28,21 @@
 package v2
 
 type IntonationPt struct {
-	SemiTone float64  `desc:"value of the intonation in semitones"`
-	Offset   float64  `desc:"points are timed wrt a beat + this offset"`
-	Slope    float64  `desc:"Slope of point"`
-	RuleIdx  int      `desc:"Index of posture which is the focus of this point"`
-	Sequence Sequence `desc:"Current events"`
+	SemiTone float64   `desc:"value of the intonation in semitones"`
+	Offset   float64   `desc:"points are timed wrt a beat + this offset"`
+	Slope    float64   `desc:"Slope of point"`
+	RuleIdx  int       `desc:"Index of posture which is the focus of this point"`
+	Sequence *Sequence `desc:"Current events"`
 }
 
-func (ip *IntonationPt) Defaults() {
+func NewIntonationPt(seq *Sequence) *IntonationPt {
+	ip := new(IntonationPt)
+	ip.Sequence = seq
 	ip.SemiTone = 0.0
 	ip.Offset = 0.0
 	ip.Slope = 0.0
 	ip.RuleIdx = 0.0
-}
-
-func (ip *IntonationPt) Init(events []Event) {
-	for _, e := range events {
-		ip.Sequence.Events = append(ip.Sequence.Events, e)
-	}
+	return ip
 }
 
 func (ip *IntonationPt) AbsTime() float64 {
