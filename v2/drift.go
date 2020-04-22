@@ -27,8 +27,6 @@
 
 package v2
 
-import "math"
-
 const InitialSeed = 0.7892347
 const Factor = 377.0
 
@@ -41,13 +39,15 @@ type Drift struct {
 	PrvSample float64 `desc:""`
 }
 
-func (dg *Drift) Defaults() {
+func NewDrift() *Drift {
+	dg := Drift{}
 	dg.Deviation = 0.0
 	dg.Offset = 0.0
 	dg.Seed = InitialSeed
 	dg.A0 = 0.0
 	dg.B1 = 0.0
 	dg.PrvSample = 0.0
+	return &dg
 }
 
 // Setup sets the params - deviation value around 1 should be good,
@@ -78,7 +78,7 @@ func (dg *Drift) SetUp(deviation, sr, lpcutoff float64) {
 func (dg *Drift) Drift() float64 {
 	// create random number between 0 and 1
 	temp := dg.Seed * Factor
-	dg.Seed = math.Floor(temp) // save for next invocation
+	dg.Seed = temp - float64(int(temp)) // save for next invocation
 
 	// create random signal with range -deviation to +deviation
 	temp = (dg.Seed * dg.Deviation) - dg.Offset

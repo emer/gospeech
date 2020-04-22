@@ -215,7 +215,7 @@ type Sequence struct {
 	Min                   [16]float64
 	Max                   [16]float64
 	IntonationPts         []IntonationPt
-	Drift                 Drift
+	Drift                 *Drift
 	TgUseRandom           bool
 	IntonRandom           float64
 	TgParams              [][]float64
@@ -249,6 +249,7 @@ func NewSequence(intonationPath string, model *Model) *Sequence {
 	seq.Duration = 0
 	seq.TimeQuant = 4
 	seq.Multiplier = 1.0
+	seq.Drift = NewDrift()
 
 	seq.PostureDatum = []*PostureData{}
 	pd := new(PostureData)
