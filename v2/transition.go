@@ -109,8 +109,8 @@ func (pos *Slope) IsSlopeRatio() bool {
 
 type SlopeRatio struct {
 	PointOrSlope
-	Points []Point `xml:"points>point"`
-	Slopes []Slope `xml:"slopes>slope"`
+	Points []*Point `xml:"points>point"`
+	Slopes []*Slope `xml:"slopes>slope"`
 }
 
 func NewSlopeRatio() *SlopeRatio {
