@@ -139,7 +139,7 @@ type Transition struct {
 
 // PointTime
 func PointTime(pt Point, model *Model) float64 {
-	if &pt.TimeExpr != nil {
+	if pt.TimeExpr == nil {
 		return pt.FreeTime
 	} else {
 		return pt.TimeExpr.EvalFormula(&model.FormulaVals)
@@ -151,9 +151,7 @@ func PointData(pt Point, model *Model) (time, value float64) {
 	if pt.TimeExpr == nil {
 		time = pt.FreeTime
 	} else {
-		if &pt.TimeExpr.Formula != nil {
-			time = model.EvalEquationFormula(pt.TimeExpr)
-		}
+		time = model.EvalEquationFormula(pt.TimeExpr)
 	}
 	value = pt.Value
 	return time, value

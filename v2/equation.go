@@ -345,7 +345,6 @@ func (eq *Equation) SetFormula(formula string) *FormulaNode {
 
 func (eq *Equation) EvalFormula(sl *FormulaValueList) float64 {
 	if eq.FormulaRoot == nil {
-		log.Println("EvalFormula: root is nil")
 		return 0.0
 	}
 	return eq.FormulaRoot.Eval(sl)
