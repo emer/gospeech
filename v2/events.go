@@ -1099,18 +1099,17 @@ func (seq *Sequence) GenOutput(w *bufio.Writer) {
 
 	for i := 0; i < 16; i++ {
 		j := 1
-		e := seq.Events[j].Value(0)
-		for e == invalidEvent {
-			e = seq.Events[j].Value(i)
+		ev := seq.Events[j].Value(0)
+		for ev == invalidEvent {
 			j++
 			if j >= len(seq.Events) {
 				break
 			}
-			e = seq.Events[j].Value(i)
+			ev = seq.Events[j].Value(i)
 		}
 		curValues[i] = seq.Events[0].Value(i)
 		if j < len(seq.Events) {
-			curDeltas[i] = ((e - curValues[i]) / float64(seq.Events[j].Time)) * 4.0
+			curDeltas[i] = ((ev - curValues[i]) / float64(seq.Events[j].Time)) * 4.0
 		} else {
 			curDeltas[i] = 0.0
 		}
@@ -1144,7 +1143,7 @@ func (seq *Sequence) GenOutput(w *bufio.Writer) {
 			if j >= len(seq.Events) {
 				break
 			}
-			ev = seq.Events[j].Value(j)
+			ev = seq.Events[j].Value(32)
 		}
 		curValues[32] = seq.Events[0].Value(32)
 		if j < len(seq.Events) {

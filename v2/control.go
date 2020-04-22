@@ -108,7 +108,7 @@ func (ctrl *Control) InitUtterance(w *bufio.Writer) {
 	w.WriteString(fmt.Sprintf("%f", rc.OutputRate) + "\n")
 	w.WriteString(fmt.Sprintf("%f", mc.ControlRate) + "\n")
 	w.WriteString(fmt.Sprintf("%f", rc.Volume) + "\n")
-	w.WriteString(fmt.Sprintf("%f", rc.Channels) + "\n")
+	w.WriteString(fmt.Sprintf("%d", rc.Channels) + "\n")
 	w.WriteString(fmt.Sprintf("%f", rc.Balance) + "\n")
 	w.WriteString(fmt.Sprintf("%f", rc.Waveform) + "\n")
 	w.WriteString(fmt.Sprintf("%f", rc.GlottalPulseTp) + "\n")
@@ -129,7 +129,7 @@ func (ctrl *Control) InitUtterance(w *bufio.Writer) {
 	w.WriteString(fmt.Sprintf("%f", rc.NoseRadii[5]) + "\n")
 	w.WriteString(fmt.Sprintf("%f", rc.ThroatCutoff) + "\n")
 	w.WriteString(fmt.Sprintf("%f", rc.ThroatVolume) + "\n")
-	w.WriteString(fmt.Sprintf("%f", rc.NoiseModulation) + "\n")
+	w.WriteString(fmt.Sprintf("%d", rc.NoiseModulation) + "\n")
 	w.WriteString(fmt.Sprintf("%f", rc.MixOffset) + "\n")
 	w.Flush()
 }
