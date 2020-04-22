@@ -196,10 +196,10 @@ type Sequence struct {
 	ZeroIdx               int
 	Duration              int
 	TimeQuant             int
-	MacroFlag             int
-	MicroFlag             int
-	DriftFlag             int
-	SmoothInton           int
+	MacroFlag             bool
+	MicroFlag             bool
+	DriftFlag             bool
+	SmoothInton           bool
 	PitchMean             float64
 	GlobalTempo           float64
 	Multiplier            float64
@@ -233,10 +233,10 @@ type Sequence struct {
 func NewSequence(intonationPath string, model *Model) *Sequence {
 	seq := Sequence{}
 
-	seq.MacroFlag = 0
-	seq.MicroFlag = 0
-	seq.DriftFlag = 0
-	seq.SmoothInton = 1
+	seq.MacroFlag = false
+	seq.MicroFlag = false
+	seq.DriftFlag = false
+	seq.SmoothInton = true
 	seq.GlobalTempo = 1.0
 	seq.UseFixedIntonation = false
 
@@ -1120,7 +1120,7 @@ func (seq *Sequence) GenOutput(w *bufio.Writer) {
 		curDeltas[i] = 0.0
 	}
 
-	if seq.SmoothInton > 0 {
+	if seq.SmoothInton == true {
 		j := 0
 		ev := seq.Events[j].Value(32)
 		for ev == invalidEvent {
@@ -1162,13 +1162,13 @@ func (seq *Sequence) GenOutput(w *bufio.Writer) {
 		for j := 0; j < 16; j++ {
 			table[j] = curValues[j] + curValues[j+16]
 		}
-		if seq.MicroFlag != 0 {
+		if seq.MicroFlag == false {
 			table[0] = 0.0
 		}
-		if seq.DriftFlag != 0 {
+		if seq.DriftFlag == true {
 			table[0] += seq.Drift.Drift()
 		}
-		if seq.MacroFlag != 0 {
+		if seq.MacroFlag == true {
 			table[0] += curValues[32]
 		}
 
@@ -1192,7 +1192,7 @@ func (seq *Sequence) GenOutput(w *bufio.Writer) {
 			}
 		}
 
-		if seq.SmoothInton > 0 {
+		if seq.SmoothInton == true {
 			curDeltas[34] += curDeltas[35]
 			curDeltas[33] += curDeltas[34]
 			curValues[32] += curDeltas[33]
@@ -1226,7 +1226,7 @@ func (seq *Sequence) GenOutput(w *bufio.Writer) {
 					}
 				}
 			}
-			if seq.SmoothInton > 0 {
+			if seq.SmoothInton == true {
 				if seq.Events[idx-1].Value(33) != invalidEvent {
 					curValues[32] = seq.Events[idx-1].Value(32)
 					curDeltas[32] = 0.0

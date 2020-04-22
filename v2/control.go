@@ -187,19 +187,19 @@ func (ctrl *Control) ValidPosture(token string) bool {
 
 // SetIntonation
 func (ctrl *Control) SetIntonation(intonation int64) {
-	ctrl.Sequence.MicroFlag = 0
-	ctrl.Sequence.MacroFlag = 0
-	ctrl.Sequence.SmoothInton = 0 // Macro and not smooth is not working.
-	ctrl.Sequence.DriftFlag = 0
+	ctrl.Sequence.MicroFlag = false
+	ctrl.Sequence.MacroFlag = false
+	ctrl.Sequence.SmoothInton = false // Macro and not smooth is not working.
+	ctrl.Sequence.DriftFlag = false
 	ctrl.Sequence.TgUseRandom = false
 
 	if bitflag.Has(intonation, int(IntonationMicro)) {
-		ctrl.Sequence.MicroFlag = 1
+		ctrl.Sequence.MicroFlag = true
 	}
 
 	if bitflag.Has(intonation, int(IntonationMacro)) {
-		ctrl.Sequence.MacroFlag = 1
-		ctrl.Sequence.SmoothInton = 1 // Macro and not smooth is not working.
+		ctrl.Sequence.MacroFlag = true
+		ctrl.Sequence.SmoothInton = true // Macro and not smooth is not working.
 	}
 
 	// Macro and not smooth is not working.
@@ -208,7 +208,7 @@ func (ctrl *Control) SetIntonation(intonation int64) {
 	// }
 
 	if bitflag.Has(intonation, int(IntonationDrift)) {
-		ctrl.Sequence.DriftFlag = 1
+		ctrl.Sequence.DriftFlag = true
 	}
 
 	if bitflag.Has(intonation, int(IntonationRandom)) {
