@@ -1092,7 +1092,6 @@ func (seq *Sequence) GenOutput(w *bufio.Writer) {
 	curValues := [36]float64{}
 	curDeltas := [36]float64{}
 	table := [16]float64{}
-	temp := 0.0
 
 	if len(seq.Events) == 0 {
 		return
@@ -1100,33 +1099,36 @@ func (seq *Sequence) GenOutput(w *bufio.Writer) {
 
 	for i := 0; i < 16; i++ {
 		j := 1
-		for seq.Events[j].Value(i) == invalidEvent {
-			temp = seq.Events[j].Value(i)
+		e := seq.Events[j].Value(0)
+		for e == invalidEvent {
+			e = seq.Events[j].Value(i)
 			j++
 			if j >= len(seq.Events) {
 				break
 			}
+			e = seq.Events[j].Value(i)
 		}
 		curValues[i] = seq.Events[0].Value(i)
 		if j < len(seq.Events) {
-			curDeltas[i] = ((temp - curValues[i]) / float64(seq.Events[j].Time)) * 4.0
+			curDeltas[i] = ((e - curValues[i]) / float64(seq.Events[j].Time)) * 4.0
 		} else {
 			curDeltas[i] = 0.0
 		}
 	}
 	for i := 16; i < 36; i++ {
-		curValues[i] = 0.0
+		curValues[i] = curDeltas[i]
 		curDeltas[i] = 0.0
 	}
 
 	if seq.SmoothInton > 0 {
 		j := 0
-		for seq.Events[j].Value(32) == invalidEvent {
-			temp = seq.Events[j].Value(32)
+		ev := seq.Events[j].Value(32)
+		for ev == invalidEvent {
 			j++
 			if j >= len(seq.Events) {
 				break
 			}
+			ev = seq.Events[j].Value(32)
 		}
 		if j < len(seq.Events) {
 			curValues[32] = seq.Events[j].Value(32)
@@ -1136,16 +1138,17 @@ func (seq *Sequence) GenOutput(w *bufio.Writer) {
 		curDeltas[32] = 0.0
 	} else {
 		j := 1
-		for seq.Events[j].Value(32) == invalidEvent {
-			temp = seq.Events[j].Value(32)
+		ev := seq.Events[j].Value(32)
+		for ev == invalidEvent {
 			j++
 			if j >= len(seq.Events) {
 				break
 			}
+			ev = seq.Events[j].Value(j)
 		}
 		curValues[32] = seq.Events[0].Value(32)
 		if j < len(seq.Events) {
-			curDeltas[32] = ((temp - curValues[32]) / float64(seq.Events[j].Time)) * 4.0
+			curDeltas[32] = ((ev - curValues[32]) / float64(seq.Events[j].Time)) * 4.0
 		} else {
 			curDeltas[32] = 0.0
 		}
@@ -1171,7 +1174,6 @@ func (seq *Sequence) GenOutput(w *bufio.Writer) {
 
 		table[0] += seq.PitchMean
 
-		//trmParamStream << std::fixed << std::setprecision(3)
 		w.WriteString(fmt.Sprintf("%f", table[0]))
 
 		for k := 1; k < 7; k++ {
@@ -1185,6 +1187,7 @@ func (seq *Sequence) GenOutput(w *bufio.Writer) {
 
 		for j := 0; j < 32; j++ {
 			if curDeltas[j] > 0.0 {
+				//fmt.Println(curDeltas[j])
 				curValues[j] += curDeltas[j]
 			}
 		}
@@ -1209,16 +1212,17 @@ func (seq *Sequence) GenOutput(w *bufio.Writer) {
 			for j := 0; j < 33; j++ { /* 32? 33? */
 				if seq.Events[idx-1].Value(j) != invalidEvent {
 					k := idx
-					for seq.Events[k].Value(j) == invalidEvent {
-						temp = seq.Events[k].Value(j)
+					ev := seq.Events[k].Value(j)
+					for ev == invalidEvent {
 						if k >= len(seq.Events)-1 {
 							curDeltas[j] = 0.0
 							break
 						}
 						k++
+						ev = seq.Events[k].Value(j)
 					}
-					if temp != invalidEvent {
-						curDeltas[j] = (temp - curValues[j]) / float64(seq.Events[k].Time-curTime) * 4.0
+					if ev != invalidEvent {
+						curDeltas[j] = (ev - curValues[j]) / float64(seq.Events[k].Time-curTime) * 4.0
 					}
 				}
 			}
