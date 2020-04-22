@@ -142,7 +142,7 @@ func (grp *TransGrp) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error 
 					}
 				}
 				if inSlopeRatio {
-					sr.Points = append(sr.Points, *p)
+					sr.Points = append(sr.Points, p)
 				} else {
 					tr.PtSlpList = append(tr.PtSlpList, *p)
 				}
@@ -159,7 +159,7 @@ func (grp *TransGrp) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error 
 					}
 				}
 				if inSlopeRatio {
-					sr.Slopes = append(sr.Slopes, *s)
+					sr.Slopes = append(sr.Slopes, s)
 				} else {
 					tr.PtSlpList = append(tr.PtSlpList, s)
 				}
@@ -334,13 +334,23 @@ func LoadModel(path string) *Model {
 	for _, tg := range mdl.TransGrps {
 		for _, tr := range tg.Transitions {
 			ptslps := tr.PtSlpList
-			for i, pt := range ptslps {
-				point, ok := pt.(Point)
-				if ok {
-					if point.TimeExpr != nil {
-						e := mdl.EquationTry(point.TimeExpr.Name)
-						point.TimeExpr = e
-						ptslps[i] = point
+			for i, psr := range ptslps {
+				switch t := psr.(type) {
+				case Point:
+					if t.TimeExpr != nil {
+						e := mdl.EquationTry(t.TimeExpr.Name)
+						t.TimeExpr = e
+						ptslps[i] = t
+					}
+
+				case SlopeRatio:
+					points := t.Points
+					for _, p := range points {
+						if p.TimeExpr != nil {
+							e := mdl.EquationTry(p.TimeExpr.Name)
+							p.TimeExpr = e
+							ptslps[i] = t
+						}
 					}
 				}
 			}

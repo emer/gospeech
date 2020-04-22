@@ -520,12 +520,12 @@ func (seq *Sequence) SlopeRatioEvents(evIdx int, sr *SlopeRatio, baseline, param
 	var pointTime float64
 	var pointValue float64
 
-	pointTime, pointValue = PointData(sr.Points[0], seq.Model)
+	pointTime, pointValue = PointData(*sr.Points[0], seq.Model)
 	baseTime := pointTime
 	startValue := pointValue
 
 	l := len(sr.Points)
-	pointTime, pointValue = PointData(sr.Points[l-1], seq.Model)
+	pointTime, pointValue = PointData(*sr.Points[l-1], seq.Model)
 	endTime := pointTime
 	delta := pointValue - startValue
 
@@ -539,7 +539,7 @@ func (seq *Sequence) SlopeRatioEvents(evIdx int, sr *SlopeRatio, baseline, param
 		temp1 := sr.Slopes[i-1].Slope / temp /* Calculate normal slope */
 
 		/* Calculate time interval */
-		intervalTime := PointTime(sr.Points[i], seq.Model) - PointTime(sr.Points[i-1], seq.Model)
+		intervalTime := PointTime(*sr.Points[i], seq.Model) - PointTime(*sr.Points[i-1], seq.Model)
 
 		/* Apply interval percentage to slope */
 		temp1 = temp1 * (intervalTime / totalTime)
@@ -561,14 +561,14 @@ func (seq *Sequence) SlopeRatioEvents(evIdx int, sr *SlopeRatio, baseline, param
 		pt := sr.Points[i]
 
 		if i >= 1 && i < pts-1 {
-			pointTime = PointTime(pt, seq.Model)
+			pointTime = PointTime(*pt, seq.Model)
 
 			pointValue = newPtVals[i-1]
 			pointValue *= factor
 			pointValue += temp
 			temp = pointValue
 		} else {
-			pointTime, pointValue = PointData(pt, seq.Model)
+			pointTime, pointValue = PointData(*pt, seq.Model)
 		}
 
 		value = baseline + ((pointValue / 100.0) * paramDelta)
