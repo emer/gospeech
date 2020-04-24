@@ -29,7 +29,7 @@ package v2
 
 type Param struct {
 	Name    string  `xml:"name,attr"`
-	Min     float64 `xml:"minimum,attr."`
+	Min     float64 `xml:"minimum,attr"`
 	Max     float64 `xml:"maximum,attr"`
 	Default float64 `xml:"default,attr"`
 	Comment string  `xml:"comment,attr"`
