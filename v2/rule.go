@@ -414,19 +414,21 @@ func (r *Rule) EvalExprSyms(tempos []float64, postures []Posture, model *Model, 
 	model.FormulaVals[FormulaSymMark2] = *syms[3]
 	model.FormulaVals[FormulaSymMark3] = *syms[4]
 
-	// Execute in this order
-	for _, se := range r.ExprSymEquations {
-		if se.SymName == "rd" {
-			model.FormulaVals[FormulaSymRd] = model.EvalEquationFormula(se.Equation)
-		} else if se.SymName == "beat" {
-			model.FormulaVals[FormulaSymBeat] = model.EvalEquationFormula(se.Equation)
-		} else if se.SymName == "mark1" {
-			model.FormulaVals[FormulaSymMark1] = model.EvalEquationFormula(se.Equation)
-		} else if se.SymName == "mark2" {
-			model.FormulaVals[FormulaSymMark2] = model.EvalEquationFormula(se.Equation)
-		} else if se.SymName == "mark3" {
-			model.FormulaVals[FormulaSymMark3] = model.EvalEquationFormula(se.Equation)
-		}
+	// Execute in this order !!!!!
+	if r.ExprEq("rd") != nil {
+		model.FormulaVals[FormulaSymRd] = model.EvalEquationFormula(r.ExprEq("rd").Equation)
+	}
+	if r.ExprEq("mark1") != nil {
+		model.FormulaVals[FormulaSymMark1] = model.EvalEquationFormula(r.ExprEq("mark1").Equation)
+	}
+	if r.ExprEq("mark2") != nil {
+		model.FormulaVals[FormulaSymMark2] = model.EvalEquationFormula(r.ExprEq("mark2").Equation)
+	}
+	if r.ExprEq("mark3") != nil {
+		model.FormulaVals[FormulaSymMark3] = model.EvalEquationFormula(r.ExprEq("mark3").Equation)
+	}
+	if r.ExprEq("beat") != nil {
+		model.FormulaVals[FormulaSymBeat] = model.EvalEquationFormula(r.ExprEq("beat").Equation)
 	}
 
 	*syms[0] = model.FormulaVals[FormulaSymRd]
@@ -502,4 +504,13 @@ func (r *Rule) SetExprList(exprs []string, model *Model) *[]BoolNode {
 	}
 	// std::swap(booleanNodeList_, testBooleanNodeList);
 	return &testList
+}
+
+func (r *Rule) ExprEq(nm string) *ExprSymEquation {
+	for _, e := range r.ExprSymEquations {
+		if e.SymName == nm {
+			return e
+		}
+	}
+	return nil
 }
