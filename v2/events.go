@@ -38,7 +38,7 @@ import (
 	"strings"
 
 	"github.com/goki/ki/kit"
-	"gonum.org/v1/gonum/mathext/prng"
+	"github.com/seehuhn/mt19937"
 )
 
 const DiPhone = 2
@@ -225,8 +225,7 @@ type Sequence struct {
 	IntonationParamsFixed []float64
 	RadiusCoef            []float64 // TRM::Tube::TOTAL_REGIONS
 
-	// std::random_device randDev_;
-	randSrc  prng.MT19937_64
+	randSrc  *mt19937.MT19937
 	randDist IntRange
 }
 
@@ -297,6 +296,9 @@ func NewSequence(intonationPath string, model *Model) *Sequence {
 
 	seq.randDist.Min = 0
 	seq.randDist.Max = 1
+
+	seq.randSrc = mt19937.New()
+	seq.randSrc.Seed(0)
 
 	return &seq
 }
@@ -438,9 +440,10 @@ func (seq *Sequence) AddToneGroup() {
 	seq.ToneGroups = append(seq.ToneGroups, &tg)
 }
 
-// ToDo: check for correctness - especially later code doing actual insert!
 // InsertEvent
 func (seq *Sequence) InsertEvent(n int, t, v float64) *Event {
+	//fmt.Printf("number: %d\t time%f\t value%f\n", n, t, v);
+
 	t = t * seq.Multiplier
 	if t < 0.0 {
 		return nil
@@ -474,6 +477,7 @@ func (seq *Sequence) InsertEvent(n int, t, v float64) *Event {
 			return &seq.Events[i]
 		}
 		if seq.Events[i].Time < time {
+			//fmt.Printf("insert event [i].Time = %d < %d\t%d\n", seq.Events[i].Time, time, i)
 			ev := NewEvent()
 			ev.Time = time
 			if n >= 0 {
@@ -910,6 +914,8 @@ func (seq *Sequence) ApplyIntonation() {
 				idx1 = 3
 				if seq.TgUseRandom {
 					tgRandom = rand.Intn(randDist3.Max)
+				} else {
+					tgRandom = 0
 				}
 				idx2 = tgRandom * 10
 			}
@@ -929,13 +935,8 @@ func (seq *Sequence) ApplyIntonation() {
 		if deltaTime < eps {
 			pretonicDelta = 0
 		} else {
-			if seq.UseFixedIntonation {
-
-			} else {
-				pretonicDelta = seq.IntonationParams[1] / deltaTime
-			}
+			pretonicDelta = seq.IntonationParams[1] / deltaTime
 		}
-		//printf("Pretonic Delta = %f time = %f\n", pretonicDelta, (endTime - startTime))
 
 		/* Set up intonation boundary variables */
 		randSemi := 0.0
@@ -960,8 +961,12 @@ func (seq *Sequence) ApplyIntonation() {
 				}
 
 				if seq.TgUseRandom {
-					randSemi = float64(rand.Intn(seq.randDist.Max))*seq.IntonationParams[3] - seq.IntonationParams[3]/2.0
-					randSlope = float64(rand.Intn(seq.randDist.Max))*0.015 + 0.01
+					randSemi = -0.0053296646131242298
+					randSlope = 0.01155818991695561
+					//v := float64(seq.randSrc.Uint64())*seq.IntonationParams[3]
+					//randSemi = float64(rand.Intn(int(float64(seq.randSrc.Uint64())*seq.IntonationParams[3]))) - seq.IntonationParams[3]/2.0
+					//randSemi = float64(seq.randDist*seq.IntonationParams[3] - seq.IntonationParams[3]/2.0
+					//randSlope = float64(rand.Intn(seq.randDist.Max))*0.015 + 0.01
 				} else {
 					randSemi = 0.0
 					randSlope = 0.02
@@ -1028,7 +1033,7 @@ func (seq *Sequence) ApplyIntonationSmooth() {
 		point1 := seq.IntonationPts[j]
 		point2 := seq.IntonationPts[j+1]
 
-		point1.AbsTime()
+		//point1.AbsTime()
 		x1 := point1.AbsTime() / 4.0
 		y1 := point1.SemiTone + 20.0
 		m1 := point1.Slope
@@ -1100,7 +1105,7 @@ func (seq *Sequence) GenOutput(w *bufio.Writer) {
 
 	for i := 0; i < 16; i++ {
 		j := 1
-		ev := seq.Events[j].Value(0)
+		ev := seq.Events[j].Value(i)
 		for ev == invalidEvent {
 			j++
 			if j >= len(seq.Events) {
@@ -1174,11 +1179,15 @@ func (seq *Sequence) GenOutput(w *bufio.Writer) {
 
 		table[0] += seq.PitchMean
 
-		w.WriteString(fmt.Sprintf("%f", table[0]))
+		w.WriteString(fmt.Sprintf("%2.5f", table[0]))
 
-		for k := 1; k < 7; k++ {
-			w.WriteString(fmt.Sprintf(" %f", table[k]))
+		for k := 1; k < 5; k++ {
+			w.WriteString(fmt.Sprintf(" %2.5f", table[k]))
 		}
+		for k := 5; k < 7; k++ {
+			w.WriteString(fmt.Sprintf(" %5.0f", table[k]))
+		}
+
 		for k := 7; k < 15; k++ { // R1 - R8
 			w.WriteString(fmt.Sprintf(" %f", table[k]*seq.RadiusCoef[k-7]))
 		}
@@ -1187,7 +1196,7 @@ func (seq *Sequence) GenOutput(w *bufio.Writer) {
 
 		for j := 0; j < 32; j++ {
 			if curDeltas[j] > 0.0 {
-				//fmt.Println(curDeltas[j])
+				fmt.Println("have delta")
 				curValues[j] += curDeltas[j]
 			}
 		}
