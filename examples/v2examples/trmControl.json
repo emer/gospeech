@@ -2,7 +2,7 @@
     "Name": "Std",
     "Desc": "Standard trm control configuration",
     "ControlRate": 250,
-    "Voice": "baby",
+    "Voice": "female",
     "Tempo": 1,
     "PitchOffset": -4,
     "DriftDeviation": 0.5,
@@ -16,7 +16,7 @@
     "PreTonicLift": 4,
     "TonicRange": -8,
     "TonicMovement": 4,
-	 "Dictionary1": "",
+    "Dictionary1": "",
     "Dictionary2": "",
     "Dictionary3": "MainDictionary"
   }
