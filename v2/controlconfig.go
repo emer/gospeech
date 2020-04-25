@@ -41,22 +41,19 @@ import (
 type IntonationFlags int64
 
 const (
-	//
-	IntonationNone IntonationFlags = iota
+	// 0x01
+	IntonationMicro IntonationFlags = iota
 
-	//
-	IntonationMicro
-
-	//
+	// 0x02
 	IntonationMacro
 
-	//
+	// 0x04
 	IntonationSmooth
 
-	//
+	// 0x08
 	IntonationDrift
 
-	//
+	// 0x10
 	IntonationRandom
 
 	IntonationFlagsN
@@ -122,6 +119,9 @@ func (mc *ModelConfig) Load(path string) error {
 	if mc.MacroIntonation == 1 {
 		bitflag.Set(&mc.Intonation, int(IntonationMacro))
 	}
+	//if mc.SmoothIntonation == 1 {
+	//	bitflag.Set(&mc.Intonation, int(IntonationSmooth))
+	//}
 	if mc.DriftIntonation == 1 {
 		bitflag.Set(&mc.Intonation, int(IntonationDrift))
 	}
