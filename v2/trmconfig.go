@@ -82,7 +82,6 @@ func (trm *TrmConfig) Load(pathTrm, pathVoice string) {
 	fmt.Println("trm config load")
 	trm.OpenJSON(pathTrm)
 	trm.OpenJSON(pathVoice)
-
 }
 
 // OpenJSON opens model config from a JSON-formatted file (i.e. model params)

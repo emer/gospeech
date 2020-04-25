@@ -34,6 +34,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/emer/gospeech/trm"
 	"github.com/goki/ki/bitflag"
 )
 
@@ -42,6 +43,7 @@ type Control struct {
 	Sequence    *Sequence
 	ModelConfig ModelConfig
 	TrmConfig   TrmConfig
+	Tube        trm.Tube `view:"noinline"`
 }
 
 func NewControl(path string, model *Model) *Control {
@@ -62,9 +64,7 @@ func (ctrl *Control) SynthSequenceToFile(trmParamFile, outputFile string) {
 	ctrl.InitUtterance(writer)
 	ctrl.Sequence.GenOutput(writer)
 
-	// ToDo:
-	//TRM::Tube trm;
-	//	trm.synthesizeToFile(trmParamStream, outputFile);
+	ctrl.Tube.SynthesizeToFile(writer, outputFile)
 }
 
 //SynthSequenceToBuf synthesizes speech from data contained in the event list
