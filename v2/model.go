@@ -37,14 +37,14 @@ import (
 )
 
 type Model struct {
-	Categories  []Category `xml:"categories>category"`
-	Params      []Param    `xml:"parameters>parameter"`
-	Symbols     []Symbol   `xml:"symbols>symbol"`
-	Postures    []Posture  `xml:"postures>posture"`
-	Rules       []*Rule    `xml:"rules>rule"`
-	EqGrps      []EqGrp    `xml:"equations>equation-group"`
-	TransGrps   []TransGrp `xml:"transitions>transition-group"`
-	TransGrpsSp []TransGrp `xml:"special-transitions>transition-group"`
+	Categories  []Category  `xml:"categories>category"`
+	Params      []Param     `xml:"parameters>parameter"`
+	Symbols     []Symbol    `xml:"symbols>symbol"`
+	Postures    []Posture   `xml:"postures>posture"`
+	Rules       []*Rule     `xml:"rules>rule"`
+	EqGrps      []EqGrp     `xml:"equations>equation-group"`
+	TransGrps   TransGrps   `xml:"transitions>transition-group"`
+	TransGrpsSp TransGrpsSp `xml:"special-transitions>transition-group"`
 	FormulaVals FormulaValueList
 }
 
@@ -56,8 +56,8 @@ func (mdl *Model) Reset() {
 	mdl.Postures = mdl.Postures[:0]
 	mdl.Rules = mdl.Rules[:0]
 	mdl.EqGrps = mdl.EqGrps[:0]
-	mdl.TransGrps = mdl.TransGrps[:0]
-	mdl.TransGrpsSp = mdl.TransGrpsSp[:0]
+	mdl.TransGrps.Grps = mdl.TransGrps.Grps[:0]
+	mdl.TransGrpsSp.Grps = mdl.TransGrpsSp.Grps[:0]
 	mdl.ClearFormulaVals()
 }
 
@@ -67,8 +67,9 @@ func (mdl *Model) ClearFormulaVals() {
 	}
 }
 
-func (grp *TransGrp) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+func (grps *TransGrps) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	var tr *Transition
+	var grp *TransGrp
 	// the PtSlpList can hold points and slopes with SlopeRatio or just bare so
 	// we need to hold on to the SlopeRatio struct and know if we are processing one currently
 	var sr *SlopeRatio
@@ -78,12 +79,21 @@ func (grp *TransGrp) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error 
 		if err != nil {
 			return err
 		}
-		grp.Name = start.Attr[0].Value // the only attribute
 
 		switch tt := t.(type) {
 		case xml.StartElement:
 			switch tt.Name.Local {
 			case "transition":
+				if grp == nil { // new group
+					grp = new(TransGrp)
+					for _, attr := range start.Attr {
+						switch attr.Name.Local {
+						case "name":
+							grp.Name = attr.Value
+						}
+					}
+					grps.Grps = append(grps.Grps, grp)
+				}
 				tr = new(Transition)
 				tr.PtSlpList = make([]interface{}, 0)
 				grp.Transitions = append(grp.Transitions, tr)
@@ -169,6 +179,132 @@ func (grp *TransGrp) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error 
 			if tt.Name.Local == "slope-ratio" {
 				inSlopeRatio = false
 				tr.PtSlpList = append(tr.PtSlpList, *sr)
+			}
+			if tt.Name.Local == "transition-group" {
+				grp = nil
+			}
+			if tt == start.End() {
+				return nil
+			}
+		}
+	}
+}
+
+func (grps *TransGrpsSp) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	var tr *Transition
+	var grp *TransGrp
+	// the PtSlpList can hold points and slopes with SlopeRatio or just bare so
+	// we need to hold on to the SlopeRatio struct and know if we are processing one currently
+	var sr *SlopeRatio
+	inSlopeRatio := false
+	for {
+		t, err := d.Token()
+		if err != nil {
+			return err
+		}
+
+		switch tt := t.(type) {
+		case xml.StartElement:
+			switch tt.Name.Local {
+			case "transition":
+				if grp == nil { // new group
+					grp = new(TransGrp)
+					for _, attr := range start.Attr {
+						switch attr.Name.Local {
+						case "name":
+							grp.Name = attr.Value
+						}
+					}
+					grps.Grps = append(grps.Grps, grp)
+				}
+				tr = new(Transition)
+				tr.PtSlpList = make([]interface{}, 0)
+				grp.Transitions = append(grp.Transitions, tr)
+				for _, attr := range tt.Attr {
+					switch attr.Name.Local {
+					case "name":
+						tr.Name = attr.Value
+					case "type":
+						switch attr.Value {
+						case "diphone":
+							tr.Type = TransDiPhone
+						case "triphone":
+							tr.Type = TransTriPhone
+						case "tetraphone":
+							tr.Type = TransTetraPhone
+						default:
+							tr.Type = TransInvalid
+						}
+					}
+				}
+			case "comment":
+				var s = ""
+				d.DecodeElement(&s, &start)
+				tr.Comment = s
+			case "slope-ratio":
+				inSlopeRatio = true
+				sr = new(SlopeRatio)
+			case "point":
+				p := new(Point)
+				for _, attr := range tt.Attr {
+					switch attr.Name.Local {
+					case "value":
+						p.Value, err = strconv.ParseFloat(attr.Value, 64)
+					case "type":
+						switch attr.Value {
+						case "diphone":
+							p.Type = TransDiPhone
+						case "triphone":
+							p.Type = TransTriPhone
+						case "tetraphone":
+							p.Type = TransTetraPhone
+						default:
+							p.Type = TransInvalid
+						}
+					case "time-expression":
+						e := new(Equation)
+						p.TimeExpr = e
+						e.Name = attr.Value
+					case "free-time":
+						ft := attr.Value
+						p.FreeTime, err = strconv.ParseFloat(ft, 64)
+					case "is-phantom":
+						if attr.Value == "yes" {
+							p.IsPhantom = true
+						}
+					}
+				}
+				if inSlopeRatio {
+					sr.Points = append(sr.Points, p)
+				} else {
+					tr.PtSlpList = append(tr.PtSlpList, *p)
+				}
+			case "slope":
+				s := new(Slope)
+				for _, attr := range tt.Attr {
+					switch attr.Name.Local {
+					case "slope":
+						sl := attr.Value
+						s.Slope, err = strconv.ParseFloat(sl, 64)
+					case "display-time":
+						dt := attr.Value
+						s.DisplayTime, err = strconv.ParseFloat(dt, 64)
+					}
+				}
+				if inSlopeRatio {
+					sr.Slopes = append(sr.Slopes, s)
+				} else {
+					tr.PtSlpList = append(tr.PtSlpList, s)
+				}
+			}
+
+		case xml.EndElement:
+			if tt.Name.Local == "slope-ratio" {
+				inSlopeRatio = false
+				tr.PtSlpList = append(tr.PtSlpList, *sr)
+			}
+			if tt.Name.Local == "transition-group" {
+				grp = nil
 			}
 			if tt == start.End() {
 				return nil
@@ -331,7 +467,7 @@ func LoadModel(path string) *Model {
 		}
 	}
 
-	for _, tg := range mdl.TransGrps {
+	for _, tg := range mdl.TransGrps.Grps {
 		for _, tr := range tg.Transitions {
 			ptslps := tr.PtSlpList
 			for i, psr := range ptslps {
@@ -356,6 +492,33 @@ func LoadModel(path string) *Model {
 			}
 		}
 	}
+
+	for _, tg := range mdl.TransGrpsSp.Grps {
+		for _, tr := range tg.Transitions {
+			ptslps := tr.PtSlpList
+			for i, psr := range ptslps {
+				switch t := psr.(type) {
+				case Point:
+					if t.TimeExpr != nil {
+						e := mdl.EquationTry(t.TimeExpr.Name)
+						t.TimeExpr = e
+						ptslps[i] = t
+					}
+
+				case SlopeRatio:
+					points := t.Points
+					for _, p := range points {
+						if p.TimeExpr != nil {
+							e := mdl.EquationTry(p.TimeExpr.Name)
+							p.TimeExpr = e
+							ptslps[i] = t
+						}
+					}
+				}
+			}
+		}
+	}
+
 	return &mdl
 }
 
@@ -486,7 +649,7 @@ func (mdl *Model) SymbolTry(nm string) *Symbol {
 
 // TransitionTry returns the address of the named Transition or nil if not found
 func (mdl *Model) TransitionTry(nm string) *Transition {
-	for _, grp := range mdl.TransGrps {
+	for _, grp := range mdl.TransGrps.Grps {
 		for _, tr := range grp.Transitions {
 			if tr.Name == nm {
 				return tr
@@ -498,9 +661,9 @@ func (mdl *Model) TransitionTry(nm string) *Transition {
 
 // TransitionGrpTry returns the address of the named TransitionGroup or nil if not found
 func (mdl *Model) TransitionGroupTry(nm string) *TransGrp {
-	for _, grp := range mdl.TransGrps {
+	for _, grp := range mdl.TransGrps.Grps {
 		if grp.Name == nm {
-			return &grp
+			return grp
 		}
 	}
 	return nil
@@ -508,7 +671,7 @@ func (mdl *Model) TransitionGroupTry(nm string) *TransGrp {
 
 // TransitionGroupIndexTry returns the group and transition index if name is found, otherwise -1, -1
 func (mdl *Model) TransitionGroupIndexTry(nm string) (grpIdx, eqIdx int) {
-	for i, grp := range mdl.TransGrps {
+	for i, grp := range mdl.TransGrps.Grps {
 		for j, tr := range grp.Transitions {
 			if tr.Name == nm {
 				return i, j
@@ -520,7 +683,7 @@ func (mdl *Model) TransitionGroupIndexTry(nm string) (grpIdx, eqIdx int) {
 
 // TransitionSpTry returns the address of the named special Transition or nil if not found
 func (mdl *Model) TransitionSpTry(nm string) *Transition {
-	for _, grp := range mdl.TransGrpsSp {
+	for _, grp := range mdl.TransGrpsSp.Grps {
 		for _, tr := range grp.Transitions {
 			if tr.Name == nm {
 				return tr
@@ -532,9 +695,9 @@ func (mdl *Model) TransitionSpTry(nm string) *Transition {
 
 // TransitionGroupSpTry returns the address of the named special TransitionGroup or nil if not found
 func (mdl *Model) TransitionGroupSpTry(nm string) *TransGrp {
-	for _, grp := range mdl.TransGrpsSp {
+	for _, grp := range mdl.TransGrpsSp.Grps {
 		if grp.Name == nm {
-			return &grp
+			return grp
 		}
 	}
 	return nil
@@ -542,7 +705,7 @@ func (mdl *Model) TransitionGroupSpTry(nm string) *TransGrp {
 
 // TransitionGroupSpIndexTry returns the special group and transition index if name is found, otherwise -1, -1
 func (mdl *Model) TransitionGroupSpIndexTry(nm string) (grpIdx, eqIdx int) {
-	for i, grp := range mdl.TransGrpsSp {
+	for i, grp := range mdl.TransGrpsSp.Grps {
 		for j, tr := range grp.Transitions {
 			if tr.Name == nm {
 				return i, j

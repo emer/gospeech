@@ -180,3 +180,11 @@ type TransGrp struct {
 	Name        string        `xml:"name,attr"`
 	Transitions []*Transition `xml:"transition"`
 }
+
+type TransGrps struct {
+	Grps []*TransGrp `xml:"transitions>transition-group"`
+}
+
+type TransGrpsSp struct {
+	Grps []*TransGrp `xml:"special-transitions>transition-group"`
+}
