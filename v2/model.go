@@ -422,27 +422,32 @@ func LoadModel(path string) *Model {
 	for _, r := range mdl.Rules {
 		lp := len(r.ParamTransitions)
 		ls := len(r.SpecialTransitions)
+
 		// create nil transitions for those that don't exist
 		if r.SpecialTransitions == nil {
 			r.SpecialTransitions = make([]*ParamTransition, 0)
 		}
-		for i := ls; i < lp; i++ {
+		// copy any that exist
+		tempTransitions := make([]*ParamTransition, ls)
+		copy(tempTransitions, r.SpecialTransitions)
+
+		for i := 0; i < ls; i++ {
+			r.SpecialTransitions = nil
+		}
+		for i := 0; i < lp; i++ {
 			pt := new(ParamTransition)
 			r.SpecialTransitions = append(r.SpecialTransitions, pt)
 		}
 		// move the non-nil special transitions into place
-		for i := ls - 1; i >= 0; i-- {
-			nm := r.SpecialTransitions[i].Name
+		for i := 0; i < len(tempTransitions); i++ {
+			nm := tempTransitions[i].Name
 			idx := mdl.ParamIdx(nm)
 			if idx == -1 {
 				panic(errors.New("Model.Load() : ParamIdx lookup failed!"))
 			}
-			r.SpecialTransitions[idx].Name = r.SpecialTransitions[i].Name
-			r.SpecialTransitions[idx].Type = r.SpecialTransitions[i].Type
-			r.SpecialTransitions[idx].Transition = r.SpecialTransitions[i].Transition
-			r.SpecialTransitions[i].Name = ""
-			r.SpecialTransitions[i].Type = ""
-			r.SpecialTransitions[i].Transition = nil
+			r.SpecialTransitions[idx].Name = tempTransitions[i].Name
+			r.SpecialTransitions[idx].Type = tempTransitions[i].Type
+			r.SpecialTransitions[idx].Transition = tempTransitions[i].Transition
 		}
 	}
 
