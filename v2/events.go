@@ -45,26 +45,6 @@ const DiPhone = 2
 const TriPhone = 3
 const TetraPhone = 4
 
-// PhoneType
-//type PhoneType int
-//
-//const (
-//	// DiPhone
-//	DiPhone PhoneType = iota + 2
-//
-//	// TriPhone
-//	TriPhone
-//
-//	// TetraPhone
-//	TetraPhone
-//
-//	PhoneTypeN
-//)
-//
-////go:generate stringer -type=PhoneType
-//
-//var Kit_PhoneType = kit.Enums.AddEnum(PhoneTypeN, kit.NotBitFlag, nil)
-
 // ToneType
 type ToneType int
 
@@ -225,8 +205,8 @@ type Sequence struct {
 	IntonationParamsFixed []float64
 	RadiusCoef            []float64 // TRM::Tube::TOTAL_REGIONS
 
-	randSrc  *mt19937.MT19937
-	randDist IntRange
+	Rand     *rand.Rand
+	randDist IntRange // C++ std::uniform_int_distribution is closed but rand.Intn is open on max end
 }
 
 func NewSequence(intonationPath string, model *Model) *Sequence {
@@ -297,8 +277,8 @@ func NewSequence(intonationPath string, model *Model) *Sequence {
 	seq.randDist.Min = 0
 	seq.randDist.Max = 1
 
-	seq.randSrc = mt19937.New()
-	seq.randSrc.Seed(0)
+	seq.Rand = rand.New(mt19937.New())
+	seq.Rand.Seed(0)
 
 	return &seq
 }
@@ -442,8 +422,6 @@ func (seq *Sequence) AddToneGroup() {
 
 // InsertEvent
 func (seq *Sequence) InsertEvent(n int, t, v float64) *Event {
-	//fmt.Printf("number: %d\t time%f\t value%f\n", n, t, v);
-
 	t = t * seq.Multiplier
 	if t < 0.0 {
 		return nil
@@ -454,9 +432,6 @@ func (seq *Sequence) InsertEvent(n int, t, v float64) *Event {
 
 	time := seq.ZeroRef + int(t)
 	time = (time >> 2) << 2
-	//if (tempTime % timeQuantization) != 0 { //commented out in C++ version
-	//	tempTime++;
-	//}
 
 	if len(seq.Events) == 0 {
 		ev := NewEvent()
@@ -477,7 +452,6 @@ func (seq *Sequence) InsertEvent(n int, t, v float64) *Event {
 			return &seq.Events[i]
 		}
 		if seq.Events[i].Time < time {
-			//fmt.Printf("insert event [i].Time = %d < %d\t%d\n", seq.Events[i].Time, time, i)
 			ev := NewEvent()
 			ev.Time = time
 			if n >= 0 {
@@ -485,7 +459,6 @@ func (seq *Sequence) InsertEvent(n int, t, v float64) *Event {
 			}
 			// Insert into slice
 			seq.Events = append(seq.Events, *ev) // can reuse ev, will be
-			//fmt.Println("insert event 1")
 			copy(seq.Events[i+2:], seq.Events[i+1:])
 			seq.Events[i+1] = *ev
 			return &seq.Events[i+1]
@@ -856,16 +829,16 @@ func (seq *Sequence) ApplyIntonation() {
 	var randDist3 IntRange
 
 	if seq.TgCount[0] > 0 {
-		randDist0.Max = seq.TgCount[0] - 1
+		randDist0.Max = seq.TgCount[0]
 	}
 	if seq.TgCount[1] > 0 {
-		randDist1.Max = seq.TgCount[1] - 1
+		randDist1.Max = seq.TgCount[1]
 	}
 	if seq.TgCount[2] > 0 {
-		randDist2.Max = seq.TgCount[2] - 1
+		randDist2.Max = seq.TgCount[2]
 	}
 	if seq.TgCount[3] > 0 {
-		randDist3.Max = seq.TgCount[3] - 1
+		randDist3.Max = seq.TgCount[3]
 	}
 
 	for i := 0; i < int(seq.CurToneGroup); i++ {
@@ -889,31 +862,31 @@ func (seq *Sequence) ApplyIntonation() {
 			case ToneStatement:
 				idx1 = 0
 				if seq.TgUseRandom {
-					tgRandom = rand.Intn(randDist0.Max)
+					tgRandom = seq.Rand.Intn(randDist0.Max)
 				}
 				idx2 = tgRandom * 10
 			case ToneExclamation:
 				idx1 = 0
 				if seq.TgUseRandom {
-					tgRandom = rand.Intn(randDist0.Max)
+					tgRandom = seq.Rand.Intn(randDist0.Max)
 				}
 				idx2 = tgRandom * 10
 			case ToneQuestion:
 				idx1 = 1
 				if seq.TgUseRandom {
-					tgRandom = rand.Intn(randDist1.Max)
+					tgRandom = seq.Rand.Intn(randDist1.Max)
 				}
 				idx2 = tgRandom * 10
 			case ToneContinuation:
 				idx1 = 2
 				if seq.TgUseRandom {
-					tgRandom = rand.Intn(randDist2.Max)
+					tgRandom = seq.Rand.Intn(randDist2.Max)
 				}
 				idx2 = tgRandom * 10
 			case ToneSemicolon:
 				idx1 = 3
 				if seq.TgUseRandom {
-					tgRandom = rand.Intn(randDist3.Max)
+					tgRandom = seq.Rand.Intn(randDist3.Max)
 				} else {
 					tgRandom = 0
 				}
@@ -961,22 +934,17 @@ func (seq *Sequence) ApplyIntonation() {
 				}
 
 				if seq.TgUseRandom {
-					randSemi = -0.0053296646131242298
-					randSlope = 0.01155818991695561
-					//v := float64(seq.randSrc.Uint64())*seq.IntonationParams[3]
-					//randSemi = float64(rand.Intn(int(float64(seq.randSrc.Uint64())*seq.IntonationParams[3]))) - seq.IntonationParams[3]/2.0
-					//randSemi = float64(seq.randDist*seq.IntonationParams[3] - seq.IntonationParams[3]/2.0
-					//randSlope = float64(rand.Intn(seq.randDist.Max))*0.015 + 0.01
+					r := seq.Rand.Float64()
+					randSemi = r*seq.IntonationParams[3] - seq.IntonationParams[3]/2.0
+					r = seq.Rand.Float64()
+					randSlope = r*0.015 + 0.01
 				} else {
 					randSemi = 0.0
 					randSlope = 0.02
 				}
 
-				//printf("postureIndex = %d onsetTime : %f Delta: %f\n", postureIndex,
-				//	postures[postureIndex].onset-startTime,
-				//	((postures[postureIndex].onset-startTime)*pretonicDelta) + intonParms[1] + randomSemitone)
-
-				seq.AddIntonationPoint((seq.PostureDatum[postureIndex].Onset-startTime)*pretonicDelta+seq.IntonationParams[1]+randSemi, offsetTime, randSlope, ruleIndex)
+				m := (seq.PostureDatum[postureIndex].Onset - startTime)
+				seq.AddIntonationPoint(m*pretonicDelta+seq.IntonationParams[1]+randSemi, offsetTime, randSlope, ruleIndex)
 			} else { /* Tonic */
 				if seq.ToneGroups[i].Type == 3 {
 					randSlope = 0.01
@@ -992,8 +960,10 @@ func (seq *Sequence) ApplyIntonation() {
 				}
 
 				if seq.TgUseRandom {
-					randSemi = float64(rand.Intn(seq.randDist.Max))*seq.IntonationParams[6] - seq.IntonationParams[6]/2.0
-					randSlope += float64(rand.Intn(seq.randDist.Max)) * 0.03
+					r := seq.Rand.Float64()
+					randSemi = r*seq.IntonationParams[6] - seq.IntonationParams[6]/2.0
+					r = seq.Rand.Float64()
+					randSlope += r * 0.03
 				} else {
 					randSemi = 0.0
 					randSlope += 0.03
@@ -1179,13 +1149,13 @@ func (seq *Sequence) GenOutput(w *bufio.Writer) {
 
 		table[0] += seq.PitchMean
 
-		w.WriteString(fmt.Sprintf("%2.5f", table[0]))
+		w.WriteString(fmt.Sprintf("%f", table[0]))
 
 		for k := 1; k < 5; k++ {
-			w.WriteString(fmt.Sprintf(" %2.5f", table[k]))
+			w.WriteString(fmt.Sprintf(" %f", table[k]))
 		}
 		for k := 5; k < 7; k++ {
-			w.WriteString(fmt.Sprintf(" %5.0f", table[k]))
+			w.WriteString(fmt.Sprintf(" %f", table[k]))
 		}
 
 		for k := 7; k < 15; k++ { // R1 - R8
@@ -1196,7 +1166,6 @@ func (seq *Sequence) GenOutput(w *bufio.Writer) {
 
 		for j := 0; j < 32; j++ {
 			if curDeltas[j] > 0.0 {
-				fmt.Println("have delta")
 				curValues[j] += curDeltas[j]
 			}
 		}
