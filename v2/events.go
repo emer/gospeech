@@ -862,31 +862,31 @@ func (seq *Sequence) ApplyIntonation() {
 			case ToneStatement:
 				idx1 = 0
 				if seq.TgUseRandom {
-					tgRandom = seq.Rand.Intn(randDist0.Max)
+					tgRandom = seq.Rand.Int() % randDist0.Max
 				}
 				idx2 = tgRandom * 10
 			case ToneExclamation:
 				idx1 = 0
 				if seq.TgUseRandom {
-					tgRandom = seq.Rand.Intn(randDist0.Max)
+					tgRandom = seq.Rand.Int() % randDist0.Max
 				}
 				idx2 = tgRandom * 10
 			case ToneQuestion:
 				idx1 = 1
 				if seq.TgUseRandom {
-					tgRandom = seq.Rand.Intn(randDist1.Max)
+					tgRandom = seq.Rand.Int() % randDist1.Max
 				}
 				idx2 = tgRandom * 10
 			case ToneContinuation:
 				idx1 = 2
 				if seq.TgUseRandom {
-					tgRandom = seq.Rand.Intn(randDist2.Max)
+					tgRandom = seq.Rand.Int() % randDist2.Max
 				}
 				idx2 = tgRandom * 10
 			case ToneSemicolon:
 				idx1 = 3
 				if seq.TgUseRandom {
-					tgRandom = seq.Rand.Intn(randDist3.Max)
+					tgRandom = seq.Rand.Int() % randDist3.Max
 				} else {
 					tgRandom = 0
 				}
@@ -934,9 +934,9 @@ func (seq *Sequence) ApplyIntonation() {
 				}
 
 				if seq.TgUseRandom {
-					r := seq.Rand.Float64()
+					r := float64(seq.Rand.Uint64()%100000) / 100000.0
 					randSemi = r*seq.IntonationParams[3] - seq.IntonationParams[3]/2.0
-					r = seq.Rand.Float64()
+					r = float64(seq.Rand.Uint64()%100000.0) / 100000.0
 					randSlope = r*0.015 + 0.01
 				} else {
 					randSemi = 0.0
@@ -960,9 +960,9 @@ func (seq *Sequence) ApplyIntonation() {
 				}
 
 				if seq.TgUseRandom {
-					r := seq.Rand.Float64()
+					r := float64(seq.Rand.Uint64()%100000) / 100000.0
 					randSemi = r*seq.IntonationParams[6] - seq.IntonationParams[6]/2.0
-					r = seq.Rand.Float64()
+					r = float64(seq.Rand.Uint64()%100000) / 100000.0
 					randSlope += r * 0.03
 				} else {
 					randSemi = 0.0
@@ -1069,13 +1069,15 @@ func (seq *Sequence) GenOutput(w *bufio.Writer) {
 	curDeltas := [36]float64{}
 	table := [16]float64{}
 
+	var ev float64
+
 	if len(seq.Events) == 0 {
 		return
 	}
 
 	for i := 0; i < 16; i++ {
 		j := 1
-		ev := seq.Events[j].Value(i)
+		ev = seq.Events[j].Value(i)
 		for ev == invalidEvent {
 			j++
 			if j >= len(seq.Events) {
@@ -1113,7 +1115,7 @@ func (seq *Sequence) GenOutput(w *bufio.Writer) {
 		curDeltas[32] = 0.0
 	} else {
 		j := 1
-		ev := seq.Events[j].Value(32)
+		ev = seq.Events[j].Value(32)
 		for ev == invalidEvent {
 			j++
 			if j >= len(seq.Events) {
@@ -1149,23 +1151,20 @@ func (seq *Sequence) GenOutput(w *bufio.Writer) {
 
 		table[0] += seq.PitchMean
 
-		w.WriteString(fmt.Sprintf("%f", table[0]))
+		w.WriteString(fmt.Sprintf("%.6f", table[0]))
 
-		for k := 1; k < 5; k++ {
-			w.WriteString(fmt.Sprintf(" %f", table[k]))
-		}
-		for k := 5; k < 7; k++ {
-			w.WriteString(fmt.Sprintf(" %f", table[k]))
+		for k := 1; k < 7; k++ {
+			w.WriteString(fmt.Sprintf(" %.6f", table[k]))
 		}
 
 		for k := 7; k < 15; k++ { // R1 - R8
-			w.WriteString(fmt.Sprintf(" %f", table[k]*seq.RadiusCoef[k-7]))
+			w.WriteString(fmt.Sprintf(" %.6f", table[k]*seq.RadiusCoef[k-7]))
 		}
-		w.WriteString(fmt.Sprintf(" %f", table[15]))
+		w.WriteString(fmt.Sprintf(" %.6f", table[15]))
 		w.WriteString("\n")
 
 		for j := 0; j < 32; j++ {
-			if curDeltas[j] > 0.0 {
+			if curDeltas[j] != 0 {
 				curValues[j] += curDeltas[j]
 			}
 		}
@@ -1188,9 +1187,10 @@ func (seq *Sequence) GenOutput(w *bufio.Writer) {
 			}
 			nextTime = seq.Events[idx].Time
 			for j := 0; j < 33; j++ { /* 32? 33? */
-				if seq.Events[idx-1].Value(j) != invalidEvent {
+				ev = seq.Events[idx-1].Value(j)
+				if ev != invalidEvent {
 					k := idx
-					ev := seq.Events[k].Value(j)
+					ev = seq.Events[k].Value(j)
 					for ev == invalidEvent {
 						if k >= len(seq.Events)-1 {
 							curDeltas[j] = 0.0
