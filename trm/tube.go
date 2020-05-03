@@ -43,11 +43,15 @@ package trm
 import (
 	"bufio"
 	"fmt"
+	"log"
+	"math"
+	"os"
+	"strconv"
+
 	"github.com/emer/auditory/sound"
 	"github.com/emer/etable/etable"
 	"github.com/emer/etable/etensor"
 	"github.com/go-audio/audio"
-	"math"
 )
 
 const GsTrmTubeMinRadius = 0.001
@@ -197,15 +201,15 @@ func (vp *VoiceParams) SetAgeGender(voice AgeGender) {
 
 // ToDo: desc for all Radii
 type TractCtrl struct {
-	GlotPitch float64    `min:"-10" max:"0" desc:"ranges from -10 for phoneme k to 0 for most, with some being -2 or -1 -- called microInt in gnuspeech data files"`
-	GlotVol   float64    `min:"0" max:"60" desc:"glottal volume (DB?) typically 60 when present and 0 when not, and sometimes 54, 43.5, 42, "`
-	AspVol    float64    `min:"0" max:"10" desc:"aspiration volume -- typically 0 when not present and 10 when present"`
-	FricVol   float64    `min:"0" max:"24" desc:"fricative volume -- typically 0 or .25 .4, .5, .8 but 24 for ph"`
-	FricPos   float64    `min:"1" max:"7" desc:"ficative position -- varies continuously between 1-7"`
-	FricCf    float64    `min:"864" max:"5500" desc:"fricative center frequency ranges between 864 to 5500 with values around 1770, 2000, 2500, 4500 being common"`
-	FricBw    float64    `min:"500" max:"4500" desc:"fricative bw seems like a frequency -- common intermediate values are 600, 900, 2000, 2600"`
-	Radii     [7]float64 `desc:"Radii 2-8 radius of pharynx vocal tract segment as determined by tongue etc -- typically around 1, ranging .5 - 1.7"`
-	Velum     float64    `min:".1" max:"1.5" desc:"velum opening -- 1.5 when fully open, .1 when closed, and .25, .5 intermediates used"`
+	GlotPitch float64                   `min:"-10" max:"0" desc:"ranges from -10 for phoneme k to 0 for most, with some being -2 or -1 -- called microInt in gnuspeech data files"`
+	GlotVol   float64                   `min:"0" max:"60" desc:"glottal volume (DB?) typically 60 when present and 0 when not, and sometimes 54, 43.5, 42, "`
+	AspVol    float64                   `min:"0" max:"10" desc:"aspiration volume -- typically 0 when not present and 10 when present"`
+	FricVol   float64                   `min:"0" max:"24" desc:"fricative volume -- typically 0 or .25 .4, .5, .8 but 24 for ph"`
+	FricPos   float64                   `min:"1" max:"7" desc:"ficative position -- varies continuously between 1-7"`
+	FricCf    float64                   `min:"864" max:"5500" desc:"fricative center frequency ranges between 864 to 5500 with values around 1770, 2000, 2500, 4500 being common"`
+	FricBw    float64                   `min:"500" max:"4500" desc:"fricative bw seems like a frequency -- common intermediate values are 600, 900, 2000, 2600"`
+	Radii     [OroPharynxRegCnt]float64 `desc:"Radii 2-8 radius of pharynx vocal tract segment as determined by tongue etc -- typically around 1, ranging .5 - 1.7"`
+	Velum     float64                   `min:".1" max:"1.5" desc:"velum opening -- 1.5 when fully open, .1 when closed, and .25, .5 intermediates used"`
 }
 
 func (vtc *TractCtrl) Defaults() {
@@ -425,18 +429,19 @@ const (
 //go:generate stringer -type=FricationInjCoefs
 
 type Tube struct {
-	Buf        sound.Wave   `desc:""`
-	Volume     float64      `desc:""`
-	Balance    float64      `desc:""`
-	Duration   float64      `desc:""` // duration of synthesized sound
-	Params     TractParams  `desc:""`
-	Voice      VoiceParams  `desc:""`
-	CurCtrl    TractCtrl    `desc:""`
-	PrvCtrl    TractCtrl    `desc:""`
-	DeltaCtrl  TractCtrl    `desc:""`
-	DeltaMax   TractCtrl    `desc:""`
-	PhoneTable etable.Table `desc:""`
+	Buf       sound.Wave  `desc:""`
+	Volume    float64     `desc:""`
+	Balance   float64     `desc:""`
+	Duration  float64     `desc:""` // duration of synthesized sound
+	Params    TractParams `desc:""`
+	Voice     VoiceParams `desc:""`
+	CurCtrl   TractCtrl   `desc:""`
+	PrvCtrl   TractCtrl   `desc:""`
+	DeltaCtrl TractCtrl   `desc:""`
+	DeltaMax  TractCtrl   `desc:""`
+	//PhoneTable etable.Table `desc:""`
 	Dictionary etable.Table `desc:""`
+	TrmParams  []TractCtrl  `desc:"all of the trm params read from the trmParamFile"`
 
 	// derived values
 	CtrlRate   float64 `desc:""` // 1.0-1000.0 input tables/second (Hz)
@@ -654,54 +659,6 @@ func (tube *Tube) SynthReset(initBuffer bool) {
 	}
 }
 
-// SynthSignal
-func (tube *Tube) Synth() {
-	// convert parameters here
-	f0 := Frequency(tube.CurData.GlotPitch)
-	ax := Amplitude(tube.CurData.GlotVol)
-	ah1 := Amplitude(tube.CurData.AspVol)
-	tube.TubeCoefficients()
-	tube.SetFricationTaps()
-	tube.BandpassFilter.Update(float64(tube.SampleRate), float64(tube.CurData.FricBw), float64(tube.CurData.FricCf))
-
-	// do synthesis here
-	// create low-pass filtered noise
-	lpNoise := tube.NoiseFilter.Filter(tube.NoiseSource.GetSample())
-
-	// update the shape of the glottal pulse, if necessary
-	if tube.Params.WaveForm == Pulse {
-		if ax != tube.PrvGlotAmplitude {
-			tube.GlottalSource.Update(ax)
-		}
-	}
-
-	//  create glottal pulse (or sine tone)
-	pulse := tube.GlottalSource.GetSample(f0)
-	pulsedNoise := lpNoise * pulse
-
-	// create noisy glottal pulse
-	pulse = ax * ((pulse * (1.0 - tube.BreathFactor)) + (pulsedNoise * tube.BreathFactor))
-
-	var signal float64
-	// cross-mix pure noise with pulsed noise
-	if tube.Params.NoiseMod {
-		crossmix := ax * tube.CrossmixFactor
-		if crossmix >= 1.0 {
-			crossmix = 1.0
-		}
-		signal = (pulsedNoise * crossmix) + (lpNoise * (1.0 - crossmix))
-	} else {
-		signal = lpNoise
-	}
-
-	signal = tube.Update(((pulse + (ah1 * signal)) * VtScale), float64(tube.BandpassFilter.Filter(float64(signal))))
-	signal += tube.Throat.Process(pulse * VtScale)
-
-	// output sample here
-	tube.RateConverter.DataFill(signal)
-	tube.PrvGlotAmplitude = ax
-}
-
 // InitNasalCavity
 func (tube *Tube) InitNasal() {
 	var radA2, radB2 float64
@@ -722,7 +679,9 @@ func (tube *Tube) InitNasal() {
 	tube.NasalCoefs[NasalC6] = (radA2 - radB2) / (radA2 + radB2)
 }
 
-// TubeCoefficients
+// TubeCoefficients calculates the scattering coefficients for the vocal tract according
+// to the current radii.  Also calculates the coefficients for the reflection/radiation filter
+// pairs for the mouth and nose.
 func (tube *Tube) TubeCoefficients() {
 	var radA2, radB2 float64
 	// calculate coefficients for the oropharynx
@@ -781,7 +740,7 @@ func (tube *Tube) SetFricationTaps() {
 
 // Update updates the pressure wave throughout the vocal tract, and returns
 // the summed output of the oral and nasal cavities.  Also injects frication appropriately
-func (tube *Tube) Update(input, frication float64) (output float64) {
+func (tube *Tube) VocalTract(input, frication float64) (output float64) {
 	tube.CurPtr += 1
 	if tube.CurPtr > 1 {
 		tube.CurPtr = 0
@@ -929,15 +888,181 @@ func PlaySound() {
 }
 
 // SynthToFile
-func (tube *Tube) SynthesizeToFile(w *bufio.Writer, outFile string) {
-	if len(outFile) == 0 {
+func (tube *Tube) SynthesizeToFile(trmParamFile, outFile string) {
+	if len(outFile) > 0 {
 		//reset();
 	}
-	//tube.ParseInputStream(w)
+	tube.ParseTrmFile(trmParamFile)
 	tube.InitializeSynthesizer()
 
 	//tube.SynthesizeForInputSequence()
 	//writeOutputToFile(outputFile)
+}
+
+// Parse trm parameter file
+// The order is fixed!
+func (tube *Tube) ParseTrmFile(fn string) {
+	file, err := os.Open(fn)
+	if err != nil {
+		log.Fatalf("failed opening file: %s", err)
+	}
+
+	scanner := bufio.NewScanner(file)
+	scanner.Split(bufio.ScanLines)
+
+	var line string
+	var v float64
+
+	scanner.Scan()
+	line = scanner.Text()
+	v, err = strconv.ParseFloat(line, 64)
+	tube.SampleRate = int(v)
+
+	scanner.Scan()
+	line = scanner.Text()
+	v, err = strconv.ParseFloat(line, 64)
+	tube.CtrlRate = v
+
+	scanner.Scan()
+	line = scanner.Text()
+	v, err = strconv.ParseFloat(line, 64)
+	tube.Volume = v
+
+	scanner.Scan()
+	line = scanner.Text()
+	v, err = strconv.ParseFloat(line, 64)
+	tube.Buf.Buf.Format.NumChannels = int(v)
+
+	scanner.Scan()
+	line = scanner.Text()
+	v, err = strconv.ParseFloat(line, 64)
+	tube.Balance = v
+
+	scanner.Scan()
+	line = scanner.Text()
+	v, err = strconv.ParseFloat(line, 64)
+	tube.Params.WaveForm = int32(v)
+
+	scanner.Scan()
+	line = scanner.Text()
+	v, err = strconv.ParseFloat(line, 64)
+	tube.Voice.GlotPulseRise = v
+
+	scanner.Scan()
+	line = scanner.Text()
+	v, err = strconv.ParseFloat(line, 64)
+	tube.Voice.GlotPulseFallMin = v
+
+	scanner.Scan()
+	line = scanner.Text()
+	v, err = strconv.ParseFloat(line, 64)
+	tube.Voice.GlotPulseFallMax = v
+
+	scanner.Scan()
+	line = scanner.Text()
+	v, err = strconv.ParseFloat(line, 64)
+	tube.Voice.Breath = v
+
+	scanner.Scan()
+	line = scanner.Text()
+	v, err = strconv.ParseFloat(line, 64)
+	tube.Voice.TractLength = v
+
+	scanner.Scan()
+	line = scanner.Text()
+	v, err = strconv.ParseFloat(line, 64)
+	tube.Params.Temp = v
+
+	scanner.Scan()
+	line = scanner.Text()
+	v, err = strconv.ParseFloat(line, 64)
+	tube.Params.Loss = v
+
+	scanner.Scan()
+	line = scanner.Text()
+	v, err = strconv.ParseFloat(line, 64)
+	tube.Voice.ApertureRadius = v
+
+	scanner.Scan()
+	line = scanner.Text()
+	v, err = strconv.ParseFloat(line, 64)
+	tube.Params.MouthCoef = v
+
+	scanner.Scan()
+	line = scanner.Text()
+	v, err = strconv.ParseFloat(line, 64)
+	tube.Params.NoseCoef = v
+
+	for i := 0; i < NasalSectCnt; i++ {
+		scanner.Scan()
+		line = scanner.Text()
+		v, err = strconv.ParseFloat(line, 64)
+		tube.Voice.NoseRadii[i] = v
+	}
+
+	scanner.Scan()
+	line = scanner.Text()
+	v, err = strconv.ParseFloat(line, 64)
+	tube.Params.ThroatCutoff = v
+
+	scanner.Scan()
+	line = scanner.Text()
+	v, err = strconv.ParseFloat(line, 64)
+	tube.Params.ThroatVol = v
+
+	scanner.Scan()
+	line = scanner.Text()
+	tube.Params.NoiseMod, err = strconv.ParseBool(line)
+
+	scanner.Scan()
+	line = scanner.Text()
+	v, err = strconv.ParseFloat(line, 64)
+	tube.Params.MixOff = v
+
+	// get the moment by moment parameter values
+	for scanner.Scan() {
+		line = scanner.Text()
+		if len(line) == 0 {
+			break
+		}
+		tc := new(TractCtrl)
+		_, err := fmt.Sscanf(line, "%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f",
+			&tc.GlotPitch, &tc.GlotVol, &tc.AspVol, &tc.FricVol, &tc.FricPos, &tc.FricCf, &tc.FricBw, &tc.Radii[0], &tc.Radii[1],
+			&tc.Radii[2], &tc.Radii[3], &tc.Radii[4], &tc.Radii[5], &tc.Radii[6], &tc.Radii[7], &tc.Velum)
+		if err != nil {
+			log.Println(err)
+		}
+		tube.TrmParams = append(tube.TrmParams, *tc)
+	}
+	file.Close()
+}
+
+// Synth set params before making a call to synthesize the signal and then outputs the signal
+func (tube *Tube) Synth(reset bool) {
+	ctrlRate := 1.0 / (tube.Duration / 1000.0)
+	if ctrlRate != tube.CtrlRate { // todo: || !IsValid()
+		tube.InitSynth()
+	} else if reset {
+		tube.SynthReset(true)
+	}
+
+	controlFreq := 1.0 / float64(tube.CtrlPeriod)
+	tube.DeltaCtrl.ComputeDeltas(&tube.CurCtrl, &tube.PrvCtrl, float64(controlFreq))
+
+	for j := 0; j < tube.CtrlPeriod; j++ {
+		tube.SynthSignal()
+		tube.CurData.UpdateFromDeltas(&tube.DeltaCtrl)
+	}
+	tube.PrvCtrl.SetFromParams(&tube.CurData) // prev is where we actually got, not where we wanted to get..
+
+	tube.ResizeSndBuf(len(tube.SynthOutput))
+	scale := tube.MonoScale()
+	tube.Wave = nil
+	tube.Wave = make([]float64, len(tube.SynthOutput))
+	for i := 0; i < len(tube.SynthOutput); i++ {
+		tube.Wave[i] = tube.SynthOutput[i] * scale
+		tube.Buf.Buf.Data[i] = int(tube.SynthOutput[i] * scale * 32767) // scale to normalize, (when writing wave file multiply by max signed int)
+	}
 }
 
 // SynthSignal
@@ -980,7 +1105,8 @@ func (tube *Tube) SynthSignal() {
 		signal = lpNoise
 	}
 
-	signal = tube.Update(((pulse + (ah1 * signal)) * VtScale), float64(tube.BandpassFilter.Filter(float64(signal))))
+	// put the signal through the vocal tract
+	signal = tube.VocalTract(((pulse + (ah1 * signal)) * VtScale), float64(tube.BandpassFilter.Filter(float64(signal))))
 	signal += tube.Throat.Process(pulse * VtScale)
 
 	// output sample here
