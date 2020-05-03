@@ -64,7 +64,7 @@ func (ctrl *Control) SynthSequenceToFile(trmParamFile, outputFile string) {
 	ctrl.InitUtterance(writer)
 	ctrl.Sequence.GenOutput(writer)
 
-	ctrl.Tube.SynthesizeToFile(writer, outputFile)
+	//ctrl.Tube.SynthesizeToFile(writer, outputFile)
 }
 
 //SynthSequenceToBuf synthesizes speech from data contained in the event list
@@ -228,9 +228,7 @@ func (ctrl *Control) SynthPhoneticStringToFile(psp PhoneticParser, pString, trmP
 	}
 	writer := bufio.NewWriter(f)
 	ctrl.PhoneticParse(psp, pString, writer)
-
-	//trm := trm.Tube
-	//trm.synthesizeToFile(writer, outputFile);
+	ctrl.Tube.SynthToFile(trmParamFile, outputFile)
 }
 
 func (ctrl *Control) SynthPhoneticStringToBuf(psp PhoneticParser, pString, trmParamFile string, buf []float64) {

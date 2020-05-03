@@ -449,7 +449,8 @@ type Tube struct {
 	SampleRate int     `desc:""`
 	TubeLength float64 `desc:""` // actual length in cm
 
-	CurData TractCtrl `desc:""` // current control data
+	CurData  TractCtrl `desc:""` // current control data
+	CurDelta TractCtrl `desc:""` // current control data
 
 	// tube and tube coefficients
 	Oropharynx      [OroPharynxSectCnt][2][2]float64
@@ -492,10 +493,6 @@ func (tube *Tube) Init() {
 	tube.Params.Defaults()
 	tube.InitSynth()
 	tube.CurData.Defaults()
-	tube.CurCtrl.SetFromParams(&tube.CurData)
-	// do we need the next 2 set here?
-	tube.PrvCtrl.SetFromParams(&tube.CurCtrl) // no deltas if reset
-	tube.CurData.SetFromParams(&tube.CurCtrl)
 }
 
 func (tube *Tube) Defaults() {
@@ -570,7 +567,7 @@ func SpeedOfSound(temp float64) float64 {
 	return 331.4 + (0.6 * temp)
 }
 
-//InitializeSynthesizer initializes all variables so that the synthesis can be run
+// InitializeSynthesizer initializes all variables so that the synthesis can be run
 func (tube *Tube) InitializeSynthesizer() {
 	var nyquist float64
 
@@ -866,15 +863,12 @@ func (tube *Tube) StereoScale(leftScale,
 // Amplitude  converts dB value to amplitude value
 func Amplitude(decibelLevel float64) float64 {
 	decibelLevel -= VolMax
-
 	if decibelLevel <= -VolMax {
 		return 0
 	}
-
 	if decibelLevel >= 0.0 {
 		return 1.0
 	}
-
 	return math.Pow(10.0, decibelLevel/20.0)
 }
 
@@ -888,19 +882,78 @@ func PlaySound() {
 }
 
 // SynthToFile
-func (tube *Tube) SynthesizeToFile(trmParamFile, outFile string) {
+func (tube *Tube) SynthToFile(trmParamFile, outFile string) {
 	if len(outFile) > 0 {
 		//reset();
 	}
 	tube.ParseTrmFile(trmParamFile)
 	tube.InitializeSynthesizer()
-
-	//tube.SynthesizeForInputSequence()
-	//writeOutputToFile(outputFile)
+	tube.SynthTrmInput()
 }
 
-// Parse trm parameter file
-// The order is fixed!
+// SynthTrmInput synthesizes from the trm parameter data
+func (tube *Tube) SynthTrmInput() {
+	for i := 1; i < len(tube.TrmParams); i++ { // start with 1 - we compare to previous
+		tube.SetCtrlParams(i)
+
+		for j := 0; j < tube.CtrlPeriod; j++ {
+			tube.SynthSignal()
+			tube.RateInterpolation()
+		}
+	}
+	// this is wave data
+	tube.ResizeSndBuf(len(tube.SynthOutput))
+	scale := tube.MonoScale()
+	tube.Wave = nil
+	tube.Wave = make([]float64, len(tube.SynthOutput))
+	for i := 0; i < len(tube.SynthOutput); i++ {
+		tube.Wave[i] = tube.SynthOutput[i] * scale
+		tube.Buf.Buf.Data[i] = int(tube.SynthOutput[i] * scale * 32767) // scale to normalize, (when writing wave file multiply by max signed int)
+	}
+}
+
+// SetCtrlParams calculates the current table values, and their associated sample-to-sample delta values.
+func (tube *Tube) SetCtrlParams(idx int) {
+	ctrlFreq := 1.0 / float64(tube.CtrlPeriod)
+
+	tube.CurData.GlotPitch = tube.TrmParams[idx-1].GlotPitch
+	tube.CurDelta.GlotPitch = (tube.TrmParams[idx].GlotPitch - tube.CurData.GlotPitch) * ctrlFreq
+	tube.CurData.GlotVol = tube.TrmParams[idx-1].GlotVol
+	tube.CurDelta.GlotVol = (tube.TrmParams[idx].GlotVol - tube.CurData.GlotVol) * ctrlFreq
+	tube.CurData.AspVol = tube.TrmParams[idx-1].AspVol
+	tube.CurDelta.AspVol = (tube.TrmParams[idx].AspVol - tube.CurData.AspVol) * ctrlFreq
+	tube.CurData.FricVol = tube.TrmParams[idx-1].FricVol
+	tube.CurDelta.FricVol = (tube.TrmParams[idx].FricVol - tube.CurData.FricVol) * ctrlFreq
+	tube.CurData.FricPos = tube.TrmParams[idx-1].FricPos
+	tube.CurDelta.FricPos = (tube.TrmParams[idx].FricPos - tube.CurData.FricPos) * ctrlFreq
+	tube.CurData.FricCf = tube.TrmParams[idx-1].FricCf
+	tube.CurDelta.FricCf = (tube.TrmParams[idx].FricCf - tube.CurData.FricCf) * ctrlFreq
+	tube.CurData.FricBw = tube.TrmParams[idx-1].FricBw
+	tube.CurDelta.FricBw = (tube.TrmParams[idx].FricBw - tube.CurData.FricBw) * ctrlFreq
+	for i := 0; i < OroPharynxRegCnt; i++ {
+		tube.CurData.Radii[i] = tube.TrmParams[idx-1].Radii[i]
+		tube.CurDelta.Radii[i] = (tube.TrmParams[idx].Radii[i] - tube.CurData.Radii[i]) * ctrlFreq
+	}
+	tube.CurData.Velum = tube.TrmParams[idx-1].Velum
+	tube.CurDelta.Velum = (tube.TrmParams[idx].Velum - tube.CurData.Velum) * ctrlFreq
+}
+
+// RateInterpolation interpolates table values at the sample rate
+func (tube *Tube) RateInterpolation() {
+	tube.CurData.GlotPitch += tube.CurDelta.GlotPitch
+	tube.CurData.GlotVol += tube.CurDelta.GlotVol
+	tube.CurData.AspVol += tube.CurDelta.AspVol
+	tube.CurData.FricVol += tube.CurDelta.FricVol
+	tube.CurData.FricPos += tube.CurDelta.FricPos
+	tube.CurData.FricCf += tube.CurDelta.FricCf
+	tube.CurData.FricBw += tube.CurDelta.FricBw
+	for i := 0; i < OroPharynxRegCnt; i++ {
+		tube.CurData.Radii[i] += tube.CurDelta.Radii[i]
+	}
+	tube.CurData.Velum += tube.CurDelta.Velum
+}
+
+// ParseTrmFile trm parameter file, order is fixed!
 func (tube *Tube) ParseTrmFile(fn string) {
 	file, err := os.Open(fn)
 	if err != nil {
@@ -1035,33 +1088,11 @@ func (tube *Tube) ParseTrmFile(fn string) {
 		tube.TrmParams = append(tube.TrmParams, *tc)
 	}
 	file.Close()
-}
 
-// Synth set params before making a call to synthesize the signal and then outputs the signal
-func (tube *Tube) Synth(reset bool) {
-	ctrlRate := 1.0 / (tube.Duration / 1000.0)
-	if ctrlRate != tube.CtrlRate { // todo: || !IsValid()
-		tube.InitSynth()
-	} else if reset {
-		tube.SynthReset(true)
-	}
-
-	controlFreq := 1.0 / float64(tube.CtrlPeriod)
-	tube.DeltaCtrl.ComputeDeltas(&tube.CurCtrl, &tube.PrvCtrl, float64(controlFreq))
-
-	for j := 0; j < tube.CtrlPeriod; j++ {
-		tube.SynthSignal()
-		tube.CurData.UpdateFromDeltas(&tube.DeltaCtrl)
-	}
-	tube.PrvCtrl.SetFromParams(&tube.CurData) // prev is where we actually got, not where we wanted to get..
-
-	tube.ResizeSndBuf(len(tube.SynthOutput))
-	scale := tube.MonoScale()
-	tube.Wave = nil
-	tube.Wave = make([]float64, len(tube.SynthOutput))
-	for i := 0; i < len(tube.SynthOutput); i++ {
-		tube.Wave[i] = tube.SynthOutput[i] * scale
-		tube.Buf.Buf.Data[i] = int(tube.SynthOutput[i] * scale * 32767) // scale to normalize, (when writing wave file multiply by max signed int)
+	// double last entry -- interpolation needs it {
+	if len(tube.TrmParams) > 0 {
+		tc := tube.TrmParams[len(tube.TrmParams)-1]
+		tube.TrmParams = append(tube.TrmParams, tc)
 	}
 }
 
@@ -1109,7 +1140,6 @@ func (tube *Tube) SynthSignal() {
 	signal = tube.VocalTract(((pulse + (ah1 * signal)) * VtScale), float64(tube.BandpassFilter.Filter(float64(signal))))
 	signal += tube.Throat.Process(pulse * VtScale)
 
-	// output sample here
 	tube.RateConverter.DataFill(signal)
 	tube.PrvGlotAmplitude = ax
 }
