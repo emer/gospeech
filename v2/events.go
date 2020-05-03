@@ -1215,7 +1215,7 @@ func (seq *Sequence) GenOutput(w *bufio.Writer) {
 			}
 		}
 	}
-
+	w.Flush()
 	//if Log::debugEnabled {
 	//	printDataStructures()
 	//}
