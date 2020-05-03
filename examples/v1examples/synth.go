@@ -6,7 +6,6 @@ package main
 
 import (
 	"fmt"
-	v1 "github.com/emer/gospeech/v1"
 	"log"
 	"strconv"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/emer/etable/etable"
 	"github.com/emer/etable/etensor"
 	_ "github.com/emer/etable/etview" // include to get gui views
+	"github.com/emer/gospeech/v1"
 	"github.com/goki/gi/gi"
 	"github.com/goki/gi/gimain"
 	"github.com/goki/gi/giv"
@@ -85,7 +85,6 @@ func (syn *Synth) Synthesize() {
 		gi.PromptDialog(syn.win.Viewport, gi.DlgOpts{Title: "No text to synthesize", Prompt: fmt.Sprintf("Enter the text to synthesize in the Text field.")}, gi.AddOk, gi.NoCancel, nil, nil)
 		return
 	}
-	// if len(syn.Text) > 0 {
 	_, err := syn.vt.SynthWords(syn.Text, true, true)
 	if err != nil {
 		log.Println(err)
@@ -100,7 +99,6 @@ func (syn *Synth) Synthesize() {
 			fmt.Printf("File not found or error opening file: %s (%s)", fn, err)
 		}
 	}
-	// }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
