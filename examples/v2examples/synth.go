@@ -67,8 +67,6 @@ func NewSynth() *Synth {
 	syn.Text = "emergent"
 
 	syn.PhoneticParser = phoneticparse.NewPhoneticParser(syn.Control, "../../data/en/vowelTransitions")
-
-	syn.Control.Tube.Init()
 	return syn
 }
 

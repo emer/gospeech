@@ -43,13 +43,14 @@ type Control struct {
 	Sequence    *Sequence
 	ModelConfig ModelConfig
 	TrmConfig   TrmConfig
-	Tube        trm.Tube `view:"noinline"`
+	Tube        *trm.Tube `view:"noinline"`
 }
 
 func NewControl(path string, model *Model) *Control {
 	ctrl := Control{}
 	ctrl.Model = model
 	ctrl.Sequence = NewSequence(path, model)
+	ctrl.Tube = trm.NewTube()
 	return &ctrl
 }
 

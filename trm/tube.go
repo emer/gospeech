@@ -50,12 +50,10 @@ import (
 
 	"github.com/emer/auditory/sound"
 	"github.com/emer/etable/etable"
-	"github.com/emer/etable/etensor"
 	"github.com/go-audio/audio"
 )
 
 const GsTrmTubeMinRadius = 0.001
-const OutputSize = 1024
 const GlottalSourcePulse = 0
 const GlottalSourceSine = 1
 const PitchBase = 220.0
@@ -96,21 +94,6 @@ func (vtc *TractParams) Defaults() {
 	vtc.MixOff = 48.0
 }
 
-/////////////////////////////////////////////////////
-//              VoiceParams
-
-type AgeGender int32
-
-const (
-	Male = iota
-	Female
-	ChildLg
-	ChildSm
-	Baby
-)
-
-//go:generate stringer -type=Voices
-
 // VoiceParams are the parameters that control the quality of the voice
 type VoiceParams struct {
 	TractLength      float64    `desc:"length of vocal tract - shortest for baby voice, longest for male voice"`
@@ -140,65 +123,6 @@ func (vp *VoiceParams) Defaults() {
 	vp.RadiusCoef = 1.0
 }
 
-func (vp *VoiceParams) Male() {
-	vp.TractLength = 17.5
-	vp.GlotPulseFallMin = 24.0
-	vp.GlotPulseFallMax = 24.0
-	vp.GlotPitchRef = -12.0
-	vp.Breath = 0.5
-}
-
-func (vp *VoiceParams) Female() {
-	vp.TractLength = 15.0
-	vp.GlotPulseFallMin = 32.0
-	vp.GlotPulseFallMax = 32.0
-	vp.GlotPitchRef = 0.0
-	vp.Breath = 1.5
-}
-
-func (vp *VoiceParams) ChildLg() {
-	vp.TractLength = 12.5
-	vp.GlotPulseFallMin = 24.0
-	vp.GlotPulseFallMax = 24.0
-	vp.GlotPitchRef = 2.5
-	vp.Breath = 1.5
-}
-
-func (vp *VoiceParams) ChildSm() {
-	vp.TractLength = 10.0
-	vp.GlotPulseFallMin = 24.0
-	vp.GlotPulseFallMax = 24.0
-	vp.GlotPitchRef = 5.0
-	vp.Breath = 1.5
-}
-
-func (vp *VoiceParams) Baby() {
-	vp.TractLength = 7.5
-	vp.GlotPulseFallMin = 24.0
-	vp.GlotPulseFallMax = 24.0
-	vp.GlotPitchRef = 7.5
-	vp.Breath = 1.5
-}
-
-// SetAgeGender is used to set the voicing parameters to one of several predefined voice param sets
-func (vp *VoiceParams) SetAgeGender(voice AgeGender) {
-	switch voice {
-	case Male:
-		vp.Male()
-	case Female:
-		vp.Female()
-	case ChildLg:
-		vp.ChildLg()
-	case ChildSm:
-		vp.ChildSm()
-	case Baby:
-		vp.Baby()
-	}
-}
-
-/////////////////////////////////////////////////////
-//              TractCtrl
-
 // ToDo: desc for all Radii
 type TractCtrl struct {
 	GlotPitch float64                   `min:"-10" max:"0" desc:"ranges from -10 for phoneme k to 0 for most, with some being -2 or -1 -- called microInt in gnuspeech data files"`
@@ -210,35 +134,6 @@ type TractCtrl struct {
 	FricBw    float64                   `min:"500" max:"4500" desc:"fricative bw seems like a frequency -- common intermediate values are 600, 900, 2000, 2600"`
 	Radii     [OroPharynxRegCnt]float64 `desc:"Radii 2-8 radius of pharynx vocal tract segment as determined by tongue etc -- typically around 1, ranging .5 - 1.7"`
 	Velum     float64                   `min:".1" max:"1.5" desc:"velum opening -- 1.5 when fully open, .1 when closed, and .25, .5 intermediates used"`
-}
-
-func (vtc *TractCtrl) Defaults() {
-	vtc.GlotPitch = 0.0
-	vtc.GlotVol = 0.0
-	vtc.AspVol = 0.0
-	vtc.FricVol = 0.0
-	vtc.FricPos = 4.0
-	vtc.FricCf = 2500.0
-	vtc.FricBw = 2000.0
-	for i, _ := range vtc.Radii {
-		vtc.Radii[i] = 1.0
-	}
-	vtc.Velum = 0.1
-}
-
-// ComputeDeltas computes values in this set of params as deltas from (cur - prv) * ctrl_freq
-func (vtc *TractCtrl) ComputeDeltas(cur, prv *TractCtrl, cf float64) {
-	vtc.GlotPitch = (cur.GlotPitch - prv.GlotPitch) * cf
-	vtc.GlotVol = (cur.GlotVol - prv.GlotVol) * cf
-	vtc.AspVol = (cur.AspVol - prv.AspVol) * cf
-	vtc.FricVol = (cur.FricVol - prv.FricVol) * cf
-	vtc.FricPos = (cur.FricPos - prv.FricPos) * cf
-	vtc.FricCf = (cur.FricCf - prv.FricCf) * cf
-	vtc.FricBw = (cur.FricBw - prv.FricBw) * cf
-	for i, _ := range vtc.Radii {
-		vtc.Radii[i] = (cur.Radii[i] - prv.Radii[i]) * cf
-	}
-	vtc.Velum = (cur.Velum - prv.Velum) * cf
 }
 
 // UpdateFromDeltas updates values in this set of params from deltas
@@ -254,23 +149,6 @@ func (vtc *TractCtrl) UpdateFromDeltas(deltas *TractCtrl) {
 		vtc.Radii[i] += deltas.Radii[i]
 	}
 	vtc.Velum += deltas.Velum
-}
-
-// DefaultMaxDeltas updates the default max delta values in this object (for DeltaMax field in Tube)
-func (vtc *TractCtrl) DefaultMaxDeltas() {
-	cf := float64(1.0 / 501.0) // default control frequency
-	// default to entire range ok for now.. fix when glitches encountered.. (comment from c++ code)
-	vtc.GlotPitch = 10 * cf
-	vtc.GlotVol = 60.0 * cf
-	vtc.AspVol = 10.0 * cf
-	vtc.FricVol = 24.0 * cf
-	vtc.FricPos = 7.0 * cf
-	vtc.FricCf = 3000.0 * cf
-	vtc.FricBw = 4000.0 * cf
-	for i, _ := range vtc.Radii {
-		vtc.Radii[i] = 3.0 * cf
-	}
-	vtc.Velum = 1.5 * cf
 }
 
 // SetFromParams fast copy of parameters from other control params
@@ -302,18 +180,6 @@ func (vtc *TractCtrl) SetFromValues(values []float64) {
 	}
 	vtc.Velum = values[14]
 }
-
-func (vtc *TractCtrl) RadiusVal(idx int) float64 {
-	if idx <= 0 {
-		return 0.8
-	}
-	v := vtc.Radii[idx-1]
-	return v
-	// C++ code was return (&radius_2)[idx-1]; }
-}
-
-/////////////////////////////////////////////////////
-//              Tube
 
 // OroPharynxRegions are different regions of the vocal tract
 type OroPharynxRegions int32
@@ -429,17 +295,12 @@ const (
 //go:generate stringer -type=FricationInjCoefs
 
 type Tube struct {
-	Buf       sound.Wave  `desc:""`
-	Volume    float64     `desc:""`
-	Balance   float64     `desc:""`
-	Duration  float64     `desc:""` // duration of synthesized sound
-	Params    TractParams `desc:""`
-	Voice     VoiceParams `desc:""`
-	CurCtrl   TractCtrl   `desc:""`
-	PrvCtrl   TractCtrl   `desc:""`
-	DeltaCtrl TractCtrl   `desc:""`
-	DeltaMax  TractCtrl   `desc:""`
-	//PhoneTable etable.Table `desc:""`
+	Buf        sound.Wave   `desc:""`
+	Volume     float64      `desc:""`
+	Balance    float64      `desc:""`
+	Duration   float64      `desc:""` // duration of synthesized sound
+	Params     TractParams  `desc:""`
+	Voice      VoiceParams  `desc:""`
 	Dictionary etable.Table `desc:""`
 	TrmParams  []TractCtrl  `desc:"all of the trm params read from the trmParamFile"`
 
@@ -485,30 +346,12 @@ type Tube struct {
 }
 
 // Init gets us going - this is the first function to call
-func (tube *Tube) Init() {
-	tube.Defaults()
-	tube.Voice.Defaults()
-	tube.Voice.SetAgeGender(Male)
-	tube.Voice.Breath = 1.5 // ToDo: how is it getting set in C++ version and why isn't the male value!!
-	tube.Params.Defaults()
-	tube.InitSynth()
-	tube.CurData.Defaults()
-}
-
-func (tube *Tube) Defaults() {
-	tube.Volume = 60.0
-	tube.Balance = 0.0
-	tube.Duration = 25.0
-	tube.CtrlRate = 0.0
-	tube.DeltaMax.DefaultMaxDeltas()
-	tube.Reset()
+func NewTube() *Tube {
+	tube := new(Tube)
 	tube.SynthOutput = make([]float64, 0)
 	tube.Wave = make([]float64, 0)
-}
-
-func (tube *Tube) ControlFromTable(col etensor.Tensor, row int, normalized bool) {
-	params := col.SubSpace([]int{row}).(*etensor.Float64)
-	tube.CurCtrl.SetFromValues(params.Values)
+	tube.InitSndBuf(0, 1, tube.SampleRate, 16)
+	return tube
 }
 
 // Reset reset all vocal tract values
@@ -620,13 +463,8 @@ func (tube *Tube) InitializeSynthesizer() {
 }
 
 func (tube *Tube) InitSynth() {
-	tube.SampleRate = 44100
-	tube.InitSndBuf(0, 1, tube.SampleRate, 16)
 	tube.Reset()
-	tube.CtrlRate = 1.0 / (tube.Duration / 1000.0)
 	tube.InitializeSynthesizer()
-	tube.PrvCtrl.SetFromParams(&tube.CurCtrl)
-	tube.CurData.SetFromParams(&tube.CurCtrl)
 }
 
 // InitBuffer
@@ -638,7 +476,6 @@ func (tube *Tube) InitSndBuf(frames int, channels, rate, bitDepth int) {
 	}
 	if tube.Buf.Buf == nil {
 		tube.Buf.Buf = &audio.IntBuffer{Data: make([]int, 0), Format: format, SourceBitDepth: 16}
-		//tube.Buf.Buf = &audio.IntBuffer{Data: make([]int, 0), Format: format, SourceBitDepth: 16}
 	}
 }
 
@@ -683,22 +520,22 @@ func (tube *Tube) TubeCoefficients() {
 	var radA2, radB2 float64
 	// calculate coefficients for the oropharynx
 	for i := 0; i < OroPharynxRegCnt-1; i++ {
-		radA2 = tube.CurData.RadiusVal(i)
+		radA2 = tube.CurData.Radii[i]
 		radA2 *= radA2
-		radB2 = tube.CurData.RadiusVal(i + 1)
+		radB2 = tube.CurData.Radii[i+1]
 		radB2 *= radB2
 		tube.OropharynxCoefs[i] = (radA2 - radB2) / (radA2 + radB2)
 	}
 
 	// calculate the coefficient for the mouth aperture
-	radA2 = tube.CurData.RadiusVal(OroPharynxReg8)
+	radA2 = tube.CurData.Radii[OroPharynxReg8]
 	radA2 *= radA2
 	radB2 = tube.Voice.ApertureRadius * tube.Voice.ApertureRadius
 	tube.OropharynxCoefs[OroPharynxC8] = (radA2 - radB2) / (radA2 + radB2)
 
 	// calculate alpha coefficients for 3-way junction
 	// note:  since junction is in middle of region 4, r0_2 = r1_2
-	r0_2 := tube.CurData.RadiusVal(OroPharynxReg4)
+	r0_2 := tube.CurData.Radii[OroPharynxReg4]
 	r0_2 *= r0_2
 	r1_2 := r0_2
 	r2_2 := tube.CurData.Velum * tube.CurData.Velum
@@ -1046,7 +883,8 @@ func (tube *Tube) ParseTrmFile(fn string) {
 	v, err = strconv.ParseFloat(line, 64)
 	tube.Params.NoseCoef = v
 
-	for i := 0; i < NasalSectCnt; i++ {
+	tube.Voice.NoseRadii[0] = 0.0
+	for i := 1; i < NasalSectCnt; i++ {
 		scanner.Scan()
 		line = scanner.Text()
 		v, err = strconv.ParseFloat(line, 64)
@@ -1084,6 +922,9 @@ func (tube *Tube) ParseTrmFile(fn string) {
 			&tc.Radii[2], &tc.Radii[3], &tc.Radii[4], &tc.Radii[5], &tc.Radii[6], &tc.Radii[7], &tc.Velum)
 		if err != nil {
 			log.Println(err)
+		}
+		for i := 0; i < OroPharynxRegCnt; i++ {
+			tc.Radii[i] = math.Max(tc.Radii[i], GsTrmTubeMinRadius)
 		}
 		tube.TrmParams = append(tube.TrmParams, *tc)
 	}
