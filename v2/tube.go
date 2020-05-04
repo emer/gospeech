@@ -38,11 +38,12 @@
 // 2019-02
 // This is a port to golang of the C++ Gnuspeech port by Marcelo Y. Matuda
 
-package trm
+package v2
 
 import (
 	"bufio"
 	"fmt"
+	"github.com/emer/gospeech/trm"
 	"log"
 	"math"
 	"os"
@@ -89,7 +90,7 @@ func (vtc *TractParams) Defaults() {
 	vtc.ThroatCutoff = 1500.0
 	vtc.ThroatVol = 6.0
 	vtc.VtlOff = 0.0
-	vtc.WaveForm = Pulse
+	vtc.WaveForm = trm.Pulse
 	vtc.NoiseMod = true
 	vtc.MixOff = 48.0
 }
@@ -333,16 +334,16 @@ type Tube struct {
 	SynthOutput []float64
 	Wave        []float64
 
-	RateConverter         RateConverter
-	MouthRadiationFilter  RadiationFilter
-	MouthReflectionFilter ReflectionFilter
-	NasalRadiationFilter  RadiationFilter
-	NasalReflectionFilter ReflectionFilter
-	Throat                Throat
-	GlottalSource         WavetableGlottalSource
-	BandpassFilter        BandpassFilter
-	NoiseFilter           NoiseFilter
-	NoiseSource           NoiseSource
+	RateConverter         trm.RateConverter
+	MouthRadiationFilter  trm.RadiationFilter
+	MouthReflectionFilter trm.ReflectionFilter
+	NasalRadiationFilter  trm.RadiationFilter
+	NasalReflectionFilter trm.ReflectionFilter
+	Throat                trm.Throat
+	GlottalSource         trm.WavetableGlottalSource
+	BandpassFilter        trm.BandpassFilter
+	NoiseFilter           trm.NoiseFilter
+	NoiseSource           trm.NoiseSource
 }
 
 // Init gets us going - this is the first function to call
@@ -430,7 +431,7 @@ func (tube *Tube) InitializeSynthesizer() {
 	tube.DampingFactor = (1.0 - (tube.Params.Loss / 100.0))
 
 	// initialize the wave table
-	gs := WavetableGlottalSource{}
+	gs := trm.WavetableGlottalSource{}
 	tube.GlottalSource = gs
 	tube.GlottalSource.Init(GlottalSourcePulse, float64(tube.SampleRate), tube.Voice.GlotPulseRise, tube.Voice.GlotPulseFallMin, tube.Voice.GlotPulseFallMax)
 	tube.GlottalSource.Reset()
@@ -451,7 +452,7 @@ func (tube *Tube) InitializeSynthesizer() {
 	tube.Throat.Init(float64(tube.SampleRate), tube.Params.ThroatCutoff, Amplitude(tube.Params.ThroatVol))
 	tube.Throat.Reset()
 
-	tube.RateConverter.Init(tube.SampleRate, OutputRate, &tube.SynthOutput)
+	tube.RateConverter.Init(tube.SampleRate, trm.OutputRate, &tube.SynthOutput)
 	tube.RateConverter.Reset()
 	for i := 0; i < len(tube.SynthOutput); i++ {
 		tube.SynthOutput[i] = 0
@@ -952,7 +953,7 @@ func (tube *Tube) SynthSignal() {
 	lpNoise := tube.NoiseFilter.Filter(tube.NoiseSource.GetSample())
 
 	// update the shape of the glottal pulse, if necessary
-	if tube.Params.WaveForm == Pulse {
+	if tube.Params.WaveForm == trm.Pulse {
 		if ax != tube.PrvGlotAmplitude {
 			tube.GlottalSource.Update(ax)
 		}

@@ -34,7 +34,6 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/emer/gospeech/trm"
 	"github.com/goki/ki/bitflag"
 )
 
@@ -43,14 +42,14 @@ type Control struct {
 	Sequence    *Sequence
 	ModelConfig ModelConfig
 	TrmConfig   TrmConfig
-	Tube        *trm.Tube `view:"noinline"`
+	Tube        *Tube `view:"noinline"`
 }
 
 func NewControl(path string, model *Model) *Control {
 	ctrl := Control{}
 	ctrl.Model = model
 	ctrl.Sequence = NewSequence(path, model)
-	ctrl.Tube = trm.NewTube()
+	ctrl.Tube = NewTube()
 	return &ctrl
 }
 
