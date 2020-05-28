@@ -2,8 +2,6 @@ package textparse
 
 import (
 	"bufio"
-	"fmt"
-	"log"
 	"unicode"
 )
 
