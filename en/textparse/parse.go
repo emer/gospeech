@@ -1,63 +1,3 @@
-package textparse
-
-import (
-	"bufio"
-	"unicode"
-)
-
-// ToDo: All of this is a stub to get up and running
-type TextParser struct {
-	table map[string]string
-
-	AuxStream bufio.Reader
-	Escape    rune
-}
-
-func NewTextParser() *TextParser {
-	tp := TextParser{}
-	tp.Escape = DefaultEscapeCharacter
-	tp.table = make(map[string]string)
-	tp.table["emergent"] = "/c // /0 # /w /l i./*m_er_r.j_uh_n_t # // /c"
-	return &tp
-}
-
-// Just does a lookup for bootstrapping - ToDo: port the code!
-// ParseText returns the pregenerated phonetic version of the string argument e.g. "emergent" returns "/c // /0 # /w /l i./*m_er_r.j_uh_n_t # // /c"
-func (tp *TextParser) ParseText(s string) string {
-	p := tp.table[s]
-	return p
-}
-
-// ParseText takes plain english input, and produces phonetic suitable for further processing in the TTS
-// system.  If a parse error occurs, a value of 0 or above is returned.  Usually this will point to the
-// position of the error in the input buffer, but in later stages of the parse only a 0 is returned since
-// positional information is lost.  If no parser error, then TtsParserSuccess is returned.
-func (tp *TextParser) ParseText2(rawtext string) string {
-	//conditioned := tp.ConditionInput(rawtext)
-	//
-	//e, modedText := tp.MarkModes(conditioned)
-	//if e != TtsParserSuccess {
-	//	log.Fatal("Error in mark_modes()")
-	//}
-	//fmt.Println(string(modedText))
-	//
-	//cleanText := StripPunctuation(modedText)
-	//fmt.Println(string(cleanText))
-
-	//err, converted := tp.FinalConversion(modedText)
-	//if err != TtsParserSuccess {
-	//	panic(errors.New("Error in FinalConversion!"))
-	//}
-	//fmt.Println(converted)
-
-	/*  DO SAFETY CHECK  MAKE SURE NOT TOO MANY FEET OR PHONES PER CHUNK  */
-	// safety_check(auxStream_, &auxStream_length)
-
-	//phoneticString := string(converted)
-	//return phoneticString
-	return ""
-}
-
 /***************************************************************************
 *  Copyright 1991, 1992, 1993, 1994, 1995, 1996, 2001, 2002               *
 *    David R. Hill, Leonard Manzara, Craig Schock                         *
@@ -102,6 +42,16 @@ func (tp *TextParser) ParseText2(rawtext string) string {
 *                             at the end of an utterance.
 *
 ******************************************************************************/
+
+package textparse
+
+import (
+	"bufio"
+	"log"
+	"math"
+	"strconv"
+	"unicode"
+)
 
 const UndefinedMode = -2
 const NormalMode = -1
@@ -181,7 +131,7 @@ const SymbolLengthMax = 12
 
 const WordLengthMax = 1024
 const SilenceMax = 5.0
-const SilencePhoneLength = 0.1 /*  SILENCE PHONE IS 100ms  */
+const SilencePhoneLength = 0.1 // silence phone is 100ms
 
 const DefaultEndPunc = "."
 const ModeNestMax = 100
@@ -193,7 +143,7 @@ const MaxFeetPerChunk = 100
 
 const DefaultEscapeCharacter = 27
 
-/*  Dictionary Ordering Definitions  */
+// Dictionary Ordering Definitions
 const TtsEmpty = 0
 const TtsNumberParser = 1
 const TtsDictionary1 = 2
@@ -201,8 +151,61 @@ const TtsDictionary2 = 3
 const TtsDictionary3 = 4
 const TtsLetterToSound = 5
 
-const TtsParserSuccess = -1
-const TtsParserFailure = 0 /*  OR GREATER THAN 0 IF     */
+const TtsParserSuccess = true
+const TtsParserFailure = false
+
+// ToDo: All of this is a stub to get up and running
+type TextParser struct {
+	table map[string]string
+
+	AuxStream bufio.Reader
+	Escape    rune
+}
+
+func NewTextParser() *TextParser {
+	tp := TextParser{}
+	tp.Escape = DefaultEscapeCharacter
+	tp.table = make(map[string]string)
+	tp.table["emergent"] = "/c // /0 # /w /l i./*m_er_r.j_uh_n_t # // /c"
+	return &tp
+}
+
+// Just does a lookup for bootstrapping - ToDo: port the code!
+// ParseText returns the pregenerated phonetic version of the string argument e.g. "emergent" returns "/c // /0 # /w /l i./*m_er_r.j_uh_n_t # // /c"
+func (tp *TextParser) ParseText(s string) string {
+	p := tp.table[s]
+	return p
+}
+
+// ParseText takes plain english input, and produces phonetic suitable for further processing in the TTS
+// system.  If a parse error occurs, a value of 0 or above is returned.  Usually this will point to the
+// position of the error in the input buffer, but in later stages of the parse only a 0 is returned since
+// positional information is lost.  If no parser error, then TtsParserSuccess is returned.
+func (tp *TextParser) ParseText2(rawtext string) string {
+	//conditioned := tp.ConditionInput(rawtext)
+	//
+	//e, modedText := tp.MarkModes(conditioned)
+	//if e != TtsParserSuccess {
+	//	log.Fatal("Error in mark_modes()")
+	//}
+	//fmt.Println(string(modedText))
+	//
+	//cleanText := StripPunctuation(modedText)
+	//fmt.Println(string(cleanText))
+	//
+	//success, converted := tp.FinalConversion(modedText)
+	//if success != TtsParserSuccess {
+	//	panic(errors.New("Error in FinalConversion!"))
+	//}
+	//fmt.Println(converted)
+
+	/*  DO SAFETY CHECK  MAKE SURE NOT TOO MANY FEET OR PHONES PER CHUNK  */
+	// safety_check(auxStream_, &auxStream_length)
+
+	//phoneticString := string(converted)
+	//return phoneticString
+	return ""
+}
 
 // StripPunctuation deletes unnecessary punctuation, and converts some punctuation to another form.
 func StripPunctuation(buf []rune) (output []rune) {
@@ -237,30 +240,30 @@ func StripPunctuation(buf []rune) (output []rune) {
 					buf[i] = '('
 				case ']':
 					buf[i] = ')'
-				//case rune('-'):
-				//	if !ConvertDash(buf, &i, buflen) &&
-				//					!NumberFollows(buf, i, buflen) &&
-				//					!IsIsolated(buf, i, buflen) {
-				//		buf[i] = Deleted
-				//	}
+				case rune('-'):
+					if !ConvertDash(buf, &i, buflen) &&
+						!NumberFollows(buf, i, buflen) &&
+						!IsIsolated(buf, i, buflen) {
+						buf[i] = Deleted
+					}
 				case '+':
 					if !PartOfNumber(buf, i, buflen) && !IsIsolated(buf, i, buflen) {
 						buf[i] = Deleted
 					}
-				//case '\'':
-				//	if !(((i - 1) >= 0) && unicode.IsLetter(buf[i-1]) && ((i + 1) < buflen) && unicode.IsLetter(buf[i+1])) {
-				//		buf[i] = Deleted
-				//	}
-				//case '.':
-				//	DeleteEllipsis(buf, &i, buflen)
-				//case '/', '$', '%':
-				//	if !part_of_number(buf, i, buflen) {
-				//		buf[i] = Deleted
-				//	}
-				//case '<', '>', '&', '=', '@':
-				//	if !IsIsolated(buf, i, buflen) {
-				//		buf[i] = Deleted
-				//	}
+				case '\'':
+					if !(((i - 1) >= 0) && unicode.IsLetter(buf[i-1]) && ((i + 1) < buflen) && unicode.IsLetter(buf[i+1])) {
+						buf[i] = Deleted
+					}
+				case '.':
+					DeleteEllipsis(buf, &i, buflen)
+				case '/', '$', '%':
+					if !PartOfNumber(buf, i, buflen) {
+						buf[i] = Deleted
+					}
+				case '<', '>', '&', '=', '@':
+					if !IsIsolated(buf, i, buflen) {
+						buf[i] = Deleted
+					}
 				case '"', '`', '#', '*', '\\', '^', '_', '|', '~', '{', '}':
 					buf[i] = Deleted
 				default:
@@ -412,14 +415,15 @@ func StripPunctuation(buf []rune) (output []rune) {
 
 // GetState determines the current state and next state in buffer. A word or punctuation is put into word.
 // Raw mode contents are expanded and written to stream.
-func (tp *TextParser) GetState(buf []rune, i *int, len int, mode, nextMode, curState, nextState, rawModeFlag *int, word []rune, stream *[]rune) int {
-	//var j int
+func (tp *TextParser) GetState(buf []rune, i *int, len int, mode, nextMode, curState, nextState,
+	rawModeFlag *int, word []rune, stream []rune) bool {
 	state := 0
 	var curMode int
-	//stateBuf := []*int{curState, nextState}
+	stateBuf := []*int{curState, nextState}
 
-	// GET 2 STATES
-	for j := *i; j < len; j++ {
+	// get 2 states
+	var j int
+	for j = *i; j < len; j++ {
 		switch buf[j] {
 		case RawModeBegin:
 			curMode = RawMode
@@ -446,159 +450,152 @@ func (tp *TextParser) GetState(buf []rune, i *int, len int, mode, nextMode, curS
 			break
 
 		default:
-			//	if (curMode == NormalMode) || (curMode == EmphasisMode) {
-			//		// SKIP WHITE
-			//		if buf[j] == ' ' {
-			//			break
-			//		}
-			//
-			//		// punctuation
-			//		if {
-			//			IsPunctuation
-			//		}(rune(buf[j])) {
-			//			if buf[j] == '.' && (j+1) < len && unicode.IsDigit(rune(buf[j+1])) {
-			//				// do nothing, handle as word later
-			//			} else {
-			//				// set state based on punctuation
-			//				switch buf[j] {
-			//				case '.':
-			//				case '!':
-			//				case '?':
-			//					*(stateBuf[state]) = StateFinalPunc
-			//					break
-			//				case '':
-			//				case ':':
-			//				case ',':
-			//					*(stateBuf[state]) = StateMedialPunc
-			//					break
-			//				}
-			//
-			//				// put punctuation into word buffer, set outside counter, in current state
-			//				if state == 0 {
-			//					word[0] = rune(buf[j])
-			//					word[1] = rune('\x00')
-			//					*i = j
-			//					// SET OUTSIDE MODE
-			//					*mode = curMode
-			//				} else { // SET NEXT MODE IF SECOND STATE
-			//					*nextMode = curMode
-			//				}
-			//
-			//				// INCREMENT STATE
-			//				state++
-			//				break
-			//			}
-			//		}
-			//
-			//		// word
-			//		if state == 0 {
-			//			k := 0
-			//			for {
-			//				word[k] = rune(buf[j])
-			//				j++
-			//				k++
-			//				if !(j < len && buf[j] != ' ' && !IsMode(buf[j]) && k < WordLengthMax) {
-			//					break
-			//				}
-			//			}
-			//			word[k] = '\x00' // Todo: keep?
-			//			j--
-			//
-			//			// back up if word ends with punctuation
-			//			for k >= 1 {
-			//				if IsPunctuation(word[k-1]) {
-			//					k--
-			//					word[k] = '\x00'
-			//					j--
-			//				} else {
-			//					break
-			//				}
-			//			}
-			//
-			//			// e
-			//			*i = j
-			//
-			//			// set outside mode
-			//			*mode = curMode
-			//		} else {
-			//			// SET NEXT MODE IF SECOND STATE
-			//			*nextMode = curMode
-			//		}
-			//
-			//		// Set state to word, increment state
-			//		*(stateBuf[state]) = StateWord
-			//		state++
-			//		break
-			//	} else if curMode == SilenceMode && state == 0 {
-			//		// put silence length into word buffer in current state only
-			//		k := 0
-			//
-			//		for {
-			//			word[k] = rune(buf[j])
-			//			j++
-			//			k++
-			//			if !(j < len && !IsMode(buf[j]) && k < WordLengthMax) {
-			//				break
-			//			}
-			//		}
-			//		word[k] = '\x00' // Todo: keep?
-			//		j--
-			//
-			//		*i = j
-			//		*mode = curMode
-			//
-			//		*(stateBuf[state]) = StateSilence
-			//		state++
-			//	} else if curMode == TaggingMode && state == 0 {
-			//		// put tag into word buffer in current state only
-			//		k := 0
-			//		for {
-			//			word[k] = rune(buf[j])
-			//			j++
-			//			k++
-			//			if !(j < len && !IsMode(buf[j]) && k < WordLengthMax) {
-			//				break
-			//			}
-			//		}
-			//		word[k] = '\x00' // Todo: keep?
-			//		j--
-			//		*i = j
-			//		*mode = curMode
-			//		*(stateBuf[state]) = StateTagging
-			//	} else if curMode == RawMode && state == 0 {
-			//		// expand raw mode in current state only
-			//		if ExpandRawMode(buf, &j, len, stream) != TtsParserSuccess {
-			//			return (TtsParserFailure)
-			//		}
-			//		*rawModeFlag = TtsTrue
-			//		*i = j
-			//	}
-			//	break
-			//}
+			if (curMode == NormalMode) || (curMode == EmphasisMode) {
+				// SKIP WHITE
+				if buf[j] == ' ' {
+					break
+				}
 
-			if state >= 2 {
-				return TtsParserSuccess
+				// punctuation
+				if IsPunctuation(buf[j]) {
+					if buf[j] == '.' && (j+1) < len && unicode.IsDigit(buf[j+1]) {
+						// do nothing, handle as word later
+					} else {
+						// set state based on punctuation
+						switch buf[j] {
+						case '.', '!', '?':
+							*(stateBuf[state]) = StateFinalPunc
+							break
+						case ';':
+						case ':':
+						case ',':
+							*(stateBuf[state]) = StateMedialPunc
+							break
+						}
+
+						// put punctuation into word buffer, set outside counter, in current state
+						if state == 0 {
+							word[0] = buf[j]
+							word[1] = rune('\x00')
+							*i = j
+							// set outside mode
+							*mode = curMode
+						} else { // set next mode if second state
+							*nextMode = curMode
+						}
+						// increment state
+						state++
+						break
+					}
+				}
+
+				// word
+				if state == 0 {
+					k := 0
+					for {
+						word[k] = buf[j]
+						j++
+						k++
+						if !(j < len && buf[j] != ' ' && !IsMode(byte(buf[j])) && k < WordLengthMax) {
+							break
+						}
+					}
+					word[k] = '\x00' // Todo: keep?
+					j--
+
+					// back up if word ends with punctuation
+					for k >= 1 {
+						if IsPunctuation(word[k-1]) {
+							k--
+							word[k] = '\x00'
+							j--
+						} else {
+							break
+						}
+					}
+
+					// e
+					*i = j
+
+					// set outside mode
+					*mode = curMode
+				} else {
+					// SET NEXT MODE IF SECOND STATE
+					*nextMode = curMode
+				}
+
+				// Set state to word, increment state
+				*(stateBuf[state]) = StateWord
+				state++
+				break
+			} else if curMode == SilenceMode && state == 0 {
+				// put silence length into word buffer in current state only
+				k := 0
+
+				for {
+					word[k] = buf[j]
+					j++
+					k++
+					if !(j < len && !IsMode(byte(buf[j])) && k < WordLengthMax) {
+						break
+					}
+				}
+				word[k] = '\x00' // Todo: keep?
+				j--
+
+				*i = j
+				*mode = curMode
+
+				*(stateBuf[state]) = StateSilence
+				state++
+			} else if curMode == TaggingMode && state == 0 {
+				// put tag into word buffer in current state only
+				k := 0
+				for {
+					word[k] = buf[j]
+					j++
+					k++
+					if !(j < len && !IsMode(byte(buf[j])) && k < WordLengthMax) {
+						break
+					}
+				}
+				word[k] = '\x00' // Todo: keep?
+				j--
+				*i = j
+				*mode = curMode
+				*(stateBuf[state]) = StateTagging
+			} else if curMode == RawMode && state == 0 {
+				// expand raw mode in current state only
+				if ExpandRawMode(buf, &j, len, stream) != TtsParserSuccess {
+					return (TtsParserFailure)
+				}
+				*rawModeFlag = TtsTrue
+				*i = j
 			}
+			break
 		}
-
-		// IF HERE, THEN END OF INPUT BUFFER, INDICATE END STATE
-		if state == 0 {
-			*curState = StateEnd
-			*nextState = StateUndefined
-			word = word[:0]
-			*i = j
-			*mode = curMode
-		} else {
-			*nextState = StateEnd
+		if state >= 2 {
+			return TtsParserSuccess
 		}
 	}
-	// RETURN SUCCESS
+
+	// IF HERE, THEN END OF INPUT BUFFER, INDICATE END STATE
+	if state == 0 {
+		*curState = StateEnd
+		*nextState = StateUndefined
+		word = word[:0]
+		*i = j
+		*mode = curMode
+	} else {
+		*nextState = StateEnd
+	}
+	// return success
 	return TtsParserSuccess
 }
 
 // SetToneGroup sets the tone group marker according to the punctuation passed in as "word".
 // The marker is inserted in the
-func (tp *TextParser) SetToneGroup(stream string, tgPos int, word string) int {
+func (tp *TextParser) SetToneGroup(stream []rune, tgPos int, word string) bool {
 	if tgPos == UndefinedPosition {
 		return TtsParserFailure
 	}
@@ -608,362 +605,380 @@ func (tp *TextParser) SetToneGroup(stream string, tgPos int, word string) int {
 	// seek to tone group marker position
 	//stream.seekp(tgPos)
 
-	//switch (word[0]) {
-	//case '.':
-	//	stream = append(stream, TgStatement)
-	//stream << TgStatement
-	//break
-	//case '!':
-	//stream << TgExclamation
-	//break
-	//case '?':
-	//stream << TgQuestion
-	//break
-	//case ',':
-	//stream << TgContinuation
-	//break
-	//case '':
-	//stream << TgHalfPeriod
-	//break
-	//case ':':
-	//stream << TgContinuation
-	//break
-	//default:
-	//return TtsParserFailure
-	//}
+	var tg string // tonegroup
+	switch word[0] {
+	case '.':
+		tg = TgStatement
+	case '!':
+		tg = TgExclamation
+	case '?':
+		tg = TgQuestion
+	case ',':
+		tg = TgContinuation
+	case ';':
+		tg = TgHalfPeriod
+	case ':':
+		tg = TgContinuation
+	default:
+		return TtsParserFailure
+	}
+	// Todo: This is sort of the idea but isn't correct I am sure!
+	stream = append(stream, []rune(tg)...)
+	copy(stream[tgPos+len(tg):], stream[tgPos:])
+	for i := 0; i < len(tg); i++ {
+		stream[tgPos+1+i] = rune(tg[i])
+	}
 
-	// SEEK TO ORIGINAL POSITION ON STREAM
+	//SEEK TO ORIGINAL POSITION ON STREAM
 	//stream.seekp(current_pos)
 
-	// RETURN SUCCESS */
-	//return TtsParserSuccess
-	//}
-	//}
-	//}
-	return 999
+	return TtsParserSuccess
 }
 
-//
-//// ConvertSilence converts numeric quantity in "buffer" to appropriate number of silence phones,
-//// which are written onto the end of stream.  Rounding is performed.  Returns actual length of silence.
-//func (tp *TextParser) ConvertSilence(const char* buffer, std::stringstream& stream) float64 {
-///*  CONVERT BUFFER TO DOUBLE  */
-//double silence_length = strtod(buffer, NULL)
-//
-///*  LIMIT SILENCE LENGTH TO MAXIMUM  */
-//silence_length = (silence_length > SilenceMax) ? SilenceMax : silence_length
-//
-///*  FIND EQUIVALENT NUMBER OF SILENCE PHONES, PERFORMING ROUNDING  */
-//int number_silence_phones = (int) rint(silence_length / SilencePhoneLength)
-//
-///*  PUT IN UTTERANCE BOUNDARY MARKER  */
-//stream << UtteranceBoundary << ' '
-//
-///*  WRITE OUT SILENCE PHONES TO STREAMS  */
-//for (int j = 0 j < number_silence_phones j++) {
-//stream << SilencePhone << ' '
-//}
-//
-///*  RETURN ACTUAL LENGTH OF SILENCE  */
-//return static_cast<float>(number_silence_phones * SilencePhoneLength)
-//}
-//
-//// AnotherWordFollows returns 1 if another word follows in buffer, after position i.  Else, 0 is returned
-//func (tp *TextParser) AnotherWordFollows(const char* buffer, long i, long length, int mode) int {
-//
-//for (long j = i+1 j < length j++) {
-///*  FILTER THROUGH EACH CHARACTER  */
-//switch(buffer[j]) {
-//case RawModeBegin:      mode = RawMode      break
-//case LetterModeBegin:   mode = LetterMode   break
-//case EmphasisModeBegin: mode = EmphasisMode break
-//case TaggingModeBegin:  mode = TaggingMode  break
-//case SilenceModeBegin:  mode = SilenceMode  break
-//
-//case RawModeEnd:
-//case LetterModeEnd:
-//case EmphasisModeEnd:
-//case TaggingModeEnd:
-//case SilenceModeEnd:    mode = NormalMode   break
-//
-//default:
-//if ((mode == NormalMode) || (mode == EmphasisMode)) {
-///*  WORD HAS BEEN FOUND  */
-//if (!IsPunctuation(buffer[j])) {
-//return 1
-//}
-//}
-//break
-//}
-//}
-//
-///*  IF HERE, THEN NO WORD FOLLOWS  */
-//return 0
-//}
-//
-//// ShiftSilence  looks past punctuation to see if some silence occurs before the next word
-//// (or raw mode contents), and shifts the silence to the current point on the stream.  The
-//// the numeric quantity is converted to equivalent silence phones, and a 1 is returned.  0 is returned otherwise.
-//func (tp *TextParser) ShiftSilence(const char* buffer, long i, long length, int mode, std::stringstream& stream) int {
-//char word[WORD_LENGTH_MAX + 1]
-//
-//for (long j = i + 1 j < length j++) {
-///*  FILTER THROUGH EACH CHARACTER  */
-//switch (buffer[j]) {
-//case RawModeBegin:      mode = RawMode      break
-//case LetterModeBegin:   mode = LetterMode   break
-//case EmphasisModeBegin: mode = EmphasisMode break
-//case TaggingModeBegin:  mode = TaggingMode  break
-//case SilenceModeBegin:  mode = SilenceMode  break
-//
-//case RawModeEnd:
-//case LetterModeEnd:
-//case EmphasisModeEnd:
-//case TaggingModeEnd:
-//case SilenceModeEnd:    mode = NormalMode   break
-//
-//default:
-//if ((mode == NormalMode) || (mode == EmphasisMode)) {
-///*  SKIP WHITE SPACE  */
-//if (buffer[j] == ' ') {
-//continue
-//}
-///*  WORD HERE, SO RETURN WITHOUT SHIFTING  */
-//if (!IsPunctuation(buffer[j])) {
-//return 0
-//}
-//} else if (mode == RawMode) {
-///*  ASSUME RAW MODE CONTAINS WORD OF SOME SORT  */
-//return 0
-//} else if (mode == SilenceMode) {
-///*  COLLECT SILENCE DIGITS INTO WORD BUFFER  */
-//int k = 0
-//do {
-//word[k++] = buffer[j++]
-//} while ((j < length) && !is_mode(buffer[j]) && (k < Word_LENGTH_MAX))
-//word[k] = '\0'
-///*  CONVERT WORD TO SILENCE PHONES, APPENDING TO STREAM  */
-//convert_silence(word, stream)
-///*  RETURN, INDICATING SILENCE SHIFTED BACKWARDS  */
-//return 1
-//}
-//break
-//}
-//}
-//
-///*  IF HERE, THEN SILENCE NOT SHIFTED  */
-//return 0
-//}
-//
-//// InsertTag inserts the tag contained in word onto the stream at the insert point.
-//func (tp *TextParser) InsertTag(std::stringstream& stream, long insert_point, const char* word)
-//{
-///*  return TtsParserFailure, iMMEDIATELY IF NO INSERT POINT  */
-//if (insert_point == UndefinedPosition) {
-//return
-//}
-//
-///*  FIND POSITION OF END OF STREAM  */
-//long end_point = static_cast<long>(stream.tellp())
-//
-///*  CALCULATE HOW MANY CHARACTERS TO SHIFT  */
-//long length = end_point - insert_point
-//
-///*  IF LENGTH IS 0, THEN SIMPLY APPEND TAG TO STREAM  */
-//if (length == 0) {
-//stream << TagBegin << ' ' << word
-//} else {
-///*  ELSE, SAVE STREAM AFTER INSERT POINT  */
-//std::string temp(length, '\0')
-//stream.seekg(insert_point)
-//for (long j = 0 j < length j++) {
-//char c
-//if (!stream.get(c)) {
-//THROW_EXCEPTION(GS::EndOfBufferException, "Could not get a character from the stream.")
-//}
-//temp[j] = c
-//}
-//
-///*  INSERT TAG ADD TEMPORARY MATERIAL  */
-//stream.seekp(insert_point)
-//stream << TagBegin << ' ' << word << ' ' << temp
-//}
-//}
-//
-//
+// ConvertSilence converts numeric quantity in "buffer" to appropriate number of silence phones,
+// which are written onto the end of stream.  Rounding is performed.  Returns actual length of silence.
+func ConvertSilence(buf []rune, out []rune) float64 {
+	// convert buffer to double
+	str := string(buf)
+	silence, err := strconv.ParseFloat(str, 64)
+	if err != nil {
+		log.Println(err)
+	}
+	if silence > SilenceMax {
+		silence = SilenceMax
+	}
+
+	// find equivalent number of silence phones, performing rounding
+	phoneCount := int(math.Round(silence / SilencePhoneLength))
+
+	out = append(out, []rune(UtteranceBoundary)...)
+	out = append(out, ' ')
+
+	// write out silence phones to streams
+	for j := 0; j < phoneCount; j++ {
+		out = append(out, []rune(SilencePhone)...)
+		out = append(out, ' ')
+	}
+
+	// return actual length of silence
+	return float64(phoneCount) * SilencePhoneLength
+}
+
+// AnotherWordFollows returns 1 if another word follows in buffer, after position i.  Else, 0 is returned
+func (tp *TextParser) AnotherWordFollows(rs []rune, i, length, mode int) bool {
+	for j := i + 1; j < length; j++ {
+		// filter through each character
+		switch rs[j] {
+		case RawModeBegin:
+			mode = RawMode
+		case LetterModeBegin:
+			mode = LetterMode
+		case EmphasisModeBegin:
+			mode = EmphasisMode
+		case TaggingModeBegin:
+			mode = TaggingMode
+		case SilenceModeBegin:
+			mode = SilenceMode
+
+		case RawModeEnd:
+			fallthrough
+		case LetterModeEnd:
+			fallthrough
+		case EmphasisModeEnd:
+			fallthrough
+		case TaggingModeEnd:
+			fallthrough
+		case SilenceModeEnd:
+			mode = NormalMode
+		default:
+			if (mode == NormalMode) || (mode == EmphasisMode) {
+				// word has been found
+				if !IsPunctuation(rs[j]) {
+					return true
+				}
+			}
+		}
+	}
+
+	// IF HERE, THEN NO WORD FOLLOWS
+	return false
+}
+
+// ShiftSilence  looks past punctuation to see if some silence occurs before the next word
+// (or raw mode contents), and shifts the silence to the current point on the stream.  The
+// the numeric quantity is converted to equivalent silence phones, and true is returned.
+func (tp *TextParser) ShiftSilence(buf []rune, i, length, mode int, out []rune) bool {
+	word := make([]rune, WordLengthMax+1)
+
+	for j := i + 1; j < length; j++ {
+		// filter through each character
+		switch buf[j] {
+		case RawModeBegin:
+			mode = RawMode
+		case LetterModeBegin:
+			mode = LetterMode
+		case EmphasisModeBegin:
+			mode = EmphasisMode
+		case TaggingModeBegin:
+			mode = TaggingMode
+		case SilenceModeBegin:
+			mode = SilenceMode
+
+		case RawModeEnd:
+			fallthrough
+		case LetterModeEnd:
+			fallthrough
+		case EmphasisModeEnd:
+			fallthrough
+		case TaggingModeEnd:
+			fallthrough
+		case SilenceModeEnd:
+			mode = NormalMode
+
+		default:
+			if mode == NormalMode || mode == EmphasisMode {
+				// skip white space
+				if buf[j] == ' ' {
+					continue
+				}
+				// word here, so return without shifting
+				if !IsPunctuation(buf[j]) {
+					return false
+				}
+			} else if mode == RawMode {
+				// assume raw mode contains word of some sort
+				return false
+			} else if mode == SilenceMode {
+				// collect silence digits into word buffer
+				k := 0
+				word[k] = buf[j]
+				k++
+				j++
+				for j < length && !IsMode(byte(buf[j])) && k < WordLengthMax {
+					word[k] = buf[j]
+					k++
+					j++
+				}
+				word[k] = rune('\x00')
+				// convert word to silence phones, appending to stream
+				ConvertSilence(word, out)
+				// return, indicating silence shifted backwards
+				return true
+			}
+			break
+		}
+	}
+
+	// silence not shifted
+	return false
+}
+
+// InsertTag inserts the tag contained in word onto the stream at the insert point.
+func (tp *TextParser) InsertTag(rs []rune, insertPt int, word []rune) {
+	if insertPt == UndefinedPosition {
+		return
+	}
+
+	// find position of end of stream
+	endPt := len(rs)
+
+	// calculate how many characters to shift
+	length := endPt - insertPt
+
+	// if length is 0, th
+	//en simply append tag to stream
+	if length == 0 {
+		s := TagBegin + " " + string(word)
+		rs = append(rs, []rune(s)...)
+	} else {
+		// else, save stream after insert
+
+		temp0 := rs[:insertPt]
+		temp1 := rs[insertPt:]
+		s := TagBegin + " " + string(word) + " "
+		temp0 = append(temp0, []rune(s)...)
+		temp0 = append(temp0, temp1...)
+
+	}
+}
+
+// Todo: What's up with passing token without
 // ExpandRawMode writes raw mode contents to stream, checking phones and marker
-// todo: fix the args!
-func (tp *TextParser) ExpandRawMode(buf string, j int, length int, stream *[]rune) int {
-	return 0
+func ExpandRawMode(rs []rune, j *int, length int, stream []rune) bool {
+	superRawMode := false
+	delimiter := TtsFalse
+	blank := TtsTrue
+	var tokens []rune
+
+	// expand and check raw mode contents till end of raw mode
+	k := 0
+	tokens[k] = rune('\x00')
+
+	for ; *j < length && rs[*j] != RawModeEnd; (*j)++ {
+		stream = append(stream, rs[*j])
+
+		// check if entering or exiting super raw mode
+		if rs[*j] == '%' {
+			if !superRawMode {
+				if IllegalToken(tokens) {
+					return TtsParserFailure
+				}
+				superRawMode = true
+				k = 0
+				tokens[k] = rune('\x00')
+				continue
+			} else {
+				superRawMode = false
+				k = 0
+				tokens[k] = rune('\x00')
+				blank = TtsFalse
+				delimiter = TtsFalse
+				continue
+			}
+		}
+		// examine slash codes, delimiters, and phones in regular raw mode
+		if !superRawMode {
+			switch rs[*j] {
+			case '/':
+				// slash code
+				// evaluate pending token
+				if IllegalToken(tokens) {
+					return TtsParserFailure
+				}
+				// put slash code into token rs
+				tokens[0] = '/'
+				*j--
+				if *j < length && rs[*j] != RawModeEnd {
+					stream = append(stream, rs[*j])
+					tokens[1] = rs[*j]
+					tokens[2] = rune('\x00')
+					// check legality of slash code
+					if IllegalSlashCode(string(tokens)) {
+						return TtsParserFailure
+					}
+					// check any tag and tag number
+					if string(tokens) != TagBegin {
+						if ExpandTagNumber(rs, j, length, stream) == TtsParserFailure {
+							return TtsParserFailure
+						}
+					}
+					// reset flags
+					k = 0
+					tokens[k] = rune('\x00')
+					blank = TtsFalse
+					delimiter = TtsFalse
+				} else {
+					return TtsParserFailure
+				}
+			case '_':
+				fallthrough
+			case '.':
+				// syllable delimiters
+				// don't allow repeated delimiters, or delimiters after blank
+				if delimiter > 0 || blank > 0 {
+					return TtsParserFailure
+				}
+				delimiter++
+				blank = TtsFalse
+				// evaluate pending token
+				if IllegalToken(tokens) {
+					return TtsParserFailure
+				}
+				// reset flags
+				k = 0
+				tokens[k] = rune('\x00')
+			case ' ':
+				// word delimiter
+				// don't allow syllable delimiter before blank
+				if delimiter > 0 {
+					return TtsParserFailure
+				}
+				// set flags
+				blank++
+				delimiter = TtsFalse
+				// evaluate pending token
+				if IllegalToken(tokens) {
+					return TtsParserFailure
+				}
+				// reset flags
+				k = 0
+				tokens[k] = rune('\x00')
+			default:
+				// phone symbol
+				// reset flags
+				blank = TtsFalse
+				delimiter = TtsFalse
+				// accumulate phone symbol in token rs
+				k++
+				tokens[k] = rs[*j]
+				if k <= SymbolLengthMax {
+					tokens[k] = rune('\x00')
+				} else {
+					return TtsParserFailure
+				}
+				break
+			}
+		}
+		return true
+	}
+
+	// CHECK ANY REMAINING TOKENS
+	if IllegalToken(tokens) {
+		return TtsParserFailure
+	}
+	// cannot end with a delimiter
+	if delimiter > 0 {
+		return TtsParserFailure
+	}
+
+	// pad with space, reset external counter
+	stream = append(stream, ' ')
+	(*j)--
+
+	// RETURN SUCCESS
+	return TtsParserSuccess
 }
 
-//int k, super_raw_mode = TtsFalse, delimiter = TtsFalse, blank = TtsTrue
-//char token[SymbolLengthMax+1]
-//
-///*  EXPAND AND CHECK RAW MODE CONTENTS TILL END OF RAW MODE  */
-//token[k = 0] = '\0'
-//for (  (*j < length) && (buffer[*j] != RawModeEnd) (*j)++) {
-//stream << buffer[*j]
-///*  CHECK IF ENTERING OR EXITING SUPER RAW MODE  */
-//if (buffer[*j] == '%') {
-//if (!super_raw_mode) {
-//if (illegal_token(token)) {
-//return TtsParserFailure
-//}
-//super_raw_mode = TtsTrue
-//token[k = 0] = '\0'
-//continue
-//} else {
-//super_raw_mode = TtsFalse
-//token[k = 0] = '\0'
-//delimiter = blank = TtsFalse
-//continue
-//}
-//}
-///*  EXAMINE SLASH CODES, DELIMITERS, AND PHONES IN REGULAR RAW MODE  */
-//if (!super_raw_mode) {
-//switch (buffer[*j]) {
-//case '/':
-///*  SLASH CODE  */
-///*  EVALUATE PENDING TOKEN  */
-//if (illegal_token(token)) {
-//return(TtsParserFailure)
-//}
-///*  PUT SLASH CODE INTO TOKEN BUFFER  */
-//token[0] = '/'
-//if ((++(*j) < length) && (buffer[*j] != RawModeEnd)) {
-//stream << buffer[*j]
-//token[1] = buffer[*j]
-//token[2] = '\0'
-///*  CHECK LEGALITY OF SLASH CODE  */
-//if (illegal_slash_code(token)) {
-//return TtsParserFailure
-//}
-///*  CHECK ANY TAG AND TAG NUMBER  */
-//if (!strcmp(token,TagBegin)) {
-//if (expand_tag_number(buffer, j, length, stream) == TtsParserFailure) {
-//return TtsParserFailure
-//}
-//}
-///*  RESET FLAGS  */
-//token[k = 0] = '\0'
-//delimiter = blank = TtsFalse
-//} else {
-//return TtsParserFailure
-//}
-//break
-//case '_':
-//case '.':
-///*  SYLLABLE DELIMITERS  */
-///*  DON'T ALLOW REPEATED DELIMITERS, OR DELIMITERS AFTER BLANK  */
-//if (delimiter || blank) {
-//return TtsParserFailure
-//}
-//delimiter++
-//blank = TtsFalse
-///*  EVALUATE PENDING TOKEN  */
-//if (illegal_token(token)) {
-//return TtsParserFailure
-//}
-///*  RESET FLAGS  */
-//token[k = 0] = '\0'
-//break
-//case ' ':
-///*  WORD DELIMITER  */
-///*  DON'T ALLOW SYLLABLE DELIMITER BEFORE BLANK  */
-//if (delimiter) {
-//return TtsParserFailure
-//}
-///*  SET FLAGS  */
-//blank++
-//delimiter = TtsFalse
-///*  EVALUATE PENDING TOKEN  */
-//if (illegal_token(token)) {
-//return TtsParserFailure
-//}
-///*  RESET FLAGS  */
-//token[k = 0] = '\0'
-//break
-//default:
-///*  PHONE SYMBOL  */
-///*  RESET FLAGS  */
-//delimiter = blank = TtsFalse
-///*  ACCUMULATE PHONE SYMBOL IN TOKEN BUFFER  */
-//token[k++] = buffer[*j]
-//if (k <= SymbolLengthMax) {
-//token[k] = '\0'
-//} else {
-//return TtsParserFailure
-//}
-//break
-//}
-//}
-//}
-//
-///*  CHECK ANY REMAINING TOKENS  */
-//if (illegal_token(token)) {
-//return TtsParserFailure
-//}
-///*  CANNOT END WITH A DELIMITER  */
-//if (delimiter) {
-//return TtsParserFailure
-//}
-//
-///*  PAD WITH SPACE, RESET EXTERNAL COUNTER  */
-//stream << ' '
-//(*j)--
-//
-///*  RETURN SUCCESS  */
-//return TtsParserSuccess
-//}
-//
-//// IllegalToken returns 1 if token is not a valid DEGAS phone, otherwise 0.
-//func (tp *TextParser) IllegalToken(token string) int {
-//if len(token) == 0 {
-//return 0
-//}
-//
-///*  IF PHONE A VALID DEGAS PHONE, RETURN 0  1 OTHERWISE  */
-//if (1 /*validPhone(token)*/) { //TODO: implement
-//return 0
-//} /*else {
-//	return 1
-//}*/
-//}
-//
-//// IllegalSlashCode returns 1 if code is illegal, 0 otherwise.
-//IllegalSlashCode(code string) int {
-//
-//int i = 0
-//const char* legal_code[] = {
-//ChunkBoundary,ToneGroupBoundary,FootBegin,
-//TonicBegin,SecondaryStress,LastWord,TagBegin,
-//WordBegin,TgStatement,TgExclamation,TgQuestion,
-//TgContinuation,TgHalfPeriod,NULL
-//}
-//
-///*  COMPARE CODE WITH LEGAL CODES, RETURN 0 IMMEDIATELY IF A MATCH  */
-//while (legal_code[i] != NULL) {
-//if (!strcmp(legal_code[i++], code)) {
-//return 0
-//}
-//}
-//
-///*  IF HERE, THEN NO MATCH  RETURN 1, INDICATING ILLEGAL CODE  */
-//return 1
-//}
-//
-//// ExpandTagNumber expand tag number in buffer at position j and write to stream.
-//// Perform error checking, returning error code if format of tag number is illegal.
-//func (tp *TextParser) ExpandTagNumber(const char* buffer, long* j, long length, std::stringstream& stream) int {
-//{
-///*  SKIP WHITE  */
+// IllegalToken returns 1 if token is not a valid DEGAS phone, otherwise 0.
+func IllegalToken(token []rune) bool {
+	if len(token) == 0 {
+		return false
+	}
+	// if phone a valid degas phone, return 0  1 otherwise
+	//if 1 { //TODO: implement (comment from c++ version)
+	//	return false
+	//} /*else {
+	//	return 1
+	//}*/
+	return false
+}
+
+// IllegalSlashCode returns true if code is illegal
+func IllegalSlashCode(code string) bool {
+	legalCodes := []string{ChunkBoundary, ToneGroupBoundary, FootBegin, TonicBegin, SecondaryStress, LastWord, TagBegin,
+		WordBegin, TgStatement, TgExclamation, TgQuestion, TgContinuation, TgHalfPeriod}
+
+	for _, legal := range legalCodes {
+		if code == legal {
+			return false
+		}
+	}
+	return true
+}
+
+// ExpandTagNumber expand tag number in buffer at position j and write to stream.
+// Perform error checking, returning error code if format of tag number is illegal.
+func ExpandTagNumber(rs []rune, j *int, length int, stream []rune) bool {
+	return TtsParserSuccess
+}
+
+//// SKIP WHITE
 //while ((((*j)+1) < length) && (buffer[(*j)+1] == ' ')) {
 //(*j)++
 //stream << buffer[*j]
 //}
 //
-///*  CHECK FORMAT OF TAG NUMBER  */
+//// CHECK FORMAT OF TAG NUMBER
 //int sign = 0
 //while ((((*j)+1) < length) && (buffer[(*j)+1] != ' ') &&
 //(buffer[(*j)+1] != RawModeEnd) && (buffer[(*j)+1] != '%')) {
@@ -978,10 +993,10 @@ func (tp *TextParser) ExpandRawMode(buf string, j int, length int, stream *[]run
 //}
 //}
 //
-///*  RETURN SUCCESS  */
+//// RETURN SUCCESS
 //return TtsParserSuccess
 //}
-//
+
 // IsMode Returns 1 if character is a mode marker, otherwise 0.
 func IsMode(b byte) bool {
 	if int(b) >= SilenceModeEnd && int(b) <= RawModeBegin {
@@ -1150,7 +1165,7 @@ func WordFollows(rs []rune, i, length int) bool {
 					} else {
 						return false
 					}
-				} else { /*  ELSE, SOME WORD FOLLOWS  */
+				} else { // ELSE, SOME WORD FOLLOWS
 					return true
 				}
 			case LetterMode:
@@ -1213,7 +1228,7 @@ func ExpandAbbreviation(rs []rune, i, length int, expanded *[]rune) bool {
 	//			word[k] = rs
 	//			[j++]
 	//}
-	//word[k] = '\0'
+	//word[k] = rune('\x00')
 	//
 	//// expand these abbreviations only if followed by number
 	//for (j = 0 abbr_with_number[j][Abbreviation] != NULL j++) {
@@ -1450,14 +1465,14 @@ func AllToLower(word []rune) {
 //{
 //const char* acronym
 //
-///*  LOOP THROUGH LIST UNTIL MATCH FOUND, RETURN PRONUNCIATION  */
+//// LOOP THROUGH LIST UNTIL MATCH FOUND, RETURN PRONUNCIATION
 //for (int i = 0 (acronym = special_acronym[i][WORD]) i++) {
 //if (!strcmp(word, acronym)) {
 //return special_acronym[i][Pronounciation]
 //}
 //}
 //
-///*  IF HERE, NO SPECIAL ACRONYM FOUND, RETURN NULL  */
+//// IF HERE, NO SPECIAL ACRONYM FOUND, RETURN NULL
 //return nullptr
 //}
 //
@@ -1485,14 +1500,14 @@ func HasPrimaryStress(rs []rune) bool {
 //int
 //converted_stress(char *pronunciation)
 //{
-///*  LOOP THRU PRONUNCIATION UNTIL " FOUND, REPLACE WITH '  */
+//// LOOP THRU PRONUNCIATION UNTIL " FOUND, REPLACE WITH '
 //for (  *pronunciation && (*pronunciation != '%') pronunciation++)
 //if (*pronunciation == '"') {
 //*pronunciation = '\''
 //return(TtsYes)
 //}
 //
-///*  IF HERE, NO " FOUND  */
+//// IF HERE, NO " FOUND
 //return(TtsNo)
 //}
 //
@@ -1507,15 +1522,15 @@ func HasPrimaryStress(rs []rune) bool {
 //int
 //is_possessive(char* word)
 //{
-///*  LOOP UNTIL 's FOUND, REPLACE ' WITH NULL  */
+//// LOOP UNTIL 's FOUND, REPLACE ' WITH NULL
 //for (  *word word++) {
-//if ((*word == '\'') && *(word+1) && (*(word+1) == 's') && (*(word+2) == '\0')) {
-//*word = '\0'
+//if ((*word == '\'') && *(word+1) && (*(word+1) == 's') && (*(word+2) == rune('\x00'))) {
+//*word = rune('\x00')
 //return TtsYes
 //}
 //}
 //
-///*  IF HERE, NO 's FOUND, RETURN FAILURE  */
+//// IF HERE, NO 's FOUND, RETURN FAILURE
 //return TtsNo
 //}
 //
@@ -1536,16 +1551,16 @@ func HasPrimaryStress(rs []rune) bool {
 //char last_tg_type = '0'
 //char c
 //
-///*  REWIND STREAM TO BEGINNING  */
+//// REWIND STREAM TO BEGINNING
 //stream.seekg(0)
 //
-///*  LOOP THROUGH STREAM, INSERTING NEW CHUNK MARKERS IF NECESSARY  */
-//while (stream.get(c) && c != '\0') {
+//// LOOP THROUGH STREAM, INSERTING NEW CHUNK MARKERS IF NECESSARY
+//while (stream.get(c) && c != rune('\x00')) {
 //switch (c) {
 //case '%':
-///*  IGNORE SUPER RAW MODE CONTENTS  */
+//// IGNORE SUPER RAW MODE CONTENTS
 //while (stream.get(c) && c != '%') {
-//if (c == '\0') {
+//if (c == rune('\x00')) {
 //stream.unget()
 //break
 //}
@@ -1553,34 +1568,34 @@ func HasPrimaryStress(rs []rune) bool {
 //state = NonPhoneme
 //break
 //case '/':
-///*  SLASH CODES  */
+//// SLASH CODES
 //if (!stream.get(c)) {
 //THROW_EXCEPTION(GS::EndOfBufferException, "Could not get a character from the stream.")
 //}
 //switch (c) {
 //case 'c':
-///*  CHUNK MARKER (/c)  */
+//// CHUNK MARKER (/c)
 //number_of_feet = number_of_phones = 0
 //break
 //case '_':
 //case '*':
-///*  FOOT AND TONIC FOOT MARKERS  */
+//// FOOT AND TONIC FOOT MARKERS
 //if (++number_of_feet > MaxFeetPerChunk) {
-///*  SPLIT STREAM INTO TWO CHUNKS  */
+//// SPLIT STREAM INTO TWO CHUNKS
 //insert_chunk_marker(stream, LastWord_pos, last_tg_type)
 //set_tone_group(stream, last_tg_pos, ",")
 //check_tonic(stream, last_tg_pos, LastWord_pos)
 //}
 //break
 //case 't':
-///*  IGNORE TAGGING MODE CONTENTS  */
-///*  SKIP WHITE  */
+//// IGNORE TAGGING MODE CONTENTS
+//// SKIP WHITE
 //while (stream.get(c) && c == ' ')
 //
 //stream.unget()
-///*  SKIP OVER TAG NUMBER  */
+//// SKIP OVER TAG NUMBER
 //while (stream.get(c) && c != ' ') {
-//if (c == '\0') {
+//if (c == rune('\x00')) {
 //stream.unget()
 //break
 //}
@@ -1591,12 +1606,12 @@ func HasPrimaryStress(rs []rune) bool {
 //case '2':
 //case '3':
 //case '4':
-///*  REMEMBER TONE GROUP TYPE AND POSITION  */
+//// REMEMBER TONE GROUP TYPE AND POSITION
 //last_tg_type = c
 //last_tg_pos = static_cast<long>(stream.tellg()) - 2
 //break
 //default:
-///*  IGNORE ALL OTHER SLASH CODES  */
+//// IGNORE ALL OTHER SLASH CODES
 //break
 //}
 //state = NonPhoneme
@@ -1604,10 +1619,10 @@ func HasPrimaryStress(rs []rune) bool {
 //case '.':
 //case '_':
 //case ' ':
-///*  END OF PHONE (AND WORD) DELIMITERS  */
+//// END OF PHONE (AND WORD) DELIMITERS
 //if (state == Phoneme) {
 //if (++number_of_phones > MaxPhonesPerChunk) {
-///*  SPLIT STREAM INTO TWO CHUNKS  */
+//// SPLIT STREAM INTO TWO CHUNKS
 //insert_chunk_marker(stream, LastWord_pos, last_tg_type)
 //set_tone_group(stream, last_tg_pos, ",")
 //check_tonic(stream, last_tg_pos, LastWord_pos)
@@ -1626,7 +1641,7 @@ func HasPrimaryStress(rs []rune) bool {
 //}
 //}
 //
-///*  BE SURE TO RESET LENGTH OF STREAM  */
+//// BE SURE TO RESET LENGTH OF STREAM
 //*stream_length = static_cast<long>(stream.tellg())
 //}
 //
@@ -1640,32 +1655,32 @@ func HasPrimaryStress(rs []rune) bool {
 // *
 // ******************************************************************************/
 //void
-//insert_chunk_marker(std::stringstream& stream, long insert_point, char tg_type)
+//insert_chunk_marker(std::stringstream& stream, long insertPt, char tg_type)
 //{
 //char c
 //std::stringstream temp_stream
 //
-///*  COPY STREAM FROM INSERT POINT TO END TO BUFFER TO ANOTHER STREAM  */
-//stream.seekg(insert_point)
-//while (stream.get(c) && c != '\0') {
+//// COPY STREAM FROM INSERT POINT TO END TO BUFFER TO ANOTHER STREAM
+//stream.seekg(insertPt)
+//while (stream.get(c) && c != rune('\x00')) {
 //temp_stream << c
 //}
-//temp_stream << '\0'
+//temp_stream << rune('\x00')
 //
-///*  PUT IN MARKERS AT INSERT POINT  */
-//stream.seekp(insert_point)
+//// PUT IN MARKERS AT INSERT POINT
+//stream.seekp(insertPt)
 //stream << ToneGroupBoundary << ' ' << ChunkBoundary << ' '
 //<< ToneGroupBoundary << " /" << tg_type << ' '
 //long new_position = static_cast<long>(stream.tellp()) - 9 //TODO: check
 //
-///*  APPEND CONTENTS OF TEMPORARY STREAM  */
+//// APPEND CONTENTS OF TEMPORARY STREAM
 //temp_stream.seekg(0)
-//while (temp_stream.get(c) && c != '\0') {
+//while (temp_stream.get(c) && c != rune('\x00')) {
 //stream << c
 //}
-//stream << '\0'
+//stream << rune('\x00')
 //
-///*  POSITION THE STREAM AT THE NEW /c MARKER  */
+//// POSITION THE STREAM AT THE NEW /c MARKER
 //stream.seekp(new_position)
 //}
 //
@@ -1684,16 +1699,16 @@ func HasPrimaryStress(rs []rune) bool {
 //{
 //long i, last_foot_pos = UndefinedPosition
 //
-///*  REMEMBER CURRENT POSITION IN STREAM  */
+//// REMEMBER CURRENT POSITION IN STREAM
 //long temp_pos = static_cast<long>(stream.tellp())
 //
-///*  CALCULATE EXTENT OF STREAM TO LOOP THROUGH  */
+//// CALCULATE EXTENT OF STREAM TO LOOP THROUGH
 //long extent = end_pos - start_pos
 //
-///*  REWIND STREAM TO START POSITION  */
+//// REWIND STREAM TO START POSITION
 //stream.seekg(start_pos)
 //
-///*  LOOP THROUGH STREAM, DETERMINING LAST FOOT POSITION, AND PRESENCE OF TONIC  */
+//// LOOP THROUGH STREAM, DETERMINING LAST FOOT POSITION, AND PRESENCE OF TONIC
 //char c
 //for (i = 0 i < extent i++) {
 //if (stream.get(c) && c == '/' && ++i < extent) {
@@ -1705,20 +1720,20 @@ func HasPrimaryStress(rs []rune) bool {
 //last_foot_pos = static_cast<long>(stream.tellg()) - 1
 //break
 //case '*':
-///*  GO TO ORIGINAL POSITION ON STREAM, AND return TtsParserFailure, iMMEDIATELY  */
+//// GO TO ORIGINAL POSITION ON STREAM, AND return TtsParserFailure, iMMEDIATELY
 ////NXSeek(stream, temp_pos, NX_FROMSTART)
 //return
 //}
 //}
 //}
 //
-///*  IF HERE, NO TONIC, SO INSERT TONIC MARKER  */
+//// IF HERE, NO TONIC, SO INSERT TONIC MARKER
 //if (last_foot_pos != UndefinedPosition) {
 //stream.seekp(last_foot_pos)
 //stream << '*'
 //}
 //
-///*  GO TO ORIGINAL POSITION ON STREAM  */
+//// GO TO ORIGINAL POSITION ON STREAM
 //stream.seekp(temp_pos)
 //}
 //
@@ -1791,10 +1806,10 @@ func HasPrimaryStress(rs []rune) bool {
 //int
 //TextParser::set_escape_code(char new_escape_code)
 //{
-///*  SET GLOBAL ESCAPE CHARACTER  */
+//// SET GLOBAL ESCAPE CHARACTER
 //escape_character_ = new_escape_code
 //
-///*  RETURN SUCCESS  */
+//// RETURN SUCCESS
 //return TtsParserSuccess
 //}
 
@@ -1815,7 +1830,7 @@ func HasPrimaryStress(rs []rune) bool {
 //printf("lookup_word word: %s\n", word)
 //}
 //
-///*  SEARCH DICTIONARIES IN USER ORDER TILL PRONUNCIATION FOUND  */
+//// SEARCH DICTIONARIES IN USER ORDER TILL PRONUNCIATION FOUND
 //for (int i = 0 i < DICTIONARY_ORDER_SIZE i++) {
 //switch(dictionaryOrder_[i]) {
 //case TtsEmpty:
@@ -1861,8 +1876,8 @@ func HasPrimaryStress(rs []rune) bool {
 //}
 //}
 //
-///*  IF HERE, THEN FIND WORD IN LETTER-TO-SOUND RULEBASE  */
-///*  THIS IS GUARANTEED TO FIND A PRONUNCIATION OF SOME SORT  */
+//// IF HERE, THEN FIND WORD IN LETTER-TO-SOUND RULEBASE
+//// THIS IS GUARANTEED TO FIND A PRONUNCIATION OF SOME SORT
 //letter_to_sound(word, pronunciation_)
 //if (!pronunciation_.empty()) {
 //*dict = TtsLetterToSound
@@ -1923,7 +1938,7 @@ func (tp *TextParser) ConditionInput(input string) (buf []rune) {
 
 // MarkModes parses input for modes, checking for errors, and marks output with mode start and end points.
 // Tagging and silence mode arguments are checked.
-func (tp *TextParser) MarkModes(input []rune) (err int, output []rune) {
+func (tp *TextParser) MarkModes(input []rune) (success bool, output []rune) {
 	var modeStack [ModeNestMax]int
 	sp := 0 // stack "pointer"
 	j := 0
@@ -2041,19 +2056,19 @@ func (tp *TextParser) MarkModes(input []rune) (err int, output []rune) {
 							for i+1 < length && input[i+1] == ' ' {
 								i++
 							}
-							// COPY NUMBER, CHECKING VALIDITY  */
+							// COPY NUMBER, CHECKING VALIDITY
 							period := 0
 							for (i+1 < length && input[i+1] != ' ') && input[i+1] != tp.Escape {
 								i++
-								// ALLOW ONLY DIGITS AND PERIOD  */
+								// ALLOW ONLY DIGITS AND PERIOD
 								if !unicode.IsDigit(input[i]) && input[i] != '.' {
 									return TtsParserFailure, output
 								}
-								// ALLOW ONLY ONE PERIOD  */
+								// ALLOW ONLY ONE PERIOD
 								if period > 0 && input[i] == '.' {
 									return TtsParserFailure, output
 								}
-								// OUTPUT CHARACTER, KEEPING TRACK OF # OF PERIODS  */
+								// OUTPUT CHARACTER, KEEPING TRACK OF # OF PERIODS
 								output[j] = input[i]
 								j++
 								if input[i] == '.' {
@@ -2146,7 +2161,7 @@ func (tp *TextParser) MarkModes(input []rune) (err int, output []rune) {
 
 // FinalConversion converts contents of stream1 to stream2.  Adds chunk, tone group, and associated markers
 // expands words to pronunciations, and also expands other modes.
-func (tp *TextParser) FinalConversion(s1 []rune) (err int, s2 []rune) {
+func (tp *TextParser) FinalConversion(s1 []rune) (success bool, s2 []rune) {
 	//
 	//lastWordEnd := UndefinedPosition
 	//tgMarkerPos := UndefinedPosition
@@ -2248,18 +2263,18 @@ func (tp *TextParser) FinalConversion(s1 []rune) (err int, s2 []rune) {
 	//		}
 	//	}
 	//}
-	return err, s2
+	return success, s2
 }
 
 //
-//// REWIND STREAM2 BACK TO BEGINNING  */
+//// REWIND STREAM2 BACK TO BEGINNING
 //stream2.str("")
 //
-///*  GET MEMORY BUFFER ASSOCIATED WITH STREAM1  */
+//// GET MEMORY BUFFER ASSOCIATED WITH STREAM1
 //std::string stream1String = stream1.str()
 //const char* input = stream1String.data()
 //
-///*  MAIN LOOP  */
+//// MAIN LOOP
 //for (i = 0 i < stream1_length i++) {
 //switch (input[i]) {
 //case RawModeBegin:      mode = RawMode      break
@@ -2275,7 +2290,7 @@ func (tp *TextParser) FinalConversion(s1 []rune) (err int, s2 []rune) {
 //case SilenceModeEnd:    mode = NormalMode   break
 //
 //default:
-///*  GET STATE INFORMATION  */
+//// GET STATE INFORMATION
 //if (get_state(input, &i, stream1_length, &mode, &next_mode, &current_state,
 //&next_state, &raw_mode_flag, word, stream2) != TtsParserSuccess) {
 //return TtsParserFailure
@@ -2288,11 +2303,11 @@ func (tp *TextParser) FinalConversion(s1 []rune) (err int, s2 []rune) {
 //mode,next_mode,word)
 //#endif
 //
-///*  ACTION ACCORDING TO CURRENT STATE  */
+//// ACTION ACCORDING TO CURRENT STATE
 //switch (current_state) {
 //
 //case StateWORD:
-///*  ADD BEGINNING MARKERS IF NECESSARY (SWITCH FALL-THRU DESIRED)  */
+//// ADD BEGINNING MARKERS IF NECESSARY (SWITCH FALL-THRU DESIRED)
 //switch(last_written_state) {
 //case STATEBegin:
 //stream2 << ChunkBoundary << ' '
@@ -2307,25 +2322,25 @@ func (tp *TextParser) FinalConversion(s1 []rune) (err int, s2 []rune) {
 //}
 //
 //if (mode == NormalMode) {
-///*  PUT IN WORD MARKER  */
+//// PUT IN WORD MARKER
 //stream2 << WORDBegin << ' '
-///*  ADD LAST WORD MARKER AND TONICIZATION IF NECESSARY  */
+//// ADD LAST WORD MARKER AND TONICIZATION IF NECESSARY
 //switch(next_state) {
 //case StateMedialPunc:
 //case StateFinalPunc:
 //case StateEnd:
-///*  PUT IN LAST WORD MARKER  */
+//// PUT IN LAST WORD MARKER
 //stream2 << LastWord << ' '
-///*  WRITE WORD TO STREAM WITH TONIC IF NO PRIOR TONICIZATION  */
+//// WRITE WORD TO STREAM WITH TONIC IF NO PRIOR TONICIZATION
 //expand_word(word, (!prior_tonic), stream2)
 //break
 //default:
-///*  WRITE WORD TO STREAM WITHOUT TONIC  */
+//// WRITE WORD TO STREAM WITHOUT TONIC
 //expand_word(word, TtsNo, stream2)
 //break
 //}
 //} else if (mode == EmphasisMode) {
-///*  START NEW TONE GROUP IF PRIOR TONIC ALREADY SET  */
+//// START NEW TONE GROUP IF PRIOR TONIC ALREADY SET
 //if (prior_tonic) {
 //if (set_tone_group(stream2, tg_marker_pos, ",") == TtsParserFailure) {
 //return TtsParserFailure
@@ -2333,27 +2348,27 @@ func (tp *TextParser) FinalConversion(s1 []rune) (err int, s2 []rune) {
 //stream2 << ToneGroupBoundary << ' ' << TgUndefined << ' '
 //tg_marker_pos = static_cast<long>(stream2.tellp()) - 3
 //}
-///*  PUT IN WORD MARKER  */
+//// PUT IN WORD MARKER
 //stream2 << WORDBegin << ' '
-///*  MARK LAST WORD OF TONE GROUP, IF NECESSARY  */
+//// MARK LAST WORD OF TONE GROUP, IF NECESSARY
 //if ((next_state == StateMedialPunc) ||
 //(next_state == StateFinalPunc) ||
 //(next_state == StateEnd) ||
 //((next_state == StateWORD) && (next_mode == EmphasisMode)) ) {
 //stream2 << LastWord << ' '
 //}
-///*  TONICIZE WORD  */
+//// TONICIZE WORD
 //expand_word(word, TtsYes, stream2)
 //prior_tonic = TtsTrue
 //}
 //
-///*  SET LAST WRITTEN STATE, AND END POSITION AFTER THE WORD  */
+//// SET LAST WRITTEN STATE, AND END POSITION AFTER THE WORD
 //last_written_state = StateWORD
 //LastWord_end = static_cast<long>(stream2.tellp())
 //break
 //
 //case StateMedialPunc:
-///*  APPEND LAST WORD MARK, PAUSE, TONE GROUP MARK (FALL-THRU DESIRED)  */
+//// APPEND LAST WORD MARK, PAUSE, TONE GROUP MARK (FALL-THRU DESIRED)
 //switch(last_written_state) {
 //case StateWORD:
 //if (shift_silence(input, i, stream1_length, mode, stream2)) {
@@ -2389,7 +2404,7 @@ func (tp *TextParser) FinalConversion(s1 []rune) (err int, s2 []rune) {
 //return TtsParserFailure
 //}
 //tg_marker_pos = UndefinedPosition
-///*  IF SILENCE INSERTED, THEN CONVERT FINAL PUNCTUATION TO MEDIAL  */
+//// IF SILENCE INSERTED, THEN CONVERT FINAL PUNCTUATION TO MEDIAL
 //last_written_state = StateMedialPunc
 //} else {
 //stream2 << UtteranceBoundary << ' '
@@ -2408,7 +2423,7 @@ func (tp *TextParser) FinalConversion(s1 []rune) (err int, s2 []rune) {
 //return TtsParserFailure
 //}
 //tg_marker_pos = UndefinedPosition
-///*  IF SILENCE INSERTED, THEN CONVERT FINAL PUNCTUATION TO MEDIAL  */
+//// IF SILENCE INSERTED, THEN CONVERT FINAL PUNCTUATION TO MEDIAL
 //last_written_state = StateMedialPunc
 //}
 //break
@@ -2442,14 +2457,14 @@ func (tp *TextParser) FinalConversion(s1 []rune) (err int, s2 []rune) {
 //}
 //}
 //
-///*  FINAL STATE  */
+//// FINAL STATE
 //switch (last_written_state) {
 //
 //case StateMedialPunc:
 //stream2 << ChunkBoundary
 //break
 //
-//case StateWord:  /*  FALL THROUGH DESIRED  */
+//case StateWord:  // FALL THROUGH DESIRED
 //stream2 << UtteranceBoundary << ' '
 //case StateSilence:
 //stream2 << ToneGroupBoundary << ' ' << ChunkBoundary
@@ -2466,13 +2481,13 @@ func (tp *TextParser) FinalConversion(s1 []rune) (err int, s2 []rune) {
 //break
 //}
 //
-///*  BE SURE TO ADD NULL TO END OF STREAM  */
-//stream2 << '\0'
+//// BE SURE TO ADD NULL TO END OF STREAM
+//stream2 << rune('\x00')
 //
-///*  SET STREAM2 LENGTH  */
+//// SET STREAM2 LENGTH
 //*stream2_length = static_cast<long>(stream2.tellp())
 //
-///*  RETURN SUCCESS  */
+//// RETURN SUCCESS
 //return TtsParserSuccess
 //}
 //
@@ -2491,11 +2506,11 @@ func (tp *TextParser) ExpandWord(word string, isTonic int, w *bufio.Writer) {
 //int possessive = TtsNo
 //char last_phoneme[SymbolLengthMax+1], *last_phoneme_ptr
 //
-///*  STRIP OF POSSESSIVE ENDING IF WORD ENDS WITH 's, SET FLAG  */
+//// STRIP OF POSSESSIVE ENDING IF WORD ENDS WITH 's, SET FLAG
 //possessive = is_possessive(word)
 //
-///*  USE degenerate_string IF WORD IS A SINGLE CHARACTER
-//    (EXCEPT SMALL, NON-POSSESSIVE A)  */
+//// USE degenerate_string IF WORD IS A SINGLE CHARACTER
+//    (EXCEPT SMALL, NON-POSSESSIVE A)
 //if ((strlen(word) == 1) && unicode.IsLetter(word[0])) {
 //if (!strcmp(word,"a") && !possessive) {
 //pronunciation = "uh"
@@ -2504,20 +2519,20 @@ func (tp *TextParser) ExpandWord(word string, isTonic int, w *bufio.Writer) {
 //}
 //dictionary = TtsLetterToSound
 //} else if (is_all_upper_case(word)) {
-///*  ALL UPPER CASE WORDS PRONOUNCED ONE LETTER AT A TIME,
-//    EXCEPT SPECIAL ACRONYMS  */
+//// ALL UPPER CASE WORDS PRONOUNCED ONE LETTER AT A TIME,
+//    EXCEPT SPECIAL ACRONYMS
 //
 //if (!(pronunciation = is_special_acronym(word))) {
 //pronunciation = numberParser_.degenerateString(word)
 //}
 //
 //dictionary = TtsLetterToSound
-//} else { /*  ALL OTHER WORDS ARE LOOKED UP IN DICTIONARIES, AFTER CONVERTING TO LOWER CASE  */
+//} else { // ALL OTHER WORDS ARE LOOKED UP IN DICTIONARIES, AFTER CONVERTING TO LOWER CASE
 //pronunciation = lookup_word((const char *)to_lower_case(word), &dictionary)
 //}
 //
-///*  ADD FOOT BEGIN MARKER TO FRONT OF WORD IF IT HAS NO PRIMARY STRESS AND IT IS
-//    TO RECEIVE A TONIC  IF ONLY A SECONDARY STRESS MARKER, CONVERT TO PRIMARY  */
+//// ADD FOOT BEGIN MARKER TO FRONT OF WORD IF IT HAS NO PRIMARY STRESS AND IT IS
+//    TO RECEIVE A TONIC  IF ONLY A SECONDARY STRESS MARKER, CONVERT TO PRIMARY
 //last_foot_begin = UndefinedPosition
 //if (is_tonic && !HasPrimaryStress(pronunciation)) {
 //if (!converted_stress((char *)pronunciation)) {
@@ -2526,10 +2541,10 @@ func (tp *TextParser) ExpandWord(word string, isTonic int, w *bufio.Writer) {
 //}
 //}
 //
-///*  PRINT PRONUNCIATION TO STREAM, UP TO WORD TYPE MARKER (%)  */
-///*  KEEP TRACK OF LAST PHONEME  */
+//// PRINT PRONUNCIATION TO STREAM, UP TO WORD TYPE MARKER (%)
+//// KEEP TRACK OF LAST PHONEME
 //ptr = pronunciation
-//last_phoneme[0] = '\0'
+//last_phoneme[0] = rune('\x00')
 //last_phoneme_ptr = last_phoneme
 //while (*ptr && (*ptr != '%')) {
 //switch(*ptr) {
@@ -2537,38 +2552,38 @@ func (tp *TextParser) ExpandWord(word string, isTonic int, w *bufio.Writer) {
 //case '`':
 //stream << FootBegin
 //last_foot_begin = static_cast<long>(stream.tellp()) - 2
-//last_phoneme[0] = '\0'
+//last_phoneme[0] = rune('\x00')
 //last_phoneme_ptr = last_phoneme
 //break
 //case '"':
 //stream << SecondaryStress
-//last_phoneme[0] = '\0'
+//last_phoneme[0] = rune('\x00')
 //last_phoneme_ptr = last_phoneme
 //break
 //case '_':
 //case '.':
 //stream << *ptr
-//last_phoneme[0] = '\0'
+//last_phoneme[0] = rune('\x00')
 //last_phoneme_ptr = last_phoneme
 //break
 //case ' ':
-///*  SUPPRESS UNNECESSARY BLANKS  */
+//// SUPPRESS UNNECESSARY BLANKS
 //if (*(ptr+1) && (*(ptr+1) != ' ')) {
 //stream << *ptr
-//last_phoneme[0] = '\0'
+//last_phoneme[0] = rune('\x00')
 //last_phoneme_ptr = last_phoneme
 //}
 //break
 //default:
 //stream << *ptr
 //*last_phoneme_ptr++ = *ptr
-//*last_phoneme_ptr = '\0'
+//*last_phoneme_ptr = rune('\x00')
 //break
 //}
 //ptr++
 //}
 //
-///*  ADD APPROPRIATE ENDING TO PRONUNCIATION IF POSSESSIVE  */
+//// ADD APPROPRIATE ENDING TO PRONUNCIATION IF POSSESSIVE
 //if (possessive) {
 //if (!strcmp(last_phoneme,"p") || !strcmp(last_phoneme,"t") ||
 //!strcmp(last_phoneme,"k") || !strcmp(last_phoneme,"f") ||
@@ -2583,10 +2598,10 @@ func (tp *TextParser) ExpandWord(word string, isTonic int, w *bufio.Writer) {
 //}
 //}
 //
-///*  ADD SPACE AFTER WORD  */
+//// ADD SPACE AFTER WORD
 //stream << ' '
 //
-///*  IF TONIC, CONVERT LAST FOOT MARKER TO TONIC MARKER  */
+//// IF TONIC, CONVERT LAST FOOT MARKER TO TONIC MARKER
 //if (is_tonic && (last_foot_begin != UndefinedPosition)) {
 //long temporaryPosition = static_cast<long>(stream.tellp())
 //stream.seekp(last_foot_begin)
