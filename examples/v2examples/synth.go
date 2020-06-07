@@ -63,7 +63,9 @@ func NewSynth() *Synth {
 	vfp := "./voice_" + syn.Control.ModelConfig.Voice + ".json"
 	syn.Control.TrmConfig.Load("trm.json", vfp)
 
-	syn.TextParser = textparse.NewTextParser()
+	// todo: pass in config path and dictionary names
+	var fns = []string{"A", "B"}
+	syn.TextParser = textparse.NewTextParser("", fns)
 	syn.Text = "emergent"
 
 	syn.PhoneticParser = phoneticparse.NewPhoneticParser(syn.Control, "../../data/en/vowelTransitions")
@@ -109,7 +111,7 @@ func (syn *Synth) Synthesize() {
 		return
 	}
 
-	syn.Phonetic = syn.TextParser.ParseText(syn.Text)
+	syn.Phonetic = syn.TextParser.ParseText2(syn.Text)
 	fmt.Println(syn.Text, "phoneticaly is ", syn.Phonetic)
 	if syn.StructView != nil {
 		syn.StructView.UpdateField("Phonetic")

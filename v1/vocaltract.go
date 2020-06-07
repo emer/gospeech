@@ -43,13 +43,13 @@ package v1
 import (
 	"errors"
 	"fmt"
-	"github.com/emer/gospeech/trm"
 	"math"
 	"strings"
 
 	"github.com/emer/auditory/sound"
 	"github.com/emer/etable/etable"
 	"github.com/emer/etable/etensor"
+	"github.com/emer/gospeech/trm"
 	"github.com/go-audio/audio"
 	"github.com/goki/gi/gi"
 )
