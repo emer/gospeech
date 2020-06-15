@@ -144,9 +144,7 @@
 *
 ******************************************************************************/
 //
-//#include <stdlib.h>
-//#include <string.h>
-//
+
 //#include "en/text_parser/NumberParser.h"
 //#include "en/number_pronunciations.h"
 /*  #incude "number_pronunciations_english.h"  (use this for plain english)  */
@@ -1272,16 +1270,14 @@ type NumParser struct {
 //	return nullptr;
 //}
 
-/******************************************************************************
-*
-*	function:	degenerate_string
-*
-*	purpose:	Returns a pointer to a NULL terminated string which
-*                       contains a character-by-character pronunciation for
-*                       the NULL terminated character string pointed at by
-*                       the argument word.
-*
-******************************************************************************/
+// DegenerateString returns a string which contains a character-by-character pronunciation
+func (np *NumParser) DegenerateString(word []rune) []rune {
+	if word[0] == 't' {
+		return []rune("`t_ee ")
+	}
+	return []rune("word not found")
+}
+
 //const char*
 //NumberParser::degenerateString(const char* word)
 //{

@@ -66,7 +66,7 @@ func NewSynth() *Synth {
 	// todo: pass in config path and dictionary names
 	var fns = []string{"A", "B"}
 	syn.TextParser = textparse.NewTextParser("", fns)
-	syn.Text = "emergent"
+	syn.Text = "emergent, t he dog's, is home today. "
 
 	syn.PhoneticParser = phoneticparse.NewPhoneticParser(syn.Control, "../../data/en/vowelTransitions")
 	return syn
