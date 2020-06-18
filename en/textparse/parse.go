@@ -171,8 +171,6 @@ type TextParser struct {
 	table        map[string]string
 	NumParser    NumParser
 	Dictionaries []dictionary.DictionarySearch
-
-	//Escape    rune
 }
 
 // NewTextParser create a new TextParser. fns (filenames) are to possible dictionaries.
@@ -181,35 +179,25 @@ func NewTextParser(configPath string, fns []string) *TextParser {
 	tp := TextParser{}
 	tp.table = make(map[string]string)
 	tp.table["emergent"] = "/c // /0 # /w /l i./*m_er_r.j_uh_n_t # // /c"
-	return &tp // todo: remove when working
+	//return &tp // todo: remove when working
 
 	for _, fn := range fns {
-		path := configPath + "/" + fn
-		d := new(dictionary.DictionarySearch)
+		if strings.HasSuffix(configPath, "/") == false {
+			configPath += "/"
+		}
+		path := configPath + fn
+		d := dictionary.NewDictionarySearch()
 		tp.Dictionaries = append(tp.Dictionaries, *d)
 		d.Load(path)
 	}
-	//dictionaryOrder_[0] = TtsNumberParser
-	//dictionaryOrder_[1] = TtsDictionary1
-	//dictionaryOrder_[2] = TtsDictionary2
-	//dictionaryOrder_[3] = TtsDictionary3
-	//dictionaryOrder_[4] = TtsLetterToSound
-	//dictionaryOrder_[5] = TtsEmpty
 	return &tp
-}
-
-// Just does a lookup for bootstrapping - ToDo: port the code!
-// ParseText returns the pregenerated phonetic version of the string argument e.g. "emergent" returns "/c // /0 # /w /l i./*m_er_r.j_uh_n_t # // /c"
-func (tp *TextParser) ParseText(s string) string {
-	p := tp.table[s]
-	return p
 }
 
 // ParseText takes plain english input, and produces phonetic suitable for further processing in the TTS
 // system.  If a parse error occurs, a value of 0 or above is returned.  Usually this will point to the
 // position of the error in the input buffer, but in later stages of the parse only a 0 is returned since
 // positional information is lost.  If no parser error, then TtsParserSuccess is returned.
-func (tp *TextParser) ParseText2(rawtext string) string {
+func (tp *TextParser) Parse(rawtext string) string {
 	conditioned := ConditionInput(rawtext)
 
 	e, modedText := MarkModes(conditioned)
@@ -416,7 +404,9 @@ func StripPunctuation(buf []rune) (output []rune) {
 					status = Word
 					break
 				case '.':
-					if !ExpandAbbreviation(buf, i, buflen, &output) {
+					success := false
+					success, output = ExpandAbbreviation(buf, i, buflen)
+					if !success {
 						output = append(output, buf[i])
 						status = Punctuation
 					}
@@ -444,8 +434,8 @@ func StripPunctuation(buf []rune) (output []rune) {
 
 // GetState determines the current state and next state in buffer. A word or punctuation is put into word.
 // Raw mode contents are expanded and written to stream.
-func GetState(buf []rune, i *int, mode, nextMode, curState, nextState, rawModeFlag *int, instream []rune) (word []rune, stream []rune, success bool) {
-	stream = instream
+func GetState(buf []rune, i *int, mode, nextMode, curState, nextState, rawModeFlag *int, input []rune) (word []rune, output []rune, success bool) {
+	output = input
 	state := 0
 	var curMode int
 	stateBuf := []*int{curState, nextState}
@@ -598,9 +588,9 @@ func GetState(buf []rune, i *int, mode, nextMode, curState, nextState, rawModeFl
 			} else if curMode == RawMode && state == 0 {
 				// expand raw mode in current state only
 
-				success, stream = ExpandRawMode(buf, &j, len(buf), stream)
+				success, output = ExpandRawMode(buf, &j, len(buf), output)
 				if success != TtsParserSuccess {
-					return word, stream, TtsParserFailure
+					return word, output, TtsParserFailure
 				}
 				*rawModeFlag = TtsTrue
 				*i = j
@@ -608,7 +598,7 @@ func GetState(buf []rune, i *int, mode, nextMode, curState, nextState, rawModeFl
 			break
 		}
 		if state >= 2 {
-			return word, stream, TtsParserSuccess
+			return word, output, TtsParserSuccess
 		}
 	}
 
@@ -622,15 +612,15 @@ func GetState(buf []rune, i *int, mode, nextMode, curState, nextState, rawModeFl
 	} else {
 		*nextState = StateEnd
 	}
-	return word, stream, TtsParserSuccess
+	return word, output, TtsParserSuccess
 }
 
 // SetToneGroup sets the tone group marker according to the punctuation passed in as "word".
 // The marker is inserted in the
-func SetToneGroup(instream []rune, tgPos int, word string) (success bool, stream []rune) {
-	stream = instream
+func SetToneGroup(input []rune, tgPos int, word string) (success bool, output []rune) {
+	output = input
 	if tgPos == UndefinedPosition {
-		return TtsParserFailure, stream
+		return TtsParserFailure, output
 	}
 
 	var tg string // tonegroup
@@ -648,19 +638,19 @@ func SetToneGroup(instream []rune, tgPos int, word string) (success bool, stream
 	case ':':
 		tg = TgContinuation
 	default:
-		return TtsParserFailure, stream
+		return TtsParserFailure, output
 	}
 	for i := tgPos; i < len(tg)+tgPos; i++ {
-		stream[i] = rune(tg[i-tgPos])
+		output[i] = rune(tg[i-tgPos])
 	}
-	return TtsParserSuccess, stream
+	return TtsParserSuccess, output
 }
 
 // ConvertSilence converts numeric quantity in "buffer" to appropriate number of silence phones,
 // which are written onto the end of stream.  Rounding is performed.  Returns actual length of silence.
-func ConvertSilence(buf []rune, instream []rune) (silence float64, out []rune) {
-	out = instream
-	// convert buffer to double
+func ConvertSilence(buf []rune, input []rune) (silence float64, output []rune) {
+	output = input
+
 	str := string(buf)
 	silence, err := strconv.ParseFloat(str, 64)
 	if err != nil {
@@ -673,17 +663,17 @@ func ConvertSilence(buf []rune, instream []rune) (silence float64, out []rune) {
 	// find equivalent number of silence phones, performing rounding
 	phoneCount := int(math.Round(silence / SilencePhoneLength))
 
-	out = append(out, []rune(UtteranceBoundary)...)
-	out = append(out, ' ')
+	output = append(output, []rune(UtteranceBoundary)...)
+	output = append(output, ' ')
 
 	// write out silence phones to streams
 	for j := 0; j < phoneCount; j++ {
-		out = append(out, []rune(SilencePhone)...)
-		out = append(out, ' ')
+		output = append(output, []rune(SilencePhone)...)
+		output = append(output, ' ')
 	}
 
 	// return actual length of silence
-	return float64(phoneCount) * SilencePhoneLength, out
+	return float64(phoneCount) * SilencePhoneLength, output
 }
 
 // AnotherWordFollows returns 1 if another word follows in buffer, after position i.  Else, 0 is returned
@@ -729,8 +719,8 @@ func AnotherWordFollows(rs []rune, i, length, mode int) bool {
 // ShiftSilence  looks past punctuation to see if some silence occurs before the next word
 // (or raw mode contents), and shifts the silence to the current point on the stream.  The
 // the numeric quantity is converted to equivalent silence phones, and true is returned.
-func ShiftSilence(buf []rune, i, length, mode int, instream []rune) (shift bool, out []rune) {
-	out = instream
+func ShiftSilence(buf []rune, i, length, mode int, input []rune) (shift bool, output []rune) {
+	output = input
 	word := make([]rune, WordLengthMax+1)
 
 	for j := i + 1; j < length; j++ {
@@ -766,11 +756,11 @@ func ShiftSilence(buf []rune, i, length, mode int, instream []rune) (shift bool,
 				}
 				// word here, so return without shifting
 				if !IsPunctuation(buf[j]) {
-					return false, out
+					return false, output
 				}
 			} else if mode == RawMode {
 				// assume raw mode contains word of some sort
-				return false, out
+				return false, output
 			} else if mode == SilenceMode {
 				// collect silence digits into word buffer
 				k := 0
@@ -782,50 +772,49 @@ func ShiftSilence(buf []rune, i, length, mode int, instream []rune) (shift bool,
 					k++
 					j++
 				}
-				k-- // todo: do we want this here?
+				k--
 				// convert word to silence phones, appending to stream
-				_, out = ConvertSilence(word, out)
+				_, output = ConvertSilence(word, output)
 				// return, indicating silence shifted backwards
-				return true, out
+				return true, output
 			}
 			break
 		}
 	}
-
 	// silence not shifted
-	return false, out
+	return false, output
 }
 
 // InsertTag inserts the tag contained in word onto the stream at the insert point.
-func InsertTag(instream []rune, insertPt int, word []rune) (rs []rune) {
-	rs = instream
+func InsertTag(input []rune, insertPt int, word []rune) (output []rune) {
+	output = input
 	if insertPt == UndefinedPosition {
 		return
 	}
 
 	// find position of end of stream
-	endPt := len(rs)
+	endPt := len(output)
 
 	// calculate how many characters to shift
 	length := endPt - insertPt
 
 	if length == 0 {
 		s := TagBegin + " " + string(word)
-		rs = append(rs, []rune(s)...)
+		output = append(output, []rune(s)...)
 	} else {
-		temp0 := rs[:insertPt]
-		temp1 := rs[insertPt:]
+		temp0 := output[:insertPt]
+		temp1 := output[insertPt:]
 		s := TagBegin + " " + string(word) + " "
-		rs = append(temp0, []rune(s)...)
-		rs = append(rs, temp1...)
+		output = append(temp0, []rune(s)...)
+		output = append(output, temp1...)
 	}
-	return rs
+	return output
 }
 
 // Todo: What's up with passing token without
 // ExpandRawMode writes raw mode contents to stream, checking phones and marker
-func ExpandRawMode(rs []rune, j *int, length int, instream []rune) (success bool, stream []rune) {
-	stream = instream
+func ExpandRawMode(buf []rune, j *int, length int, input []rune) (success bool, output []rune) {
+	output = input
 	superRawMode := false
 	delimiter := TtsFalse
 	blank := TtsTrue
@@ -835,14 +824,14 @@ func ExpandRawMode(rs []rune, j *int, length int, instream []rune) (success bool
 	k := 0
 	tokens[k] = rune('\x00')
 
-	for ; *j < length && rs[*j] != RawModeEnd; (*j)++ {
-		stream = append(stream, rs[*j])
+	for ; *j < length && buf[*j] != RawModeEnd; (*j)++ {
+		output = append(output, buf[*j])
 
 		// check if entering or exiting super raw mode
-		if rs[*j] == '%' {
+		if buf[*j] == '%' {
 			if !superRawMode {
 				if IllegalToken(tokens) {
-					return TtsParserFailure, stream
+					return TtsParserFailure, output
 				}
 				superRawMode = true
 				k = 0
@@ -859,28 +848,29 @@ func ExpandRawMode(rs []rune, j *int, length int, instream []rune) (success bool
 		}
 		// examine slash codes, delimiters, and phones in regular raw mode
 		if !superRawMode {
-			switch rs[*j] {
+			switch buf[*j] {
 			case '/':
 				// slash code
 				// evaluate pending token
 				if IllegalToken(tokens) {
-					return TtsParserFailure, stream
+					return TtsParserFailure, output
 				}
 				// put slash code into token rs
 				tokens[0] = '/'
 				*j--
-				if *j < length && rs[*j] != RawModeEnd {
-					stream = append(stream, rs[*j])
-					tokens[1] = rs[*j]
+				if *j < length && buf[*j] != RawModeEnd {
+					output = append(output, buf[*j])
+					tokens[1] = buf[*j]
 					tokens[2] = rune('\x00')
 					// check legality of slash code
 					if IllegalSlashCode(string(tokens)) {
-						return TtsParserFailure, stream
+						return TtsParserFailure, output
 					}
 					// check any tag and tag number
 					if string(tokens) == TagBegin {
-						if ExpandTagNumber(rs, j, length, stream) == TtsParserFailure {
-							return TtsParserFailure, stream
+						success, output = ExpandTagNumber(buf, j, length)
+						if success == TtsParserFailure {
+							return TtsParserFailure, output
 						}
 					}
 					// reset flags
@@ -889,7 +879,7 @@ func ExpandRawMode(rs []rune, j *int, length int, instream []rune) (success bool
 					blank = TtsFalse
 					delimiter = TtsFalse
 				} else {
-					return TtsParserFailure, stream
+					return TtsParserFailure, output
 				}
 			case '_':
 				fallthrough
@@ -897,13 +887,13 @@ func ExpandRawMode(rs []rune, j *int, length int, instream []rune) (success bool
 				// syllable delimiters
 				// don't allow repeated delimiters, or delimiters after blank
 				if delimiter > 0 || blank > 0 {
-					return TtsParserFailure, stream
+					return TtsParserFailure, output
 				}
 				delimiter++
 				blank = TtsFalse
 				// evaluate pending token
 				if IllegalToken(tokens) {
-					return TtsParserFailure, stream
+					return TtsParserFailure, output
 				}
 				// reset flags
 				k = 0
@@ -912,14 +902,14 @@ func ExpandRawMode(rs []rune, j *int, length int, instream []rune) (success bool
 				// word delimiter
 				// don't allow syllable delimiter before blank
 				if delimiter > 0 {
-					return TtsParserFailure, stream
+					return TtsParserFailure, output
 				}
 				// set flags
 				blank++
 				delimiter = TtsFalse
 				// evaluate pending token
 				if IllegalToken(tokens) {
-					return TtsParserFailure, stream
+					return TtsParserFailure, output
 				}
 				// reset flags
 				k = 0
@@ -931,11 +921,11 @@ func ExpandRawMode(rs []rune, j *int, length int, instream []rune) (success bool
 				delimiter = TtsFalse
 				// accumulate phone symbol in token rs
 				k++
-				tokens[k] = rs[*j]
+				tokens[k] = buf[*j]
 				if k <= SymbolLengthMax {
 					tokens[k] = rune('\x00')
 				} else {
-					return TtsParserFailure, stream
+					return TtsParserFailure, output
 				}
 				break
 			}
@@ -944,19 +934,19 @@ func ExpandRawMode(rs []rune, j *int, length int, instream []rune) (success bool
 
 	// check any remaining tokens
 	if IllegalToken(tokens) {
-		return TtsParserFailure, stream
+		return TtsParserFailure, output
 	}
 	// cannot end with a delimiter
 	if delimiter > 0 {
-		return TtsParserFailure, stream
+		return TtsParserFailure, output
 	}
 
 	// pad with space, reset external counter
-	stream = append(stream, ' ')
+	output = append(output, ' ')
 	(*j)--
 
 	// return success
-	return TtsParserSuccess, stream
+	return TtsParserSuccess, output
 }
 
 // IllegalToken returns 1 if token is not a valid DEGAS phone, otherwise 0.
@@ -988,11 +978,12 @@ func IllegalSlashCode(code string) bool {
 
 // ExpandTagNumber expand tag number in buffer at position j and write to stream.
 // Perform error checking, returning error code if format of tag number is illegal.
-func ExpandTagNumber(rs []rune, j *int, length int, stream []rune) bool {
-	return TtsParserSuccess
+func ExpandTagNumber(input []rune, j *int, length int) (success bool, output []rune) {
+	output = input
+	return TtsParserSuccess, output
 }
 
-//// SKIP WHITE
+// SKIP WHITE
 //while ((((*j)+1) < length) && (buffer[(*j)+1] == ' ')) {
 //(*j)++
 //stream << buffer[*j]
@@ -1204,7 +1195,8 @@ func WordFollows(rs []rune, i, length int) bool {
 // one list expands unconditionally, the other only if the abbreviation is followed by a  number.
 // The abbreviation p. is expanded to page. Single alphabetic characters have periods deleted, but
 // no expansion is made.  They are also capitalized. Returns 1 if expansion made (i.e. period is deleted),
-func ExpandAbbreviation(rs []rune, i, length int, expanded *[]rune) bool {
+func ExpandAbbreviation(input []rune, i, length int) (success bool, output []rune) {
+	output = input
 	//	var word [5]rune
 	//
 	//	// delete period after single character (except p.)
@@ -1276,15 +1268,16 @@ func ExpandAbbreviation(rs []rune, i, length int, expanded *[]rune) bool {
 	//}
 
 	// if here, then no expansion made
-	return false
+	return false, output
 }
 
 // ExpandLetterMode expands contents of letter mode string to word or words.  A comma is added after
 // each expansion, except the last letter when it is followed by punctuation.
 // cp is current position
-func ExpandLetterMode(rs []rune, cp *int, len int, status *int) (output []rune) {
-	for ; *cp < len && rs[*cp] != LetterModeEnd; *cp++ {
-		switch rs[*cp] {
+func ExpandLetterMode(input []rune, cp *int, len int, status *int) (output []rune) {
+	output = input
+	for ; *cp < len && input[*cp] != LetterModeEnd; *cp++ {
+		switch input[*cp] {
 		case ' ':
 			output = append(output, []rune("blank")...)
 		case '!':
@@ -1428,8 +1421,8 @@ func ExpandLetterMode(rs []rune, cp *int, len int, status *int) (output []rune) 
 		}
 		// append comma, unless punctuation follows last letter
 		if (((*cp) + 1) < len) &&
-			(rs[*cp+1] == LetterModeEnd) &&
-			!WordFollows(rs, *cp, len) {
+			(input[*cp+1] == LetterModeEnd) &&
+			!WordFollows(input, *cp, len) {
 			output = append(output, ' ')
 			*status = Word
 		} else {
@@ -1437,7 +1430,6 @@ func ExpandLetterMode(rs []rune, cp *int, len int, status *int) (output []rune) 
 			*status = Punctuation
 		}
 	}
-	// be sure to set index back one, so callcpng routine not fouled up
 	*cp--
 	return output
 }
@@ -1463,14 +1455,14 @@ func IsAcronym(word string) string {
 }
 
 // HasPrimaryStress returns 1 if the pronunciation contains ' (and ` for backwards compatibility)
-func HasPrimaryStress(str []rune) bool {
-	if len(str) > 0 {
-		if str[0] == '%' {
+func HasPrimaryStress(rs []rune) bool {
+	if len(rs) > 0 {
+		if rs[0] == '%' {
 			return false
 		}
 	}
-	for i := 0; i < len(str); i++ {
-		if str[i] == '\'' || str[i] == '`' {
+	for i := 0; i < len(rs); i++ {
+		if rs[i] == '\'' || rs[i] == '`' {
 			return true
 		}
 	}
@@ -1478,15 +1470,15 @@ func HasPrimaryStress(str []rune) bool {
 }
 
 // ConvertSecondaryStress returns 1 if the pronunciation contains " (and ` for backwards compatibility)
-func ConvertSecondaryStress(str []rune) bool {
-	if len(str) > 0 {
-		if str[0] == '%' {
+func ConvertSecondaryStress(rs []rune) bool {
+	if len(rs) > 0 {
+		if rs[0] == '%' {
 			return false
 		}
 	}
-	for i := 0; i < len(str); i++ {
-		if str[i] == '"' {
-			str[i] = '\''
+	for i := 0; i < len(rs); i++ {
+		if rs[i] == '"' {
+			rs[i] = '\''
 			return true
 		}
 	}
@@ -1603,6 +1595,7 @@ func ConvertSecondaryStress(str []rune) bool {
 //// BE SURE TO RESET LENGTH OF STREAM
 //*stream_length = static_cast<long>(stream.tellg())
 //}
+
 //
 ///******************************************************************************
 // *
@@ -1613,142 +1606,58 @@ func ConvertSecondaryStress(str []rune) bool {
 //passed in as an argument.
 // *
 // ******************************************************************************/
-//void
-//insert_chunk_marker(std::stringstream& stream, long insertPt, char tg_type)
-//{
-//char c
-//std::stringstream temp_stream
 //
-//// COPY STREAM FROM INSERT POINT TO END TO BUFFER TO ANOTHER STREAM
-//stream.seekg(insertPt)
-//while (stream.get(c) && c != rune('\x00')) {
-//temp_stream << c
-//}
-//temp_stream << rune('\x00')
 //
-//// PUT IN MARKERS AT INSERT POINT
-//stream.seekp(insertPt)
-//stream << ToneGroupBoundary << ' ' << ChunkBoundary << ' '
-//<< ToneGroupBoundary << " /" << tg_type << ' '
-//long new_position = static_cast<long>(stream.tellp()) - 9 //TODO: check
-//
-//// APPEND CONTENTS OF TEMPORARY STREAM
-//temp_stream.seekg(0)
-//while (temp_stream.get(c) && c != rune('\x00')) {
-//stream << c
-//}
-//stream << rune('\x00')
-//
-//// POSITION THE STREAM AT THE NEW /c MARKER
-//stream.seekp(new_position)
-//}
-//
-///******************************************************************************
-// *
-// *       function:       check_tonic
-// *
-// *       purpose:        Checks to see if a tonic marker is present in the
-//stream between the start and end positions.  If no
-//tonic is present, then put one in at the last foot
-//marker if it exists.
-// *
-// ******************************************************************************/
-//void
-//check_tonic(std::stringstream& stream, long start_pos, long end_pos)
-//{
-//long i, last_foot_pos = UndefinedPosition
-//
-//// REMEMBER CURRENT POSITION IN STREAM
-//long temp_pos = static_cast<long>(stream.tellp())
-//
-//// CALCULATE EXTENT OF STREAM TO LOOP THROUGH
-//long extent = end_pos - start_pos
-//
-//// REWIND STREAM TO START POSITION
-//stream.seekg(start_pos)
-//
-//// LOOP THROUGH STREAM, DETERMINING LAST FOOT POSITION, AND PRESENCE OF TONIC
-//char c
-//for (i = 0 i < extent i++) {
-//if (stream.get(c) && c == '/' && ++i < extent) {
-//if (!stream.get(c)) {
-//THROW_EXCEPTION(GS::EndOfBufferException, "Could not get a character from the stream.")
-//}
-//switch (c) {
-//case '_':
-//last_foot_pos = static_cast<long>(stream.tellg()) - 1
-//break
-//case '*':
-//// GO TO ORIGINAL POSITION ON STREAM, AND return TtsParserFailure, iMMEDIATELY
-////NXSeek(stream, temp_pos, NX_FROMSTART)
-//return
-//}
-//}
-//}
-//
-//// IF HERE, NO TONIC, SO INSERT TONIC MARKER
-//if (last_foot_pos != UndefinedPosition) {
-//stream.seekp(last_foot_pos)
-//stream << '*'
-//}
-//
-//// GO TO ORIGINAL POSITION ON STREAM
-//stream.seekp(temp_pos)
-//}
-//
-//} /* namespace */
+// InsertChunkMarker inserts chunk markers and associated markers in the stream at the insert point.
+// Use the tone group type passed in as an argument.
+func InsertChunkMarker(input []rune, insertPos int, tgType []rune) (output []rune) {
+	temp := input
 
-//TextParser::TextParser(const char* configDirPath,
-//const std::string& dictionary1Path,
-//const std::string& dictionary2Path,
-//const std::string& dictionary3Path)
-//: escape_character_(DefaultEscapeCharacter)
-//{
-//if (dictionary1Path != "none") {
-//dict1_.reset(new DictionarySearch)
-//std::ostringstream filePath
-//filePath << configDirPath << '/' << dictionary1Path
-//dict1_->load(filePath.str().c_str())
-//}
-//if (dictionary2Path != "none") {
-//dict2_.reset(new DictionarySearch)
-//std::ostringstream filePath
-//filePath << configDirPath << '/' << dictionary2Path
-//dict2_->load(filePath.str().c_str())
-//}
-//if (dictionary3Path != "none") {
-//dict3_.reset(new DictionarySearch)
-//std::ostringstream filePath
-//filePath << configDirPath << '/' << dictionary3Path
-//dict3_->load(filePath.str().c_str())
-//}
-//
-//dictionaryOrder_[0] = TtsNumberParser
-//dictionaryOrder_[1] = TtsDictionary1
-//dictionaryOrder_[2] = TtsDictionary2
-//dictionaryOrder_[3] = TtsDictionary3
-//dictionaryOrder_[4] = TtsLetterToSound
-//dictionaryOrder_[5] = TtsEmpty
-//}
-//
-//TextParser::~TextParser()
-//{
-//}
-//
-///******************************************************************************
-// *
-// *       function:       init_parser_module
-// *
-// *       purpose:        Sets up parser module for subsequent use.  This must
-//be called before parser() is ever used.
-// *
-// ******************************************************************************/
-//void
-//TextParser::init_parser_module()
-//{
-//auxStream_.str("")
-//}
-//
+	insert := make([]rune, 0)
+	insert = append(insert, []rune(ToneGroupBoundary)...)
+	insert = append(insert, ' ')
+	insert = append(insert, []rune(ChunkBoundary)...)
+	insert = append(insert, ' ')
+	insert = append(insert, []rune(ToneGroupBoundary)...)
+	insert = append(insert, []rune(" /")...)
+	insert = append(insert, tgType...)
+	insert = append(insert, ' ')
+
+	output = InsertRunes(temp, insert, insertPos)
+
+	//long new_position = static_cast<long>(stream.tellp()) - 9 //TODO: check
+	//stream.seekp(new_position)
+
+	return output
+}
+
+// CheckTonic Checks to see if a tonic marker is present in the stream between the start and end positions.
+// If no tonic is present, then put one in at the last foot marker if it exists.
+func CheckTonic(input []rune, startPos int, endPos int) (output []rune) {
+	lastFootPos := UndefinedPosition
+	//long temp_pos = static_cast<long>(stream.tellp());
+
+	//  loop through stream, determining last foot position, and presence of tonic
+	for i := startPos; i < (len(input)-startPos)-1; i++ {
+		if input[i] == '/' {
+		}
+		switch input[i+1] {
+		case '_':
+			// Todo: maintain position
+			//lastFootPos = curPos -1
+			break
+		case '*':
+			return
+		}
+	}
+
+	if lastFootPos != UndefinedPosition {
+		output = InsertRunes(input, []rune("*"), lastFootPos)
+	}
+
+	return output
+}
+
 ///******************************************************************************
 // *
 // *       function:       set_escape_code
@@ -1771,80 +1680,37 @@ func ConvertSecondaryStress(str []rune) bool {
 // Relies on the global dictionaryOrder.
 // Todo: decide on struct/object members
 // LookupWord
-func (tp *TextParser) LookupWord(word string) (pron string, dict int) {
-	if word == "emergent" {
-		return "i.'m_er_r.j_uh_n_t%ca", 3
-	} else if word == "he" {
-		return "'h_i%eac", 3
-	} else if word == "dog" {
-		return "'d_o_g%ab", 3
-	} else if word == "is" {
-		return "i_z%ba", 3
-	} else if word == "home" {
-		return "'h_uh_uu_m%acdb", 3
-	} else if word == "today" {
-		return "t_uh.'d_e_i%a", 3
-	} else {
-
+func (tp *TextParser) LookupWord(word string) (pron string) {
+	p := tp.NumParser.ParseNum(word, Normal)
+	if len(p) > 0 {
+		return p
 	}
+
 	// search dictionaries in user order till pronunciation found
-	for i := 0; i < len(tp.Dictionaries); i++ {
-		//switch DictionaryOrder[i] {
-		//case TtsEmpty:
-		//	break
-		//case TtsNumberParser:
-		//	//ToDo: Implement
-		//		//const char *pron = NumberParser.arseNumber(word, NumberParser::NORMAL)
-		//		//if pron != nullptr {
-		//		//	*dict = TtsNumberParser
-		//		//	return pron
-		//		//}
-		////case TtsDictionary1:_
-		////	if dict1 {
-		//		entry := dict1_.GetEntry(word)
-		//		if entry != nullptr {
-		//			dict = TtsDictionary1
-		//			return entry, dict
-		//		}
-		//	//}
-		//case TtsDictionary2:
-		//	if dict2_ {
-		//		const char *entry = dict2_- > getEntry(word)
-		//		if entry != nullptr {
-		//			*dict = TtsDictionary2
-		//			return entry
-		//		}
-		//	}
-		//case TtsDictionary3:
-		//	if dict3_ {
-		//		const char *entry = dict3_- > getEntry(word)
-		//		if entry != nullptr {
-		//			*dict = TtsDictionary3
-		//			return entry
-		//		}
-		//	}
-		//	default:
-		//		break
-		//	}
+	for _, dict := range tp.Dictionaries {
+		entry := dict.GetEntry(word)
+		if len(entry) > 0 {
+			return entry
+		}
 	}
 
 	// Todo: implement LetterToSound
 	// if here, then find word in letter-to-sound rulebase
 	// this is guaranteed to find a pronunciation of some sort
-	//LetterToSound(word, pronunciation_)
-	//if !pronunciation_.empty() {
+	// LetterToSound(word, pronunciation_)
+	// if !pronunciation_.empty() {
 	//	*dict = TtsLetterToSound
 	//	return &pronunciation_[0]
 	//} else {
 	//	*dict = TtsLetterToSound
 	//	return numberParser_.degenerateString(word)
 	//}
-	return "", -1
+	return ""
 }
 
 // ConditionInput converts all non-printable characters (except escape)
 // character to blanks.  Also connects words hyphenated over a newline.
-func ConditionInput(input string) (buf []rune) {
+func ConditionInput(input string) (output []rune) {
 	j := 0
 	length := len(input)
 	for i := 0; i < length; i++ {
@@ -1871,22 +1737,22 @@ func ConditionInput(input string) (buf []rune) {
 					}
 				}
 			} else { // output hyphen
-				buf[j] = rune(input[i])
+				output[j] = rune(input[i])
 				j++
 			}
 		} else if unicode.IsLetter(rune(input[i])) && !unicode.IsPrint(rune(input[i])) && rune(input[i]) != Escape {
-			buf[j] = ' '
+			output[j] = ' '
 		} else {
-			if j == len(buf) {
-				buf = append(buf, rune(input[i]))
+			if j == len(output) {
+				output = append(output, rune(input[i]))
 			} else {
-				buf[j] = rune(input[i])
+				output[j] = rune(input[i])
 			}
 			j++
 		}
 	}
 	//buf = append(buf, rune('\x00'))
-	return buf
+	return output
 }
 
 // MarkModes parses input for modes, checking for errors, and marks output with mode start and end points.
@@ -2114,7 +1980,7 @@ func MarkModes(input []rune) (success bool, output []rune) {
 
 // FinalConversion converts contents of stream1 to stream2.  Adds chunk, tone group, and associated markers
 // expands words to pronunciations, and also expands other modes.
-func (tp *TextParser) FinalConversion(s1 []rune) (success bool, s2 []rune) {
+func (tp *TextParser) FinalConversion(input []rune) (success bool, output []rune) {
 	lastWordEnd := UndefinedPosition
 	tgMarkerPos := UndefinedPosition
 	mode := NormalMode
@@ -2125,8 +1991,8 @@ func (tp *TextParser) FinalConversion(s1 []rune) (success bool, s2 []rune) {
 	var curState int
 	var nextState int
 
-	for i := 0; i < len(s1); i++ {
-		switch s1[i] {
+	for i := 0; i < len(input); i++ {
+		switch input[i] {
 		case RawModeBegin:
 			mode = RawMode
 		case LetterModeBegin:
@@ -2150,43 +2016,43 @@ func (tp *TextParser) FinalConversion(s1 []rune) (success bool, s2 []rune) {
 		default:
 			var word []rune
 			var r bool
-			word, s2, r = GetState(s1, &i, &mode, &nextMode, &curState, &nextState, &rawModeFlag, s2)
+			word, output, r = GetState(input, &i, &mode, &nextMode, &curState, &nextState, &rawModeFlag, output)
 			fmt.Printf("last_written_state = %d current_state = %d next_state = %d ",
 				lastWrittenState, curState, nextState)
 			fmt.Printf("mode = %d next_mode = %d word = %s\n",
 				mode, nextMode, string(word))
 
 			if r != TtsParserSuccess {
-				return TtsParserFailure, s2
+				return TtsParserFailure, output
 			}
 			switch curState {
 			case StateWord:
 				switch lastWrittenState {
 				case StateBegin:
-					s2 = append(s2, []rune(ChunkBoundary)...)
-					s2 = append(s2, ' ')
+					output = append(output, []rune(ChunkBoundary)...)
+					output = append(output, ' ')
 					fallthrough
 				case StateFinalPunc:
-					s2 = append(s2, []rune(ToneGroupBoundary)...)
-					s2 = append(s2, ' ')
+					output = append(output, []rune(ToneGroupBoundary)...)
+					output = append(output, ' ')
 					priorTonic = TtsFalse
 					fallthrough
 				case StateMedialPunc:
-					str := string(s2)
-					s2 = append(s2, []rune(TgUndefined)...)
-					s2 = append(s2, ' ')
-					tgMarkerPos = len(s2) - 3 // hmmm, not sure about this
-					str = string(s2)
+					str := string(output)
+					output = append(output, []rune(TgUndefined)...)
+					output = append(output, ' ')
+					tgMarkerPos = len(output) - 3 // hmmm, not sure about this
+					str = string(output)
 					fmt.Println(str)
 					fallthrough
 				case StateSilence:
-					s2 = append(s2, []rune(UtteranceBoundary)...)
-					s2 = append(s2, ' ')
+					output = append(output, []rune(UtteranceBoundary)...)
+					output = append(output, ' ')
 				}
 				if mode == NormalMode {
 					// put in word marker
-					s2 = append(s2, []rune(WordBegin)...)
-					s2 = append(s2, ' ') // add last word marker and tonicization if necessary
+					output = append(output, []rune(WordBegin)...)
+					output = append(output, ' ') // add last word marker and tonicization if necessary
 					switch nextState {
 					case StateMedialPunc:
 						fallthrough
@@ -2194,47 +2060,47 @@ func (tp *TextParser) FinalConversion(s1 []rune) (success bool, s2 []rune) {
 						fallthrough
 					case StateEnd:
 						// put in last word marker
-						s2 = append(s2, []rune(LastWord)...)
-						s2 = append(s2, ' ') // write word to stream with tonic if no prior tonicization
-						s2 = tp.ExpandWord(string(word), !(priorTonic == 1), s2)
-						fmt.Println(string(s2))
+						output = append(output, []rune(LastWord)...)
+						output = append(output, ' ') // write word to stream with tonic if no prior tonicization
+						output = tp.ExpandWord(string(word), !(priorTonic == 1), output)
+						fmt.Println(string(output))
 					default:
 						// write word to stream without tonic
-						s2 = tp.ExpandWord(string(word), false, s2)
+						output = tp.ExpandWord(string(word), false, output)
 					}
 				} else if mode == EmphasisMode {
 					// start new tone group if prior tonic already set
 					if priorTonic == TtsTrue {
 
-						success, s2 = SetToneGroup(s2, tgMarkerPos, ",")
+						success, output = SetToneGroup(output, tgMarkerPos, ",")
 						if success == TtsParserFailure {
-							return TtsParserFailure, s2
+							return TtsParserFailure, output
 						}
-						s2 = append(s2, []rune(ToneGroupBoundary)...)
-						s2 = append(s2, ' ')
-						s2 = append(s2, []rune(TgUndefined)...)
-						s2 = append(s2, ' ')
-						tgMarkerPos = len(s2) - 3
+						output = append(output, []rune(ToneGroupBoundary)...)
+						output = append(output, ' ')
+						output = append(output, []rune(TgUndefined)...)
+						output = append(output, ' ')
+						tgMarkerPos = len(output) - 3
 					}
 					// put in word marker
-					s2 = append(s2, []rune(WordBegin)...)
-					s2 = append(s2, ' ')
+					output = append(output, []rune(WordBegin)...)
+					output = append(output, ' ')
 					// mark last word of tone group, if necessary
 					if nextState == StateMedialPunc ||
 						nextState == StateFinalPunc ||
 						nextState == StateEnd ||
 						(nextState == StateWord && nextMode == EmphasisMode) {
-						s2 = append(s2, []rune(LastWord)...)
-						s2 = append(s2, ' ') // write word to stream with tonic if no prior tonicization
+						output = append(output, []rune(LastWord)...)
+						output = append(output, ' ') // write word to stream with tonic if no prior tonicization
 					}
 					// tonicize word
-					s2 = tp.ExpandWord(string(word), true, s2)
+					output = tp.ExpandWord(string(word), true, output)
 					priorTonic = TtsTrue
 				}
 
 				// set last written state, and end position after the word
 				lastWrittenState = StateWord
-				lastWordEnd = len(s2)
+				lastWordEnd = len(output)
 				break
 
 			case StateMedialPunc:
@@ -2242,35 +2108,35 @@ func (tp *TextParser) FinalConversion(s1 []rune) (success bool, s2 []rune) {
 				switch lastWrittenState {
 				case StateWord:
 					shift := false
-					shift, s2 = ShiftSilence(s1, i, len(s1), mode, s2)
+					shift, output = ShiftSilence(input, i, len(input), mode, output)
 					if shift {
-						lastWordEnd = len(s2)
+						lastWordEnd = len(output)
 					} else if (nextState != StateEnd) &&
-						AnotherWordFollows(s1, i, len(s1), mode) {
+						AnotherWordFollows(input, i, len(input), mode) {
 						fmt.Println(string(word))
 						if string(word) == "," {
-							s2 = append(s2, []rune(UtteranceBoundary)...)
-							s2 = append(s2, ' ')
-							s2 = append(s2, []rune(MedialPause)...)
-							s2 = append(s2, ' ')
+							output = append(output, []rune(UtteranceBoundary)...)
+							output = append(output, ' ')
+							output = append(output, []rune(MedialPause)...)
+							output = append(output, ' ')
 						} else {
-							s2 = append(s2, []rune(UtteranceBoundary)...)
-							s2 = append(s2, ' ')
-							s2 = append(s2, []rune(LongMedialPause)...)
-							s2 = append(s2, ' ')
+							output = append(output, []rune(UtteranceBoundary)...)
+							output = append(output, ' ')
+							output = append(output, []rune(LongMedialPause)...)
+							output = append(output, ' ')
 						}
 					} else if nextState == StateEnd {
-						s2 = append(s2, []rune(UtteranceBoundary)...)
-						s2 = append(s2, ' ')
+						output = append(output, []rune(UtteranceBoundary)...)
+						output = append(output, ' ')
 					}
 					fallthrough
 				case StateSilence:
-					s2 = append(s2, []rune(ToneGroupBoundary)...)
-					s2 = append(s2, ' ')
+					output = append(output, []rune(ToneGroupBoundary)...)
+					output = append(output, ' ')
 					priorTonic = TtsFalse
-					success, s2 = SetToneGroup(s2, tgMarkerPos, string(word))
+					success, output = SetToneGroup(output, tgMarkerPos, string(word))
 					if success == TtsParserFailure {
-						return TtsParserFailure, s2
+						return TtsParserFailure, output
 					}
 					tgMarkerPos = UndefinedPosition
 					lastWrittenState = StateMedialPunc
@@ -2280,41 +2146,41 @@ func (tp *TextParser) FinalConversion(s1 []rune) (success bool, s2 []rune) {
 			case StateFinalPunc:
 				if lastWrittenState == StateWord {
 					shift := false
-					shift, s2 = ShiftSilence(s1, i, len(s1), mode, s2)
+					shift, output = ShiftSilence(input, i, len(input), mode, output)
 					if shift {
-						lastWordEnd = len(s2)
-						s2 = append(s2, []rune(ToneGroupBoundary)...)
-						s2 = append(s2, ' ')
+						lastWordEnd = len(output)
+						output = append(output, []rune(ToneGroupBoundary)...)
+						output = append(output, ' ')
 						priorTonic = TtsFalse
-						success, s2 = SetToneGroup(s2, tgMarkerPos, string(word))
+						success, output = SetToneGroup(output, tgMarkerPos, string(word))
 						if success == TtsParserFailure {
-							return TtsParserFailure, s2
+							return TtsParserFailure, output
 						}
 						tgMarkerPos = UndefinedPosition
 						// if silence inserted, then convert final punctuation to medial
 						lastWrittenState = StateMedialPunc
 					} else {
-						s2 = append(s2, []rune(UtteranceBoundary)...)
-						s2 = append(s2, ' ')
-						s2 = append(s2, []rune(ToneGroupBoundary)...)
-						s2 = append(s2, ' ')
-						s2 = append(s2, []rune(ChunkBoundary)...)
-						s2 = append(s2, ' ')
+						output = append(output, []rune(UtteranceBoundary)...)
+						output = append(output, ' ')
+						output = append(output, []rune(ToneGroupBoundary)...)
+						output = append(output, ' ')
+						output = append(output, []rune(ChunkBoundary)...)
+						output = append(output, ' ')
 						priorTonic = TtsFalse
-						success, s2 = SetToneGroup(s2, tgMarkerPos, string(word))
+						success, output = SetToneGroup(output, tgMarkerPos, string(word))
 						if success == TtsParserFailure {
-							return TtsParserFailure, s2
+							return TtsParserFailure, output
 						}
 						tgMarkerPos = UndefinedPosition
 						lastWrittenState = StateFinalPunc
 					}
 				} else if lastWrittenState == StateSilence {
-					s2 = append(s2, []rune(ToneGroupBoundary)...)
-					s2 = append(s2, ' ')
+					output = append(output, []rune(ToneGroupBoundary)...)
+					output = append(output, ' ')
 					priorTonic = TtsFalse
-					success, s2 = SetToneGroup(s2, tgMarkerPos, string(word))
+					success, output = SetToneGroup(output, tgMarkerPos, string(word))
 					if success == TtsParserFailure {
-						return TtsParserFailure, s2
+						return TtsParserFailure, output
 					}
 					tgMarkerPos = UndefinedPosition
 					// IF SILENCE INSERTED, THEN CONVERT FINAL PUNCTUATION TO MEDIAL
@@ -2324,31 +2190,31 @@ func (tp *TextParser) FinalConversion(s1 []rune) (success bool, s2 []rune) {
 
 			case StateSilence:
 				if lastWrittenState == StateBegin {
-					s2 = append(s2, []rune(ChunkBoundary)...)
-					s2 = append(s2, ' ')
-					s2 = append(s2, []rune(ToneGroupBoundary)...)
-					s2 = append(s2, ' ')
-					s2 = append(s2, []rune(TgUndefined)...)
-					s2 = append(s2, ' ')
+					output = append(output, []rune(ChunkBoundary)...)
+					output = append(output, ' ')
+					output = append(output, []rune(ToneGroupBoundary)...)
+					output = append(output, ' ')
+					output = append(output, []rune(TgUndefined)...)
+					output = append(output, ' ')
 					priorTonic = TtsFalse
-					tgMarkerPos = len(s2) - 3
+					tgMarkerPos = len(output) - 3
 
 					cs := 0.0
-					cs, s2 = ConvertSilence(word, s2)
+					cs, output = ConvertSilence(word, output)
 					if cs <= 0.0 && nextState == StateEnd {
-						return TtsParserFailure, s2
+						return TtsParserFailure, output
 					}
 					lastWrittenState = StateSilence
-					lastWordEnd = len(s2)
+					lastWordEnd = len(output)
 				} else if lastWrittenState == StateWord {
-					_, s2 = ConvertSilence(word, s2)
+					_, output = ConvertSilence(word, output)
 					lastWrittenState = StateSilence
-					lastWordEnd = len(s2)
+					lastWordEnd = len(output)
 				}
 				break
 
 			case StateTagging:
-				InsertTag(s2, lastWordEnd, word)
+				InsertTag(output, lastWordEnd, word)
 				lastWordEnd = UndefinedPosition
 				break
 
@@ -2362,37 +2228,37 @@ func (tp *TextParser) FinalConversion(s1 []rune) (success bool, s2 []rune) {
 	// final state
 	switch lastWrittenState {
 	case StateMedialPunc:
-		s2 = append(s2, []rune(ChunkBoundary)...)
-		s2 = append(s2, ' ')
+		output = append(output, []rune(ChunkBoundary)...)
+		output = append(output, ' ')
 	case StateWord: // FALL THROUGH DESIRED
-		s2 = append(s2, []rune(UtteranceBoundary)...)
-		s2 = append(s2, ' ')
+		output = append(output, []rune(UtteranceBoundary)...)
+		output = append(output, ' ')
 		fallthrough
 	case StateSilence:
-		s2 = append(s2, []rune(ToneGroupBoundary)...)
-		s2 = append(s2, ' ')
-		s2 = append(s2, []rune(ChunkBoundary)...)
+		output = append(output, []rune(ToneGroupBoundary)...)
+		output = append(output, ' ')
+		output = append(output, []rune(ChunkBoundary)...)
 		priorTonic = TtsFalse
-		success, s2 = SetToneGroup(s2, tgMarkerPos, DefaultEndPunc)
+		success, output = SetToneGroup(output, tgMarkerPos, DefaultEndPunc)
 		if success == TtsParserFailure {
-			return TtsParserFailure, s2
+			return TtsParserFailure, output
 		}
 		tgMarkerPos = UndefinedPosition
 	case StateBegin:
 		if rawModeFlag == 0 {
-			return TtsParserFailure, s2
+			return TtsParserFailure, output
 		}
 	}
-	return TtsParserSuccess, s2
+	return TtsParserSuccess, output
 }
 
 // TextParser writes pronunciation of word to stream.  Deals with possessives if necessary.
 // Also, deals with single characters, and upper case words (including special acronyms) if necessary.
 // Add special marks if word is tonic
-func (tp *TextParser) ExpandWord(word string, isTonic bool, instream []rune) (rs []rune) {
+func (tp *TextParser) ExpandWord(word string, isTonic bool, input []rune) (output []rune) {
 	var dictionary int
 	var pronunciation []rune
-	rs = instream
+	output = input
 	possessive := TtsNo
 
 	// strip of possessive ending if word ends with 's, set flag
@@ -2424,9 +2290,8 @@ func (tp *TextParser) ExpandWord(word string, isTonic bool, instream []rune) (rs
 	} else { // all other words are looked up in dictionaries, after converting to lower case
 		word = strings.ToLower(word)
 		//Todo: implement lookupword
-		p, d := tp.LookupWord(word) // Todo: Why did the C++ version pass an address to dictionary
+		p := tp.LookupWord(word)
 		pronunciation = []rune(p)
-		dictionary = d
 	}
 
 	// add foot begin marker to front of word if it has no primary stress and it is
@@ -2434,8 +2299,8 @@ func (tp *TextParser) ExpandWord(word string, isTonic bool, instream []rune) (rs
 	lastFootBegin := UndefinedPosition
 	if isTonic && !HasPrimaryStress(pronunciation) {
 		if !ConvertSecondaryStress(pronunciation) {
-			rs = append(rs, []rune(FootBegin)...)
-			lastFootBegin = len(rs) - 2
+			output = append(output, []rune(FootBegin)...)
+			lastFootBegin = len(output) - 2
 		}
 	}
 
@@ -2448,55 +2313,55 @@ func (tp *TextParser) ExpandWord(word string, isTonic bool, instream []rune) (rs
 		}
 		switch pronunciation[i] {
 		case '\'', '`':
-			rs = append(rs, []rune(FootBegin)...)
-			lastFootBegin = len(rs) - 2
+			output = append(output, []rune(FootBegin)...)
+			lastFootBegin = len(output) - 2
 			lastPhoneme[0] = '\x00'
 		case '"':
-			rs = append(rs, []rune(SecondaryStress)...)
+			output = append(output, []rune(SecondaryStress)...)
 			lastPhoneme[0] = '\x00'
 		case '_', '.':
-			rs = append(rs, pronunciation[i])
+			output = append(output, pronunciation[i])
 			lastPhoneme[0] = '\x00'
 		case ' ':
 			// suppress unnecessary blanks
 			if len(pronunciation) > i+1 && pronunciation[i+1] != ' ' {
-				rs = append(rs, pronunciation[i])
+				output = append(output, pronunciation[i])
 				lastPhoneme[0] = '\x00'
 			}
 		default:
-			rs = append(rs, pronunciation[i])
+			output = append(output, pronunciation[i])
 			lastPhoneme[0] = '\x00'
 		}
 	}
 
-	fmt.Println(string(rs))
+	fmt.Println(string(output))
 
 	if possessive > 0 {
 		if string(lastPhoneme) == "p" || string(lastPhoneme) == "t" ||
 			string(lastPhoneme) == "k" || string(lastPhoneme) == "f" ||
 			string(lastPhoneme) == "th" {
-			rs = append(rs, []rune("_s")...)
+			output = append(output, []rune("_s")...)
 		} else if string(lastPhoneme) == "s" || string(lastPhoneme) == "sh" ||
 			string(lastPhoneme) == "z" || string(lastPhoneme) == "zh" ||
 			string(lastPhoneme) == "j" || string(lastPhoneme) == "ch" {
-			rs = append(rs, []rune(".uh_z")...)
+			output = append(output, []rune(".uh_z")...)
 		} else {
-			rs = append(rs, []rune("_z")...)
+			output = append(output, []rune("_z")...)
 		}
 	}
-	rs = append(rs, []rune(" ")...)
+	output = append(output, []rune(" ")...)
 
 	// if tonic, convert last foot marker to tonic marker
 	if isTonic && lastFootBegin != UndefinedPosition {
-		temp0 := rs[:lastFootBegin]
+		temp0 := output[:lastFootBegin]
 		str1 := string(temp0)
-		temp1 := rs[lastFootBegin+2:]
+		temp1 := output[lastFootBegin+2:]
 		str2 := string(temp1)
 		fmt.Printf("%s\t\t%s\n", str1, str2)
-		rs = append(temp0, []rune(TonicBegin)...)
-		rs = append(rs, temp1...)
+		output = append(temp0, []rune(TonicBegin)...)
+		output = append(output, temp1...)
 	}
-	return rs
+	return output
 }
 
 func AllUpper(word string) bool {
@@ -2508,15 +2373,15 @@ func AllUpper(word string) bool {
 	return true
 }
 
-func InsertRunes(rsCur []rune, insert []rune, pos int) (rs []rune) {
-	rs = rsCur
+func InsertRunes(input []rune, insert []rune, pos int) (output []rune) {
+	output = input
 
-	temp0 := rs[:pos]
+	temp0 := output[:pos]
 	str1 := string(temp0)
-	temp1 := rs[pos:]
+	temp1 := output[pos:]
 	str2 := string(temp1)
 	fmt.Printf("%s\t\t%s\n", str1, str2)
-	rs = append(temp0, insert...)
-	rs = append(rs, temp1...)
-	return rs
+	output = append(temp0, insert...)
+	output = append(output, temp1...)
+	return output
 }

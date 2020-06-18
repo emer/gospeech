@@ -39,7 +39,7 @@ type Synth struct {
 	ToolBar        *gi.ToolBar                   `view:"-" desc:"the master toolbar"`
 	Text           string                        `desc:"the text to be synthesized"`
 	Phonetic       string                        `desc:"the phonetic version of Text"`
-	TextParser     *textparse.TextParser         `view:"-" desc:parses text, returns phonetic string"`
+	TextParser     *textparse.TextParser         `view:"-" desc:"parses text, returns phonetic string"`
 	PhoneticParser *phoneticparse.PhoneticParser `view:"-" desc:"parses the phonetic string"`
 	Model          *v2.Model                     `view:"" desc:"the master toolbar"`
 	Control        *v2.Control                   `view:"+" desc:"the master toolbar"`
@@ -64,8 +64,8 @@ func NewSynth() *Synth {
 	syn.Control.TrmConfig.Load("trm.json", vfp)
 
 	// todo: pass in config path and dictionary names
-	var fns = []string{"A", "B"}
-	syn.TextParser = textparse.NewTextParser("", fns)
+	var fns = []string{"MainDictionary"}
+	syn.TextParser = textparse.NewTextParser("../../data/en/", fns)
 	syn.Text = "emergent, t he dog's, is home today. "
 
 	syn.PhoneticParser = phoneticparse.NewPhoneticParser(syn.Control, "../../data/en/vowelTransitions")
@@ -111,7 +111,7 @@ func (syn *Synth) Synthesize() {
 		return
 	}
 
-	syn.Phonetic = syn.TextParser.ParseText2(syn.Text)
+	syn.Phonetic = syn.TextParser.Parse(syn.Text)
 	fmt.Println(syn.Text, "phoneticaly is ", syn.Phonetic)
 	if syn.StructView != nil {
 		syn.StructView.UpdateField("Phonetic")

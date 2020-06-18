@@ -28,7 +28,19 @@
 package dictionary
 
 type DictionarySearch struct {
-	Dictionary Dictionary
+	Dictionary *Dictionary
+	buf        []rune
+	typeBuf    []rune
+}
+
+func NewDictionarySearch() *DictionarySearch {
+	ds := new(DictionarySearch)
+	d := new(Dictionary)
+	ds.Dictionary = d
+
+	ds.buf = make([]rune, 1024)
+	ds.typeBuf = make([]rune, 32)
+	return ds
 }
 
 // Load
@@ -38,7 +50,8 @@ func (ds *DictionarySearch) Load(path string) {
 
 // GetEntry returns the
 func (ds *DictionarySearch) GetEntry(word string) string {
-	return ds.AugmentedSearch(word)
+	phonetic := ds.AugmentedSearch(word)
+	return phonetic
 }
 
 // Version returns the dictionary version
@@ -49,19 +62,22 @@ func (ds *DictionarySearch) Version() string {
 // AugmentedSearch first looks in main dictionary to see if word is there. If not,
 // it tries the main dictionary without suffixes, and if found, tacks on the appropriate ending.
 func (ds *DictionarySearch) AugmentedSearch(orthography string) string {
-	//const char* word;
-	//const char* pt;
-	//char* word_type_pos;
+	word := ""
+	//pt := ""
+	//pos := -1
+
 	//const suffix_list_t* list_ptr;
-	//
-	//clearBuffers();
-	//
-	///*  RETURN IMMEDIATELY IF WORD FOUND IN DICTIONARY  */
-	//if ( (word = dict_.getEntry(orthography)) ) {
-	//	return word;
-	//}
-	//
-	///*  LOOP THROUGH SUFFIX LIST  */
+
+	word = ds.Dictionary.GetEntry(orthography)
+	if len(word) > 0 {
+		return word
+	}
+
+	ds.buf = ds.buf[:0]
+	ds.typeBuf = ds.typeBuf[:0]
+
+	// Todo: port suffix.go first!
+	// loop through suffix list
 	//for (list_ptr = suffix_list; list_ptr->suffix; list_ptr++) {
 	//	// Todo: use strings.LastIndex to get position of substring (suffix)
 	//	if ( (pt = word_has_suffix(orthography, list_ptr->suffix)) ) {

@@ -147,44 +147,41 @@
 
 //#include "en/text_parser/NumberParser.h"
 //#include "en/number_pronunciations.h"
-/*  #incude "number_pronunciations_english.h"  (use this for plain english)  */
+// #incude "number_pronunciations_english.h"  (use this for plain english)
 
-/*  SYMBOLIC CONSTANTS  ******************************************************/
+// SYMBOLIC CONSTANTS  ******************************************************/
 
 package textparse
 
-const No = 0 /*  GENERAL PURPOSE FLAGS  */
+import "github.com/goki/ki/kit"
+
+const No = 0 // GENERAL PURPOSE FLAGS
 const Yes = 1
 const NonZero = 1
 
-const NoNumerals = 0 /*  FLAGS RETURNED BY error_check()  */
+const NoNumerals = 0 // FLAGS RETURNED BY error_check()
 const Degenerate = 1
 const Ok = 3
 
-const SecondthFlag = 1 /*  FLAGS FOR special_flag  */
+const SecondthFlag = 1 // FLAGS FOR special_flag
 const HalfFlag = 2
 const QuarterFlag = 3
 
-const SevenDigitCode = 1 /*  TELEPHONE FLAGS  */
+const SevenDigitCode = 1 // TELEPHONE FLAGS
 const TenDigitCode = 2
 const ElevenDigitCode = 3
 const AreaCode = 4
 
 // Todo: should this be an enum? (is in c++)
-const Normal = 0
-const OverrideYears = 1
-const ForceSpell = 2
+const ClockMax = 2           // MAX # OF COLONS IN CLOCK TIMES
+const NegativeMax = 3        // MAX # OF NEGATIVE SIGNS (-)
+const CommasMax = 33         // MAX # OF COMMAS
+const IntegerDigitsMax = 100 // MAX # OF INTEGER DIGITS
+const OutputMax = 8192       // OUTPUT BUFFER SIZE IN CHARS
 
-// Todo: should this be an enum? (is in c++)
-const ClockMax = 2           /*  MAX # OF COLONS IN CLOCK TIMES  */
-const NegativeMax = 3        /*  MAX # OF NEGATIVE SIGNS (-)     */
-const CommasMax = 33         /*  MAX # OF COMMAS                 */
-const IntegerDigitsMax = 100 /*  MAX # OF INTEGER DIGITS         */
-const OutputMax = 8192       /*  OUTPUT BUFFER SIZE IN CHARS     */
+const FractionalDigitsMax = 100 // MAX # OF FRACTIONAL DIGITS
 
-const FractionalDigitsMax = 100 /*  MAX # OF FRACTIONAL DIGITS      */
-
-/*  VARIABLES PERTAINING TO TRIADS AND TRIAD NAMES  */
+// VARIABLES PERTAINING TO TRIADS AND TRIAD NAMES
 var Triads = [][]string{
 	{"NULL_STRING", "THOUSAND", "MILLION", "BILLION", "TRILLION", "QUADRILLION", "QUINTILLION",
 		"SEXTILLION", "SEPTILLION", "OCTILLION", "NONILLION", "DECILLION", "UNDECILLION",
@@ -206,6 +203,22 @@ type NumParser struct {
 	output []rune
 }
 
+type NumParseMode int
+
+const (
+	Normal = iota
+
+	OverrideYears
+
+	ForceSpell
+
+	NumParseModeN
+)
+
+//go:generate stringer -type=NumParseMode
+
+var Kit_SymbolType = kit.Enums.AddEnum(NumParseModeN, kit.NotBitFlag, nil)
+
 /******************************************************************************
 *
 *	function:	process_triad
@@ -226,17 +239,17 @@ type NumParser struct {
 //process_triad(char* triad, char* output, int pause, int ordinal, int right_zero_pad,
 //		int ordinal_plural, int special_flag)
 //{
-//	/*  IF TRIAD IS 000, RETURN ZERO  */
+//	// IF TRIAD IS 000, RETURN ZERO
 //	if ((*(triad) == '0') && (*(triad + 1) == '0') && (*(triad + 2) == '0')) {
 //		return 0;
 //	}
 //
-//	/*  APPEND PAUSE IF FLAG SET  */
+//	// APPEND PAUSE IF FLAG SET
 //	if (pause) {
 //		strcat(output, PAUSE);
 //	}
 //
-//	/*  PROCESS HUNDREDS  */
+//	// PROCESS HUNDREDS
 //	if (*triad >= '1') {
 //		process_digit(*(triad), output, NO, NO, NO);
 //		if (ordinal_plural && (right_zero_pad == 2)) {
@@ -251,7 +264,7 @@ type NumParser struct {
 //		}
 //	}
 //
-//	/*  PROCESS TENS  */
+//	// PROCESS TENS
 //	if (*(triad + 1) == '1') {
 //		if (ordinal_plural && (right_zero_pad == 1) && (*(triad + 2) == '0')) {
 //			strcat(output, TENTHS);
@@ -331,13 +344,13 @@ type NumParser struct {
 //			}
 //		}
 //	}
-//	/*  PROCESS ONES  */
+//	// PROCESS ONES
 //	if (*(triad + 1) != '1' && *(triad + 2) >= '1') {
 //		process_digit(*(triad + 2), output, (ordinal && (right_zero_pad == 0)),
 //				(ordinal_plural && (right_zero_pad == 0)), special_flag);
 //	}
 //
-//	/*  RETURN WITH NONZERO VALUE  */
+//	// RETURN WITH NONZERO VALUE
 //	return NONZERO;
 //}
 
@@ -357,7 +370,7 @@ type NumParser struct {
 //void
 //process_digit(char digit, char* output, int ordinal, int ordinal_plural, int special_flag)
 //{
-//	/*  DO SPECIAL PROCESSING IF FLAG SET  */
+//	// DO SPECIAL PROCESSING IF FLAG SET
 //	if (special_flag == HalfFlag) {
 //		if (ordinal_plural) {
 //			strcat(output, HALVES);
@@ -377,7 +390,7 @@ type NumParser struct {
 //			strcat(output, QUARTER);
 //		}
 //	} else if (ordinal_plural) {
-//		/*  DO PLURAL ORDINALS  */
+//		// DO PLURAL ORDINALS
 //		switch (digit) {
 //		case '3': strcat(output, THIRDS);   break;
 //		case '4': strcat(output, FOURTHS);  break;
@@ -388,7 +401,7 @@ type NumParser struct {
 //		case '9': strcat(output, NINTHS);   break;
 //		}
 //	} else if (ordinal) {
-//		/*  DO SINGULAR ORDINALS  */
+//		// DO SINGULAR ORDINALS
 //		switch (digit) {
 //		case '0': strcat(output, ZEROETH); break;
 //		case '1': strcat(output, FIRST);   break;
@@ -402,7 +415,7 @@ type NumParser struct {
 //		case '9': strcat(output, NINTH);   break;
 //		}
 //	} else {
-//		/*  DO ORDINARY DIGITS  */
+//		// DO ORDINARY DIGITS
 //		switch (digit) {
 //		case '0': strcat(output, ZERO);  break;
 //		case '1': strcat(output, ONE);   break;
@@ -418,77 +431,78 @@ type NumParser struct {
 //	}
 //}
 
-//NumberParser::NumberParser()
-//		: word_(nullptr)
-//		, wordLength_(0)
-//		, degenerate_(0)
-//		, integerDigits_(0)
-//		, fractionalDigits_(0)
-//		, commas_(0)
-//		, decimal_(0)
-//		, dollar_(0)
-//		, percent_(0)
-//		, negative_(0)
-//		, positive_(0)
-//		, ordinal_(0)
-//		, clock_(0)
-//		, slash_(0)
-//		, leftParen_(0)
-//		, rightParen_(0)
-//		, blank_(0)
-//		, dollarPlural_(0)
-//		, dollarNonzero_(0)
-//		, centsPlural_(0)
-//		, centsNonzero_(0)
-//		, telephone_(0)
-//		, leftZeroPad_(0)
-//		, rightZeroPad_(0)
-//		, ordinalPlural_(0)
-//		, fracLeftZeroPad_(0)
-//		, fracRightZeroPad_(0)
-//		, fracOrdinalTriad_(0)
-//		, decimalPos_(0)
-//		, dollarPos_(0)
-//		, percentPos_(0)
-//		, positivePos_(0)
-//		, slashPos_(0)
-//		, leftParenPos_(0)
-//		, rightParenPos_(0)
-//		, blankPos_(0)
-//		, ordinalTriad_(0)
-//		, military_(0)
-//		, seconds_(0)
-//{
-//	output_.fill('\0');
-//	commasPos_.fill(0);
-//	negativePos_.fill(0);
-//	integerDigitsPos_.fill(0);
-//	fractionalDigitsPos_.fill(0);
-//	ordinalPos_.fill(0);
-//	clockPos_.fill(0);
-//	triad_.fill('\0');
-//	ordinalBuffer_.fill('\0');
-//	hour_.fill('\0');
-//	minute_.fill('\0');
-//	second_.fill('\0');
-//}
+func (np *NumParser) NumberParser() {
+	//		: word_(nullptr)
+	//		, wordLength_(0)
+	//		, degenerate_(0)
+	//		, integerDigits_(0)
+	//		, fractionalDigits_(0)
+	//		, commas_(0)
+	//		, decimal_(0)
+	//		, dollar_(0)
+	//		, percent_(0)
+	//		, negative_(0)
+	//		, positive_(0)
+	//		, ordinal_(0)
+	//		, clock_(0)
+	//		, slash_(0)
+	//		, leftParen_(0)
+	//		, rightParen_(0)
+	//		, blank_(0)
+	//		, dollarPlural_(0)
+	//		, dollarNonzero_(0)
+	//		, centsPlural_(0)
+	//		, centsNonzero_(0)
+	//		, telephone_(0)
+	//		, leftZeroPad_(0)
+	//		, rightZeroPad_(0)
+	//		, ordinalPlural_(0)
+	//		, fracLeftZeroPad_(0)
+	//		, fracRightZeroPad_(0)
+	//		, fracOrdinalTriad_(0)
+	//		, decimalPos_(0)
+	//		, dollarPos_(0)
+	//		, percentPos_(0)
+	//		, positivePos_(0)
+	//		, slashPos_(0)
+	//		, leftParenPos_(0)
+	//		, rightParenPos_(0)
+	//		, blankPos_(0)
+	//		, ordinalTriad_(0)
+	//		, military_(0)
+	//		, seconds_(0)
+	//{
+	//	output_.fill('\0');
+	//	commasPos_.fill(0);
+	//	negativePos_.fill(0);
+	//	integerDigitsPos_.fill(0);
+	//	fractionalDigitsPos_.fill(0);
+	//	ordinalPos_.fill(0);
+	//	clockPos_.fill(0);
+	//	triad_.fill('\0');
+	//	ordinalBuffer_.fill('\0');
+	//	hour_.fill('\0');
+	//	minute_.fill('\0');
+	//	second_.fill('\0');
+}
 
-// purpose:	Finds positions of numbers, commas, and other symbols within the word.
+// InitialParse	Finds positions of numbers, commas, and other symbols within the word.
+func (np *NumParser) InitialParse() {
 
-//void
-//NumberParser::initialParse()
+}
+
 //{
-//	/*  PUT NULL BYTE INTO output;  FIND LENGTH OF INPUT WORD  */
+//	// PUT NULL BYTE INTO output;  FIND LENGTH OF INPUT WORD
 //	output_[0] = '\0';
 //	wordLength_ = strlen(word_);
 //
-//	/*  INITIALIZE PARSING VARIABLES  */
+//	// INITIALIZE PARSING VARIABLES
 //	degenerate_ = integerDigits_ = fractionalDigits_ = commas_ = decimal_ = 0;
 //	dollar_ = percent_ = negative_ = positive_ = ordinal_ = clock_ = slash_ = 0;
 //	telephone_ = leftParen_ = rightParen_ = blank_ = 0;
 //	ordinalPlural_ = YES;
 //
-//	/*  FIND THE POSITION OF THE FOLLOWING CHARACTERS  */
+//	// FIND THE POSITION OF THE FOLLOWING CHARACTERS
 //	for (int i = 0; i < wordLength_; i++) {
 //		switch (*(word_ + i)) {
 //		case ',':
@@ -585,7 +599,7 @@ type NumParser struct {
 //			} else {
 //				char c = *(word_ + i);
 //				ordinalPos_[ordinal_ - 1] = i;
-//				/*  CONVERT TO UPPER CASE IF NECESSARY  */
+//				// CONVERT TO UPPER CASE IF NECESSARY
 //				ordinalBuffer_[ordinal_ - 1] = ((c >= 'a') && (c <= 'z')) ? c + ('A' - 'a') : c;
 //				ordinalBuffer_[2] = '\0';
 //			}
@@ -596,7 +610,7 @@ type NumParser struct {
 //		}
 //	}
 //
-//	/*  FIND LEFT ZERO PAD FOR INTEGER PART OF WORD  */
+//	// FIND LEFT ZERO PAD FOR INTEGER PART OF WORD
 //	leftZeroPad_ = 0;
 //	for (int i = 0; i < integerDigits_; i++) {
 //		if (*(word_ + integerDigitsPos_[i]) == '0') {
@@ -605,7 +619,7 @@ type NumParser struct {
 //			break;
 //		}
 //	}
-//	/*  FIND RIGHT ZERO PAD FOR INTEGER PART OF WORD  */
+//	// FIND RIGHT ZERO PAD FOR INTEGER PART OF WORD
 //	rightZeroPad_ = 0;
 //	for (int i = integerDigits_ - 1; i >= 0; i--) {
 //		if (*(word_ + integerDigitsPos_[i]) == '0') {
@@ -614,10 +628,10 @@ type NumParser struct {
 //			break;
 //		}
 //	}
-//	/*  DETERMINE RIGHT MOST TRIAD TO RECEIVE ORDINAL NAME  */
+//	// DETERMINE RIGHT MOST TRIAD TO RECEIVE ORDINAL NAME
 //	ordinalTriad_ = (int) (rightZeroPad_ / 3.0);
 //
-//	/*  FIND LEFT ZERO PAD FOR FRACTIONS  */
+//	// FIND LEFT ZERO PAD FOR FRACTIONS
 //	fracLeftZeroPad_ = 0;
 //	for (int i = 0; i < fractionalDigits_; i++) {
 //		if (*(word_ + fractionalDigitsPos_[i]) == '0') {
@@ -626,7 +640,7 @@ type NumParser struct {
 //			break;
 //		}
 //	}
-//	/*  FIND RIGHT ZERO PAD FOR FRACTIONS  */
+//	// FIND RIGHT ZERO PAD FOR FRACTIONS
 //	fracRightZeroPad_ = 0;
 //	for (int i = (fractionalDigits_ - 1); i >= 0; i--) {
 //		if (*(word_ + fractionalDigitsPos_[i]) == '0') {
@@ -635,7 +649,7 @@ type NumParser struct {
 //			break;
 //		}
 //	}
-//	/*  DETERMINE RIGHT MOST TRIAD TO RECEIVE ORDINAL NAME FOR FRACTIONS  */
+//	// DETERMINE RIGHT MOST TRIAD TO RECEIVE ORDINAL NAME FOR FRACTIONS
 //	fracOrdinalTriad_ = (int) (fracRightZeroPad_ / 3.0);
 //}
 
@@ -648,44 +662,49 @@ type NumParser struct {
 *                       Degenerate if the word contains errors, OK otherwise.
 *
 ******************************************************************************/
-//int
-//NumberParser::errorCheck(Mode mode)
+// ErrorCheck checks the initiallly parsed word for format errors.
+// Returns "NoNumerals" if the word contains no digits. Returns "Degenerate" if the word contains errors,
+// returns "OK" otherwise.
+func (np *NumParser) ErrorCheck(mode NumParseMode) int {
+	return Ok
+}
+
 //{
-//	/*  IF THERE ARE NO DIGITS THEN RETURN  */
+//	// IF THERE ARE NO DIGITS THEN RETURN
 //	if ((integerDigits_ + fractionalDigits_) == 0) {
 //		return NoNumerals;
 //	}
 //
-//	/* IF MODE SET TO FORCE_SPELL, USE degenerate_string()  */
+//	/* IF MODE SET TO FORCE_SPELL, USE degenerate_string()
 //	if (mode == FORCE_SPELL) {
 //		return Degenerate;
 //	}
 //
-//	/*  CANNOT HAVE UNSPECIFIED SYMBOLS, OR ANY MORE THAN ONE OF EACH OF THE
-//	FOLLOWING:  . $ % + / ( ) blank  */
+//	// CANNOT HAVE UNSPECIFIED SYMBOLS, OR ANY MORE THAN ONE OF EACH OF THE
+//	FOLLOWING:  . $ % + / ( ) blank
 //	if (degenerate_ || decimal_ > 1 || dollar_ > 1 || percent_ > 1 ||
 //			positive_ > 1 || slash_ > 1 || leftParen_ > 1 ||
 //			rightParen_ > 1 || blank_ > 1) {
 //		return Degenerate;
 //	}
 //
-//	/*  CHECK FOR TOO MANY DIGITS WHEN COMMAS OR ORDINAL USED  */
+//	// CHECK FOR TOO MANY DIGITS WHEN COMMAS OR ORDINAL USED
 //	if ((integerDigits_ > (TRIADS_MAX * 3)) && (commas_ || ordinal_)) {
 //		return Degenerate;
 //	}
 //
-//	/*  MAKE SURE % SIGN AT FAR RIGHT AND THAT THERE IS NO $ SIGN  */
+//	// MAKE SURE % SIGN AT FAR RIGHT AND THAT THERE IS NO $ SIGN
 //	if (percent_ && ((percentPos_ != (wordLength_ - 1)) || dollar_)) {
 //		return Degenerate;
 //	}
 //
-//	/*  THE + SIGN MUST BE AT THE FAR LEFT OF THE STRING  */
+//	// THE + SIGN MUST BE AT THE FAR LEFT OF THE STRING
 //	if (positive_ && (positivePos_ != 0)) {
 //		return Degenerate;
 //	}
 //
-//	/*  IF 1 OR MORE (-) SIGNS USED,  MAKE SURE IT IS AT FAR LEFT,
-//	OR THAT THE NUMBER CORRESPONDS TO STANDARD TELEPHONE FORMATS  */
+//	// IF 1 OR MORE (-) SIGNS USED,  MAKE SURE IT IS AT FAR LEFT,
+//	OR THAT THE NUMBER CORRESPONDS TO STANDARD TELEPHONE FORMATS
 //	if ((negative_ == 1) && (negativePos_[0] != 0)) {
 //		if ((integerDigits_ == 7) && (negativePos_[0] == 3) &&
 //				(wordLength_ == 8)) {
@@ -718,37 +737,37 @@ type NumParser struct {
 //		}
 //	}
 //
-//	/*  THE ")", "(", AND blank CHARACTERS LEGAL ONLY WHEN AREA CODE  */
+//	// THE ")", "(", AND blank CHARACTERS LEGAL ONLY WHEN AREA CODE
 //	if ((leftParen_ || rightParen_ || blank_) && (telephone_ != AreaCode)) {
 //		return Degenerate;
 //	}
 //
-//	/*  LEFT ZERO PADS ARE LEGAL ONLY WHEN ONE INTEGER DIGIT, OR IN
-//	CLOCK TIMES AND TELEPHONE NUMBERS  */
+//	// LEFT ZERO PADS ARE LEGAL ONLY WHEN ONE INTEGER DIGIT, OR IN
+//	CLOCK TIMES AND TELEPHONE NUMBERS
 //	if (leftZeroPad_ && (integerDigits_ > 1) && (!clock_) && (!telephone_)) {
 //		return Degenerate;
 //	}
 //
 //	if (slash_) {
-//		/*  IF FRACTION, CHECK FOR TOO MANY DIGITS IN NUMERATOR OR DENOMINATOR  */
+//		// IF FRACTION, CHECK FOR TOO MANY DIGITS IN NUMERATOR OR DENOMINATOR
 //		if ((integerDigits_ > (TRIADS_MAX * 3)) || (fractionalDigits_ > (TRIADS_MAX * 3))) {
 //			return Degenerate;
 //		}
 //
-//		/*  IN FRACTIONS, LEFT ZERO PADS ARE LEGAL ONLY WHEN ONE DIGIT  */
+//		// IN FRACTIONS, LEFT ZERO PADS ARE LEGAL ONLY WHEN ONE DIGIT
 //		if (fracLeftZeroPad_ && (fractionalDigits_ > 1)) {
 //			return Degenerate;
 //		}
 //
-//		/*  FRACTIONS MUST HAVE DIGITS IN BOTH NUMERATOR AND DENOMINATOR,
-//			AND CANNOT CONTAIN THE . $ , : SIGNS, OR ORDINAL SUFFIXES  */
+//		// FRACTIONS MUST HAVE DIGITS IN BOTH NUMERATOR AND DENOMINATOR,
+//			AND CANNOT CONTAIN THE . $ , : SIGNS, OR ORDINAL SUFFIXES
 //		if ((!integerDigits_) || (!fractionalDigits_) ||
 //				decimal_ || dollar_ || commas_ || clock_ || ordinal_) {
 //			return Degenerate;
 //		}
 //	}
 //
-//	/*  CHECK FOR LEGAL CLOCK TIME FORMATS;  FILL hour AND minute AND second BUFFERS  */
+//	// CHECK FOR LEGAL CLOCK TIME FORMATS;  FILL hour AND minute AND second BUFFERS
 //	if (clock_) {
 //		hour_[0] = minute_[0] = second_[0] = '0';
 //		hour_[3] = minute_[3] = second_[3] = '\0';
@@ -809,7 +828,7 @@ type NumParser struct {
 //		}
 //	}
 //
-//	/*  CHECK THAT COMMAS ARE PROPERLY SPACED  */
+//	// CHECK THAT COMMAS ARE PROPERLY SPACED
 //	if (commas_) {
 //		if (commasPos_[0] < integerDigitsPos_[0]) {
 //			return Degenerate;
@@ -830,8 +849,8 @@ type NumParser struct {
 //		}
 //	}
 //
-//	/*  CHECK FOR LEGAL USE OF $ SIGN
-//	DETERMINE IF DOLLARS AND CENTS ARE PLURAL AND NONZERO  */
+//	// CHECK FOR LEGAL USE OF $ SIGN
+//	DETERMINE IF DOLLARS AND CENTS ARE PLURAL AND NONZERO
 //	if (dollar_) {
 //		if ((negative_ || positive_) && (dollarPos_ != 1)) {
 //			return Degenerate;
@@ -870,7 +889,7 @@ type NumParser struct {
 //		}
 //	}
 //
-//	/*  CHECK FOR LEGAL USE OF ORDINAL SUFFIXES  */
+//	// CHECK FOR LEGAL USE OF ORDINAL SUFFIXES
 //	if (ordinal_) {
 //		char ones_digit = '\0', tens_digit = '\0';
 //
@@ -911,7 +930,7 @@ type NumParser struct {
 //		}
 //	}
 //
-//	/*  IF WE GET THIS FAR, THEN THE NUMBER CAN BE PROCESSED NORMALLY  */
+//	// IF WE GET THIS FAR, THEN THE NUMBER CAN BE PROCESSED NORMALLY
 //	return OK;
 //}
 
@@ -925,17 +944,18 @@ type NumParser struct {
 *
 ******************************************************************************/
 //char*
-//NumberParser::processWord(Mode mode)
+func (np *NumParser) processWord(mode NumParseMode) {}
+
 //{
-//	/*  SPECIAL PROCESSING OF WORD;  EACH RETURNS IMMEDIATELY  */
-//	/*  PROCESS CLOCK TIMES  */
+//	// SPECIAL PROCESSING OF WORD;  EACH RETURNS IMMEDIATELY
+//	// PROCESS CLOCK TIMES
 //	if (clock_) {
-//		/*  HOUR  */
+//		// HOUR
 //		if (leftZeroPad_) {
 //			strcat(&output_[0], OH);
 //		}
 //		process_triad(&hour_[0], &output_[0], NO, NO, NO, NO, NO);
-//		/*  MINUTE  */
+//		// MINUTE
 //		if ((minute_[1] == '0') && (minute_[2] == '0')) {
 //			if (military_) {
 //				strcat(&output_[0], HUNDRED);
@@ -948,7 +968,7 @@ type NumParser struct {
 //			}
 //			process_triad(&minute_[0], &output_[0], NO, NO, NO, NO, NO);
 //		}
-//		/*  SECOND  */
+//		// SECOND
 //		if (seconds_) {
 //			strcat(&output_[0], AND);
 //			if ((second_[1] == '0') && (second_[2] == '0')) {
@@ -965,7 +985,7 @@ type NumParser struct {
 //		}
 //		return &output_[0];
 //	}
-//	/*  PROCESS TELEPHONE NUMBERS  */
+//	// PROCESS TELEPHONE NUMBERS
 //	if (telephone_ == SEVEN_DIGIT_CODE) {
 //		for (int i = 0; i < 3; i++) {
 //			process_digit(*(word_ + integerDigitsPos_[i]), &output_[0], NO, NO, NO);
@@ -1026,13 +1046,13 @@ type NumParser struct {
 //		}
 //		return &output_[0];
 //	}
-//	/*  PROCESS ZERO DOLLARS AND ZERO CENTS  */
+//	// PROCESS ZERO DOLLARS AND ZERO CENTS
 //	if (dollar_ && (!dollarNonzero_) && (!centsNonzero_)) {
 //		strcat(&output_[0], ZERO);
 //		strcat(&output_[0], DOLLARS);
 //		return &output_[0];
 //	}
-//	/*  PROCESS FOR YEAR IF INTEGER IN RANGE 1000 TO 1999  */
+//	// PROCESS FOR YEAR IF INTEGER IN RANGE 1000 TO 1999
 //	if ((integerDigits_ == 4) && (wordLength_ == 4) &&
 //			(word_[integerDigitsPos_[0]] == '1') && (mode != OVERRIDE_YEARS)) {
 //		triad_[0] = '0';
@@ -1053,15 +1073,15 @@ type NumParser struct {
 //		return &output_[0];
 //	}
 //
-//	/*  ORDINARY SEQUENTIAL PROCESSING  */
-//	/*  APPEND POSITIVE OR NEGATIVE IF INDICATED  */
+//	// ORDINARY SEQUENTIAL PROCESSING
+//	// APPEND POSITIVE OR NEGATIVE IF INDICATED
 //	if (positive_) {
 //		strcat(&output_[0], POSITIVE);
 //	} else if (negative_) {
 //		strcat(&output_[0], NEGATIVE);
 //	}
 //
-//	/*  PROCESS SINGLE INTEGER DIGIT  */
+//	// PROCESS SINGLE INTEGER DIGIT
 //	if (integerDigits_ == 1) {
 //		if ((word_[integerDigitsPos_[0]] == '0') && dollar_) {
 //			;
@@ -1070,7 +1090,7 @@ type NumParser struct {
 //		}
 //		ordinalPlural_ = (word_[integerDigitsPos_[0]] == '1') ? NO : YES;
 //	} else if ((integerDigits_ >= 2) && (integerDigits_ <= (TRIADS_MAX * 3))) {
-//		/*  PROCESS INTEGERS AS TRIADS, UP TO MAX LENGTH  */
+//		// PROCESS INTEGERS AS TRIADS, UP TO MAX LENGTH
 //
 //		int digit_index = 0, num_digits, triad_index, index, pause_flag = NO;
 //		for (int i = 0; i < 3; i++) {
@@ -1105,14 +1125,14 @@ type NumParser struct {
 //			num_digits = 3;
 //		}
 //	} else if ((integerDigits_ > (TRIADS_MAX * 3)) && (!commas_) && (!ordinal_)) {
-//		/*  PROCESS EXTREMELY LARGE NUMBERS AS STREAM OF SINGLE DIGITS  */
+//		// PROCESS EXTREMELY LARGE NUMBERS AS STREAM OF SINGLE DIGITS
 //
 //		for (int i = 0; i < integerDigits_; i++) {
 //			process_digit(*(word_ + integerDigitsPos_[i]), &output_[0], NO, NO, NO);
 //		}
 //	}
 //
-//	/*  APPEND DOLLAR OR DOLLARS IF NEEDED  */
+//	// APPEND DOLLAR OR DOLLARS IF NEEDED
 //	if (dollar_ && dollarNonzero_) {
 //		if (fractionalDigits_ && (fractionalDigits_ != 2)) {
 //			;
@@ -1126,8 +1146,8 @@ type NumParser struct {
 //		}
 //	}
 //
-//	/*  APPEND POINT IF FRACTIONAL DIGITS, NO SLASH,
-//		AND IF NOT .00 DOLLAR FORMAT  */
+//	// APPEND POINT IF FRACTIONAL DIGITS, NO SLASH,
+//		AND IF NOT .00 DOLLAR FORMAT
 //	if (fractionalDigits_ && (!slash_) &&
 //			((!dollar_) || (dollar_ && (fractionalDigits_ != 2)))) {
 //		strcat(&output_[0], POINT);
@@ -1135,7 +1155,7 @@ type NumParser struct {
 //			process_digit(word_[fractionalDigitsPos_[i]], &output_[0], NO, NO, NO);
 //		}
 //	} else if (slash_) {
-//		/*  PROCESS DENOMINATOR OF FRACTIONS  */
+//		// PROCESS DENOMINATOR OF FRACTIONS
 //
 //		char ones_digit = '\0', tens_digit = '\0';
 //
@@ -1207,7 +1227,7 @@ type NumParser struct {
 //			}
 //		}
 //	} else if (dollar_ && centsNonzero_ && (fractionalDigits_ == 2)) {
-//		/*  APPEND CENTS  */
+//		// APPEND CENTS
 //
 //		triad_[0] = '0';
 //		triad_[1] = word_[fractionalDigitsPos_[0]];
@@ -1221,17 +1241,17 @@ type NumParser struct {
 //		}
 //	}
 //
-//	/*  APPEND DOLLARS IF NOT $.00 FORMAT  */
+//	// APPEND DOLLARS IF NOT $.00 FORMAT
 //	if (dollar_ && fractionalDigits_ && (fractionalDigits_ != 2)) {
 //		strcat(&output_[0], DOLLARS);
 //	}
 //
-//	/*  APPEND PERCENT IF NECESSARY  */
+//	// APPEND PERCENT IF NECESSARY
 //	if (percent_) {
 //		strcat(&output_[0], PERCENT);
 //	}
 //
-//	/*  RETURN OUTPUT TO CALLER  */
+//	// RETURN OUTPUT TO CALLER
 //	return &output_[0];
 //}
 //
@@ -1240,24 +1260,28 @@ type NumParser struct {
 //*	function:	number_parser
 //*
 //*	purpose:	Returns a pointer to a NULL terminated character string
-//*                       which contains the pronunciation for the string pointed
-//*                       at by the argument word_ptr.
+///                      which contains the pronunciation for the string pointed
+///                      at by the argument word_ptr.
 //*
 //******************************************************************************/
 //const char*
-//NumberParser::parseNumber(const char* word, Mode mode)
+// ParseNum returns the pronounciation
+func (np *NumParser) ParseNum(word string, mode NumParseMode) string {
+	return ""
+}
+
 //{
-//	/*  MAKE POINTER TO WORD TO BE PARSED GLOBAL TO THIS FILE  */
+//	// MAKE POINTER TO WORD TO BE PARSED GLOBAL TO THIS FILE
 //	word_ = word;
 //
-//	/*  DO INITIAL PARSE OF WORD  */
+//	// DO INITIAL PARSE OF WORD
 //	initialParse();
 //
-//	/*  DO ERROR CHECKING OF INPUT  */
+//	// DO ERROR CHECKING OF INPUT
 //	int status = errorCheck(mode);
 //
-//	/*  IF NO NUMBERS, RETURN NULL;  IF CONTAINS ERRORS,
-//	 DO CHAR-BY-CHAR SPELLING;  ELSE, PROCESS NORMALLY  */
+//	// IF NO NUMBERS, RETURN NULL;  IF CONTAINS ERRORS,
+//	 DO CHAR-BY-CHAR SPELLING;  ELSE, PROCESS NORMALLY
 //	if (status == NoNumerals) {
 //		return nullptr;
 //	} else if (status == Degenerate) {
@@ -1266,7 +1290,7 @@ type NumParser struct {
 //		return processWord(mode);
 //	}
 //
-//	/*  IF HERE, RETURN NULL  */
+//	// IF HERE, RETURN NULL
 //	return nullptr;
 //}
 
@@ -1278,14 +1302,12 @@ func (np *NumParser) DegenerateString(word []rune) []rune {
 	return []rune("word not found")
 }
 
-//const char*
-//NumberParser::degenerateString(const char* word)
 //{
-//	/*  APPEND NULL BYTE TO OUTPUT;  DETERMINE WORD LENGTH  */
+//	// APPEND NULL BYTE TO OUTPUT;  DETERMINE WORD LENGTH
 //	output_[0] = '\0';
 //	int wordLength = strlen(word);
 //
-//	/*  APPEND PROPER PRONUNCIATION FOR EACH CHARACTER  */
+//	// APPEND PROPER PRONUNCIATION FOR EACH CHARACTER
 //	for (int i = 0; i < wordLength; i++) {
 //		switch (*(word + i)) {
 //		case ' ': strcat(&output_[0], BLANK);               break;

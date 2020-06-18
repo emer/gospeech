@@ -65,7 +65,8 @@ func (d *Dictionary) Load(path string) {
 			msg = "Dictionary Load(): the file " + path + "  does not have a key value entry pair on each line"
 			log.Println(msg)
 		}
-		// Todo: do we need to check of duplicate keys?
+		// Todo: check for duplicate keys?
+		// Note: this is a map so it is unordered
 		d.Entries[fields[0]] = fields[1]
 	}
 }
@@ -80,6 +81,7 @@ func (d *Dictionary) GetEntry(word string) string {
 	return ""
 }
 
+// Version not used but could be
 func (d *Dictionary) Version() string {
 	if len(d.Entries) == 0 {
 		return ""
