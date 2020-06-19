@@ -946,7 +946,7 @@ func (seq *Sequence) ApplyIntonation() {
 				m := (seq.PostureDatum[postureIndex].Onset - startTime)
 				seq.AddIntonationPoint(m*pretonicDelta+seq.IntonationParams[1]+randSemi, offsetTime, randSlope, ruleIndex)
 			} else { /* Tonic */
-				if seq.ToneGroups[i].Type == 3 {
+				if seq.ToneGroups[i].Type == ToneContinuation {
 					randSlope = 0.01
 				} else {
 					randSlope = 0.02
