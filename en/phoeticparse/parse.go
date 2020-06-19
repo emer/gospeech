@@ -296,25 +296,26 @@ func (pp *PhoneticParser) ParseString(str string) int {
 		buffer = buffer[:0]
 		bufidx = 0
 
+		ctg := pp.Sequence.CurToneGroup
 		switch str[idx] {
 		case '/': /* Handle "/" escape sequences */
 			idx++
 			switch rune(str[idx]) {
 			case '0': /* Tone group 0. Statement */
 				idx++
-				pp.Sequence.CurToneGroup = v2.ToneStatement
+				pp.Sequence.ToneGroups[ctg].Type = v2.ToneStatement
 			case '1': /* Tone group 1. Exclamation */
 				idx++
-				pp.Sequence.CurToneGroup = v2.ToneExclamation
+				pp.Sequence.ToneGroups[ctg].Type = v2.ToneExclamation
 			case '2': /* Tone group 2. Question */
 				idx++
-				pp.Sequence.CurToneGroup = v2.ToneQuestion
+				pp.Sequence.ToneGroups[ctg].Type = v2.ToneQuestion
 			case '3': /* Tone group 3. Continuation */
 				idx++
-				pp.Sequence.CurToneGroup = v2.ToneContinuation
+				pp.Sequence.ToneGroups[ctg].Type = v2.ToneContinuation
 			case '4': /* Tone group 4. Semi-colon */
 				idx++
-				pp.Sequence.CurToneGroup = v2.ToneSemicolon
+				pp.Sequence.ToneGroups[ctg].Type = v2.ToneSemicolon
 			case ' ':
 				fallthrough
 			case '_': /* New foot */
