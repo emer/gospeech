@@ -6,23 +6,19 @@ package main
 
 import (
 	"fmt"
+	v1 "github.com/emer/gospeech/v1"
+	"log"
 	"strconv"
 
 	"github.com/emer/etable/eplot"
 	"github.com/emer/etable/etable"
 	"github.com/emer/etable/etensor"
-	"github.com/emer/gospeech/en/phoeticparse"
-	"github.com/emer/gospeech/en/textparse"
-	"github.com/emer/gospeech/v2"
+	_ "github.com/emer/etable/etview" // include to get gui views
 	"github.com/goki/gi/gi"
 	"github.com/goki/gi/gimain"
 	"github.com/goki/gi/giv"
 	"github.com/goki/ki/ki"
-
-	_ "github.com/emer/etable/etview" // include to get gui views
 )
-
-const intonationPath = "../../data/en/intonation"
 
 // this is the stub main for gogi that calls our actual
 // mainrun function, at end of file
@@ -34,42 +30,21 @@ func main() {
 
 // Synth encapsulates
 type Synth struct {
-	win            *gi.Window                    `view:"-" desc:"main window"`
-	StructView     *giv.StructView               `view:"-" desc:"the params viewer"`
-	ToolBar        *gi.ToolBar                   `view:"-" desc:"the master toolbar"`
-	Text           string                        `desc:"the text to be synthesized"`
-	Phonetic       string                        `desc:"the phonetic version of Text"`
-	TextParser     *textparse.TextParser         `view:"-" desc:"parses text, returns phonetic string"`
-	PhoneticParser *phoneticparse.PhoneticParser `view:"-" desc:"parses the phonetic string"`
-	Model          *v2.Model                     `view:"" desc:"the master toolbar"`
-	Control        *v2.Control                   `view:"+" desc:"the master toolbar"`
-	SignalData     *etable.Table                 `desc:"waveform data"`
-	WavePlot       *eplot.Plot2D                 `view:"-" desc:"waveform plot"`
-	Save           bool                          `desc:"if true write the synthesized values to .wav file"`
-	Play           bool                          `desc:"if true play the sound"`
+	vt         v1.VocalTract `view:"noinline"`
+	win        *gi.Window
+	ToolBar    *gi.ToolBar   `view:"-" desc:"the master toolbar"`
+	SignalData *etable.Table `desc:"waveform data"`
+	WavePlot   *eplot.Plot2D `view:"-" desc:"waveform plot"`
+	Text       string        `desc:"the text to be synthesized"`
+	Save       bool          `desc:"if true write the synthesized values to .wav file"`
+	Play       bool          `desc:"if true play the sound"`
 }
 
-func NewSynth() *Synth {
-	syn := new(Synth)
+func (syn *Synth) Defaults() {
 	syn.SignalData = &etable.Table{}
 	syn.ConfigSignalData(syn.SignalData)
 	syn.Save = false
 	syn.Play = false
-
-	syn.Model = v2.LoadModel("../../data/en/monet_go.xml")
-	syn.Control = v2.NewControl(intonationPath, syn.Model)
-
-	syn.Control.ModelConfig.Load("trmControl.json")
-	vfp := "./voice_" + syn.Control.ModelConfig.Voice + ".json"
-	syn.Control.TrmConfig.Load("trm.json", vfp)
-
-	// todo: pass in config path and dictionary names
-	var fns = []string{"MainDictionary"}
-	syn.TextParser = textparse.NewTextParser("../../data/en/", fns)
-	syn.Text = "emergent, t he dog's, is home today. "
-
-	syn.PhoneticParser = phoneticparse.NewPhoneticParser(syn.Control, "../../data/en/vowelTransitions")
-	return syn
 }
 
 // ConfigSignalData
@@ -98,10 +73,10 @@ func (syn *Synth) ConfigWavePlot(plt *eplot.Plot2D, dt *etable.Table) *eplot.Plo
 }
 
 func (syn *Synth) GetWaveData() {
-	syn.SignalData.AddRows(len(syn.Control.Tube.SynthOutput))
-	for i := 0; i < len(syn.Control.Tube.SynthOutput); i++ {
+	syn.SignalData.AddRows(len(syn.vt.SynthOutput))
+	for i := 0; i < len(syn.vt.SynthOutput); i++ {
 		syn.SignalData.SetCellFloat("Time", i, float64(i))
-		syn.SignalData.SetCellFloat("Amplitude", i, float64(syn.Control.Tube.Wave[i]))
+		syn.SignalData.SetCellFloat("Amplitude", i, float64(syn.vt.Wave[i]))
 	}
 }
 
@@ -110,19 +85,16 @@ func (syn *Synth) Synthesize() {
 		gi.PromptDialog(syn.win.Viewport, gi.DlgOpts{Title: "No text to synthesize", Prompt: fmt.Sprintf("Enter the text to synthesize in the Text field.")}, gi.AddOk, gi.NoCancel, nil, nil)
 		return
 	}
-
-	syn.Phonetic = syn.TextParser.Parse(syn.Text)
-	fmt.Println(syn.Text, "phoneticaly is ", syn.Phonetic)
-	if syn.StructView != nil {
-		syn.StructView.UpdateField("Phonetic")
+	_, err := syn.vt.SynthWords(syn.Text, true, true)
+	if err != nil {
+		log.Println(err)
+		gi.PromptDialog(syn.win.Viewport, gi.DlgOpts{Title: "Synthesis error", Prompt: fmt.Sprintf("Synthesis error, see console. Displaying waveform of text to that point.")}, gi.AddOk, gi.NoCancel, nil, nil)
 	}
-
-	syn.Control.SynthPhoneticStringToFile(syn.PhoneticParser, syn.Phonetic, "trmParams.txt", "out.txt")
 	syn.GetWaveData()
 	syn.WavePlot.GoUpdate()
 	if syn.Save {
 		fn := syn.Text + ".wav"
-		err := syn.Control.Tube.Buf.WriteWave(fn)
+		err := syn.vt.Buf.WriteWave(fn)
 		if err != nil {
 			fmt.Printf("File not found or error opening file: %s (%s)", fn, err)
 		}
@@ -138,9 +110,9 @@ func (syn *Synth) ConfigGui() *gi.Window {
 	height := 1200
 
 	gi.SetAppName("Synth")
-	gi.SetAppAbout(`This program calls gospeech (a port of gnuspeech to synthesize text.`)
+	gi.SetAppAbout(`This demonstrates synthesizing a sound (phone or word)`)
 
-	win := gi.NewMainWindow("Synth Two", "Auditory ...", width, height)
+	win := gi.NewMainWindow("one", "Auditory ...", width, height)
 
 	vp := win.WinViewport2D()
 	updt := vp.UpdateStart()
@@ -157,7 +129,6 @@ func (syn *Synth) ConfigGui() *gi.Window {
 
 	sv := giv.AddNewStructView(split, "sv")
 	sv.SetStruct(syn)
-	syn.StructView = sv
 
 	tview := gi.AddNewTabView(split, "tv")
 
@@ -196,7 +167,8 @@ func (syn *Synth) ConfigGui() *gi.Window {
 var Synther Synth
 
 func mainrun() {
-	Synther = *NewSynth()
+	Synther.Defaults()
+	Synther.vt.Init()
 	Synther.win = Synther.ConfigGui()
 	Synther.win.StartEventLoop()
 }
