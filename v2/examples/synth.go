@@ -5,6 +5,7 @@
 package main
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/emer/etable/eplot"
@@ -17,7 +18,6 @@ import (
 	"github.com/goki/gi/gimain"
 	"github.com/goki/gi/giv"
 	"github.com/goki/ki/ki"
-	"golang.org/x/exp/errors/fmt"
 
 	_ "github.com/emer/etable/etview" // include to get gui views
 )

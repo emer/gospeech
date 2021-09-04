@@ -2,13 +2,13 @@ package v2
 
 import (
 	"encoding/xml"
+	"errors"
 	"log"
 	"strconv"
 	"strings"
 	"unicode"
 
 	"github.com/goki/ki/kit"
-	"golang.org/x/exp/errors"
 )
 
 const addChar = "+"
