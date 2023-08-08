@@ -34,34 +34,67 @@ import (
 )
 
 type TrmConfig struct {
+
+	// output sample rate (22.05, 44.1)
 	OutputRate float64 `desc:"output sample rate (22.05, 44.1)"`
-	Volume     float64 `desc:"master volume (0 - 60 dB)"`
-	Channels   int     `desc:"# of sound output channels (1, 2)"`
-	Balance    float64 `desc:"stereo balance (-1 to +1)"`
-	Waveform   float64 `desc:"GS waveform type (0=PULSE, 1=SINE)"`
 
-	VtlOffset   float64 `desc:"tube length offset"`
+	// master volume (0 - 60 dB)
+	Volume float64 `desc:"master volume (0 - 60 dB)"`
+
+	// # of sound output channels (1, 2)
+	Channels int `desc:"# of sound output channels (1, 2)"`
+
+	// stereo balance (-1 to +1)
+	Balance float64 `desc:"stereo balance (-1 to +1)"`
+
+	// GS waveform type (0=PULSE, 1=SINE)
+	Waveform float64 `desc:"GS waveform type (0=PULSE, 1=SINE)"`
+
+	// tube length offset
+	VtlOffset float64 `desc:"tube length offset"`
+
+	// tube temperature (25 - 40 C)
 	Temperature float64 `desc:"tube temperature (25 - 40 C)"`
-	LossFactor  float64 `desc:"junction loss factor in (0 - 5 %)"`
 
-	MouthCoef    float64 `desc:"mouth aperture coefficient"`
-	NoseCoef     float64 `desc:"nose aperture coefficient"`
+	// junction loss factor in (0 - 5 %)
+	LossFactor float64 `desc:"junction loss factor in (0 - 5 %)"`
+
+	// mouth aperture coefficient
+	MouthCoef float64 `desc:"mouth aperture coefficient"`
+
+	// nose aperture coefficient
+	NoseCoef float64 `desc:"nose aperture coefficient"`
+
+	// throat lp cutoff (50 - nyquist Hz)
 	ThroatCutoff float64 `desc:"throat lp cutoff (50 - nyquist Hz)"`
+
+	// throat volume (0 - 48 dB)
 	ThroatVolume float64 `desc:"throat volume (0 - 48 dB)"`
 
-	NoiseModulation int     `desc:"pulse mod. of noise (0=OFF, 1=ON)"`
-	MixOffset       float64 `desc:"noise crossmix offset (30 - 60 dB)"`
+	// pulse mod. of noise (0=OFF, 1=ON)
+	NoiseModulation int `desc:"pulse mod. of noise (0=OFF, 1=ON)"`
 
-	// Parameters that depend on the voice.
-	GlottalPulseTp    float64 `desc:"% glottal pulse rise time"`
+	// noise crossmix offset (30 - 60 dB)
+	MixOffset float64 `desc:"noise crossmix offset (30 - 60 dB)"`
+
+	// % glottal pulse rise time
+	GlottalPulseTp float64 `desc:"% glottal pulse rise time"`
+
+	// % glottal pulse fall time minimum
 	GlottalPulseTnMin float64 `desc:"% glottal pulse fall time minimum"`
-	GlottalPulseTnMax float64 `desc:"% glottal pulse fall time maximum"`
-	Breathiness       float64 `desc:"% glottal source breathiness"`
-	VocalTractLength  float64
-	RefGlottalPitch   float64
-	ApertureRadius    float64 `desc:"aperture scl. radius (3.05 - 12 cm)"`
 
-	// ToDo: nose sections should be a lookup
+	// % glottal pulse fall time maximum
+	GlottalPulseTnMax float64 `desc:"% glottal pulse fall time maximum"`
+
+	// % glottal source breathiness
+	Breathiness      float64 `desc:"% glottal source breathiness"`
+	VocalTractLength float64
+	RefGlottalPitch  float64
+
+	// aperture scl. radius (3.05 - 12 cm)
+	ApertureRadius float64 `desc:"aperture scl. radius (3.05 - 12 cm)"`
+
+	// fixed nose radii (0 - 3 cm)
 	NoseRadii []float64 `desc:"fixed nose radii (0 - 3 cm)"`
 	// ToDo: also shouldn't be hardcoded
 	RadiusCoefs          []float64

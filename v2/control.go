@@ -42,7 +42,9 @@ type Control struct {
 	Sequence    *Sequence
 	ModelConfig ModelConfig
 	TrmConfig   TrmConfig
-	Tube        *Tube `view:"noinline"`
+
+	// [view: noinline]
+	Tube *Tube `view:"noinline"`
 }
 
 func NewControl(path string, model *Model) *Control {
@@ -53,7 +55,7 @@ func NewControl(path string, model *Model) *Control {
 	return &ctrl
 }
 
-//SynthSequenceToFile synthesizes speech from data contained in the event list
+// SynthSequenceToFile synthesizes speech from data contained in the event list
 func (ctrl *Control) SynthSequenceToFile(trmParamFile, outputFile string) {
 	f, err := os.Create(trmParamFile)
 	if err != nil {
@@ -67,7 +69,7 @@ func (ctrl *Control) SynthSequenceToFile(trmParamFile, outputFile string) {
 	//ctrl.Tube.SynthesizeToFile(writer, outputFile)
 }
 
-//SynthSequenceToBuf synthesizes speech from data contained in the event list
+// SynthSequenceToBuf synthesizes speech from data contained in the event list
 func (ctrl *Control) SynthSequenceToBuf(trmParaFile string, buf []float64) {
 	f, err := os.Create(trmParaFile)
 	if err != nil {

@@ -946,325 +946,325 @@ func (np *NumParser) ErrorCheck(mode NumParseMode) int {
 //char*
 func (np *NumParser) processWord(mode NumParseMode) {}
 
-//{
-//	// SPECIAL PROCESSING OF WORD;  EACH RETURNS IMMEDIATELY
-//	// PROCESS CLOCK TIMES
-//	if (clock_) {
-//		// HOUR
-//		if (leftZeroPad_) {
-//			strcat(&output_[0], OH);
-//		}
-//		process_triad(&hour_[0], &output_[0], NO, NO, NO, NO, NO);
-//		// MINUTE
-//		if ((minute_[1] == '0') && (minute_[2] == '0')) {
-//			if (military_) {
-//				strcat(&output_[0], HUNDRED);
-//			} else if (!seconds_) {
-//				strcat(&output_[0], OCLOCK);
-//			}
-//		} else {
-//			if ((minute_[1] == '0') && (minute_[2] != '0')) {
+//	{
+//		// SPECIAL PROCESSING OF WORD;  EACH RETURNS IMMEDIATELY
+//		// PROCESS CLOCK TIMES
+//		if (clock_) {
+//			// HOUR
+//			if (leftZeroPad_) {
 //				strcat(&output_[0], OH);
 //			}
-//			process_triad(&minute_[0], &output_[0], NO, NO, NO, NO, NO);
-//		}
-//		// SECOND
-//		if (seconds_) {
-//			strcat(&output_[0], AND);
-//			if ((second_[1] == '0') && (second_[2] == '0')) {
-//				strcat(&output_[0], ZERO);
+//			process_triad(&hour_[0], &output_[0], NO, NO, NO, NO, NO);
+//			// MINUTE
+//			if ((minute_[1] == '0') && (minute_[2] == '0')) {
+//				if (military_) {
+//					strcat(&output_[0], HUNDRED);
+//				} else if (!seconds_) {
+//					strcat(&output_[0], OCLOCK);
+//				}
 //			} else {
-//				process_triad(&second_[0], &output_[0], NO, NO, NO, NO, NO);
+//				if ((minute_[1] == '0') && (minute_[2] != '0')) {
+//					strcat(&output_[0], OH);
+//				}
+//				process_triad(&minute_[0], &output_[0], NO, NO, NO, NO, NO);
 //			}
+//			// SECOND
+//			if (seconds_) {
+//				strcat(&output_[0], AND);
+//				if ((second_[1] == '0') && (second_[2] == '0')) {
+//					strcat(&output_[0], ZERO);
+//				} else {
+//					process_triad(&second_[0], &output_[0], NO, NO, NO, NO, NO);
+//				}
 //
-//			if ((second_[1] == '0') && (second_[2] == '1')) {
-//				strcat(&output_[0], SECOND);
-//			} else {
-//				strcat(&output_[0], SECONDS);
+//				if ((second_[1] == '0') && (second_[2] == '1')) {
+//					strcat(&output_[0], SECOND);
+//				} else {
+//					strcat(&output_[0], SECONDS);
+//				}
 //			}
+//			return &output_[0];
 //		}
-//		return &output_[0];
-//	}
-//	// PROCESS TELEPHONE NUMBERS
-//	if (telephone_ == SEVEN_DIGIT_CODE) {
-//		for (int i = 0; i < 3; i++) {
-//			process_digit(*(word_ + integerDigitsPos_[i]), &output_[0], NO, NO, NO);
-//		}
-//		strcat(&output_[0], PAUSE);
-//		for (int i = 3; i < 7; i++) {
-//			process_digit(*(word_ + integerDigitsPos_[i]), &output_[0], NO, NO, NO);
-//		}
-//		return &output_[0];
-//	} else if (telephone_ == TenDigitCode) {
-//		for (int i = 0; i < 3; i++) {
-//			process_digit(*(word_ + integerDigitsPos_[i]), &output_[0], NO, NO, NO);
-//		}
-//		strcat(&output_[0], PAUSE);
-//		for (int i = 3; i < 6; i++) {
-//			process_digit(*(word_ + integerDigitsPos_[i]), &output_[0], NO, NO, NO);
-//		}
-//		strcat(&output_[0], PAUSE);
-//		for (int i = 6; i < 10; i++) {
-//			process_digit(*(word_ + integerDigitsPos_[i]), &output_[0], NO, NO, NO);
-//		}
-//		return &output_[0];
-//	} else if (telephone_ == ElevenDigitCode) {
-//		process_digit(word_[integerDigitsPos_[0]], &output_[0], NO, NO, NO);
-//		if ((word_[integerDigitsPos_[1]] != '0') &&
-//				(word_[integerDigitsPos_[2]] == '0') &&
-//				(word_[integerDigitsPos_[3]] == '0')) {
-//			process_digit(word_[integerDigitsPos_[1]], &output_[0], NO, NO, NO);
-//			strcat(&output_[0], HUNDRED);
-//		} else {
-//			strcat(&output_[0], PAUSE);
-//			for (int i = 1; i < 4; i++) {
+//		// PROCESS TELEPHONE NUMBERS
+//		if (telephone_ == SEVEN_DIGIT_CODE) {
+//			for (int i = 0; i < 3; i++) {
 //				process_digit(*(word_ + integerDigitsPos_[i]), &output_[0], NO, NO, NO);
 //			}
-//		}
-//		strcat(&output_[0], PAUSE);
-//		for (int i = 4; i < 7; i++) {
-//			process_digit(*(word_ + integerDigitsPos_[i]), &output_[0], NO, NO, NO);
-//		}
-//		strcat(&output_[0], PAUSE);
-//		for (int i = 7; i < 11; i++) {
-//			process_digit(*(word_ + integerDigitsPos_[i]), &output_[0], NO, NO, NO);
-//		}
-//		return &output_[0];
-//	} else if (telephone_ == AreaCode) {
-//		strcat(&output_[0], AREA);
-//		strcat(&output_[0], CODE);
-//		for (int i = 0; i < 3; i++) {
-//			process_digit(*(word_ + integerDigitsPos_[i]), &output_[0], NO, NO, NO);
-//		}
-//		strcat(&output_[0], PAUSE);
-//		for (int i = 3; i < 6; i++) {
-//			process_digit(*(word_ + integerDigitsPos_[i]), &output_[0], NO, NO, NO);
-//		}
-//		strcat(&output_[0], PAUSE);
-//		for (int i = 6; i < 10; i++) {
-//			process_digit(*(word_ + integerDigitsPos_[i]), &output_[0], NO, NO, NO);
-//		}
-//		return &output_[0];
-//	}
-//	// PROCESS ZERO DOLLARS AND ZERO CENTS
-//	if (dollar_ && (!dollarNonzero_) && (!centsNonzero_)) {
-//		strcat(&output_[0], ZERO);
-//		strcat(&output_[0], DOLLARS);
-//		return &output_[0];
-//	}
-//	// PROCESS FOR YEAR IF INTEGER IN RANGE 1000 TO 1999
-//	if ((integerDigits_ == 4) && (wordLength_ == 4) &&
-//			(word_[integerDigitsPos_[0]] == '1') && (mode != OVERRIDE_YEARS)) {
-//		triad_[0] = '0';
-//		triad_[1] = word_[integerDigitsPos_[0]];
-//		triad_[2] = word_[integerDigitsPos_[1]];
-//		process_triad(&triad_[0], &output_[0], NO, NO, NO, NO, NO);
-//		if ((word_[integerDigitsPos_[2]] == '0') && (word_[integerDigitsPos_[3]] == '0')) {
-//			strcat(&output_[0], HUNDRED);
-//		} else if (word_[integerDigitsPos_[2]] == '0') {
-//			strcat(&output_[0], OH);
-//			process_digit(word_[integerDigitsPos_[3]], &output_[0], NO, NO, NO);
-//		} else {
-//			triad_[0] = '0';
-//			triad_[1] = word_[integerDigitsPos_[2]];
-//			triad_[2] = word_[integerDigitsPos_[3]];
-//			process_triad(&triad_[0], &output_[0], NO, NO, NO, NO, NO);
-//		}
-//		return &output_[0];
-//	}
-//
-//	// ORDINARY SEQUENTIAL PROCESSING
-//	// APPEND POSITIVE OR NEGATIVE IF INDICATED
-//	if (positive_) {
-//		strcat(&output_[0], POSITIVE);
-//	} else if (negative_) {
-//		strcat(&output_[0], NEGATIVE);
-//	}
-//
-//	// PROCESS SINGLE INTEGER DIGIT
-//	if (integerDigits_ == 1) {
-//		if ((word_[integerDigitsPos_[0]] == '0') && dollar_) {
-//			;
-//		} else {
-//			process_digit(word_[integerDigitsPos_[0]], &output_[0], ordinal_, NO, NO);
-//		}
-//		ordinalPlural_ = (word_[integerDigitsPos_[0]] == '1') ? NO : YES;
-//	} else if ((integerDigits_ >= 2) && (integerDigits_ <= (TRIADS_MAX * 3))) {
-//		// PROCESS INTEGERS AS TRIADS, UP TO MAX LENGTH
-//
-//		int digit_index = 0, num_digits, triad_index, index, pause_flag = NO;
-//		for (int i = 0; i < 3; i++) {
-//			triad_[i] = '0';
-//		}
-//		index = (int) ((integerDigits_ - 1) / 3.0);
-//		num_digits = integerDigits_ - (index * 3);
-//		triad_index = 3 - num_digits;
-//
-//		for (int i = index; i >= 0; i--) {
-//			while (num_digits--) {
-//				triad_[triad_index++] = word_[integerDigitsPos_[digit_index++]];
-//			}
-//
-//			if (process_triad(&triad_[0], &output_[0], pause_flag,
-//					(ordinal_ && (ordinalTriad_ == i)),
-//					rightZeroPad_, NO, NO) == NONZERO) {
-//				if (ordinal_ && (ordinalTriad_ == i)) {
-//					strcat(&output_[0], triad_name[1][i]);
-//				} else {
-//					strcat(&output_[0], triad_name[0][i]);
-//				}
-//				pause_flag = YES;
-//			}
-//			if ((i == 1) && (word_[integerDigitsPos_[digit_index]] == '0') &&
-//					((word_[integerDigitsPos_[digit_index + 1]] != '0') ||
-//					(word_[integerDigitsPos_[digit_index + 2]] != '0'))) {
-//				strcat(&output_[0], AND);
-//				pause_flag = NO;
-//			}
-//			triad_index = 0;
-//			num_digits = 3;
-//		}
-//	} else if ((integerDigits_ > (TRIADS_MAX * 3)) && (!commas_) && (!ordinal_)) {
-//		// PROCESS EXTREMELY LARGE NUMBERS AS STREAM OF SINGLE DIGITS
-//
-//		for (int i = 0; i < integerDigits_; i++) {
-//			process_digit(*(word_ + integerDigitsPos_[i]), &output_[0], NO, NO, NO);
-//		}
-//	}
-//
-//	// APPEND DOLLAR OR DOLLARS IF NEEDED
-//	if (dollar_ && dollarNonzero_) {
-//		if (fractionalDigits_ && (fractionalDigits_ != 2)) {
-//			;
-//		} else if (dollarPlural_) {
-//			strcat(&output_[0], DOLLARS);
-//		} else if (!dollarPlural_) {
-//			strcat(&output_[0], DOLLAR);
-//		}
-//		if (centsNonzero_ && (fractionalDigits_ == 2)) {
-//			strcat(&output_[0], AND);
-//		}
-//	}
-//
-//	// APPEND POINT IF FRACTIONAL DIGITS, NO SLASH,
-//		AND IF NOT .00 DOLLAR FORMAT
-//	if (fractionalDigits_ && (!slash_) &&
-//			((!dollar_) || (dollar_ && (fractionalDigits_ != 2)))) {
-//		strcat(&output_[0], POINT);
-//		for (int i = 0; i < fractionalDigits_; i++) {
-//			process_digit(word_[fractionalDigitsPos_[i]], &output_[0], NO, NO, NO);
-//		}
-//	} else if (slash_) {
-//		// PROCESS DENOMINATOR OF FRACTIONS
-//
-//		char ones_digit = '\0', tens_digit = '\0';
-//
-//		if (((integerDigits_ >= 3) && (fractionalDigits_ >= 3)) ||
-//				(word_[integerDigitsPos_[integerDigits_ - 1]] == '0')) {
 //			strcat(&output_[0], PAUSE);
-//		}
-//
-//		ones_digit = word_[fractionalDigitsPos_[fractionalDigits_ - 1]];
-//		if (fractionalDigits_ >= 2) {
-//			tens_digit = word_[fractionalDigitsPos_[fractionalDigits_ - 2]];
-//		}
-//
-//		ordinal_ = YES;
-//		int special_flag = NO;
-//		if ((ones_digit == '0' && tens_digit == '\0') ||
-//				(ones_digit == '1' && tens_digit != '1')) {
-//			strcat(&output_[0], OVER);
-//			ordinal_ = ordinalPlural_ = NO;
-//		} else if (ones_digit == '2') {
-//			if (tens_digit == '\0') {
-//				special_flag = HalfFlag;
-//			} else if (tens_digit != '1') {
-//				special_flag = SecondthFlag;
+//			for (int i = 3; i < 7; i++) {
+//				process_digit(*(word_ + integerDigitsPos_[i]), &output_[0], NO, NO, NO);
 //			}
-//		} else if (ones_digit == '4' && tens_digit == '\0') {
-//			special_flag = QuarterFlag;
+//			return &output_[0];
+//		} else if (telephone_ == TenDigitCode) {
+//			for (int i = 0; i < 3; i++) {
+//				process_digit(*(word_ + integerDigitsPos_[i]), &output_[0], NO, NO, NO);
+//			}
+//			strcat(&output_[0], PAUSE);
+//			for (int i = 3; i < 6; i++) {
+//				process_digit(*(word_ + integerDigitsPos_[i]), &output_[0], NO, NO, NO);
+//			}
+//			strcat(&output_[0], PAUSE);
+//			for (int i = 6; i < 10; i++) {
+//				process_digit(*(word_ + integerDigitsPos_[i]), &output_[0], NO, NO, NO);
+//			}
+//			return &output_[0];
+//		} else if (telephone_ == ElevenDigitCode) {
+//			process_digit(word_[integerDigitsPos_[0]], &output_[0], NO, NO, NO);
+//			if ((word_[integerDigitsPos_[1]] != '0') &&
+//					(word_[integerDigitsPos_[2]] == '0') &&
+//					(word_[integerDigitsPos_[3]] == '0')) {
+//				process_digit(word_[integerDigitsPos_[1]], &output_[0], NO, NO, NO);
+//				strcat(&output_[0], HUNDRED);
+//			} else {
+//				strcat(&output_[0], PAUSE);
+//				for (int i = 1; i < 4; i++) {
+//					process_digit(*(word_ + integerDigitsPos_[i]), &output_[0], NO, NO, NO);
+//				}
+//			}
+//			strcat(&output_[0], PAUSE);
+//			for (int i = 4; i < 7; i++) {
+//				process_digit(*(word_ + integerDigitsPos_[i]), &output_[0], NO, NO, NO);
+//			}
+//			strcat(&output_[0], PAUSE);
+//			for (int i = 7; i < 11; i++) {
+//				process_digit(*(word_ + integerDigitsPos_[i]), &output_[0], NO, NO, NO);
+//			}
+//			return &output_[0];
+//		} else if (telephone_ == AreaCode) {
+//			strcat(&output_[0], AREA);
+//			strcat(&output_[0], CODE);
+//			for (int i = 0; i < 3; i++) {
+//				process_digit(*(word_ + integerDigitsPos_[i]), &output_[0], NO, NO, NO);
+//			}
+//			strcat(&output_[0], PAUSE);
+//			for (int i = 3; i < 6; i++) {
+//				process_digit(*(word_ + integerDigitsPos_[i]), &output_[0], NO, NO, NO);
+//			}
+//			strcat(&output_[0], PAUSE);
+//			for (int i = 6; i < 10; i++) {
+//				process_digit(*(word_ + integerDigitsPos_[i]), &output_[0], NO, NO, NO);
+//			}
+//			return &output_[0];
+//		}
+//		// PROCESS ZERO DOLLARS AND ZERO CENTS
+//		if (dollar_ && (!dollarNonzero_) && (!centsNonzero_)) {
+//			strcat(&output_[0], ZERO);
+//			strcat(&output_[0], DOLLARS);
+//			return &output_[0];
+//		}
+//		// PROCESS FOR YEAR IF INTEGER IN RANGE 1000 TO 1999
+//		if ((integerDigits_ == 4) && (wordLength_ == 4) &&
+//				(word_[integerDigitsPos_[0]] == '1') && (mode != OVERRIDE_YEARS)) {
+//			triad_[0] = '0';
+//			triad_[1] = word_[integerDigitsPos_[0]];
+//			triad_[2] = word_[integerDigitsPos_[1]];
+//			process_triad(&triad_[0], &output_[0], NO, NO, NO, NO, NO);
+//			if ((word_[integerDigitsPos_[2]] == '0') && (word_[integerDigitsPos_[3]] == '0')) {
+//				strcat(&output_[0], HUNDRED);
+//			} else if (word_[integerDigitsPos_[2]] == '0') {
+//				strcat(&output_[0], OH);
+//				process_digit(word_[integerDigitsPos_[3]], &output_[0], NO, NO, NO);
+//			} else {
+//				triad_[0] = '0';
+//				triad_[1] = word_[integerDigitsPos_[2]];
+//				triad_[2] = word_[integerDigitsPos_[3]];
+//				process_triad(&triad_[0], &output_[0], NO, NO, NO, NO, NO);
+//			}
+//			return &output_[0];
 //		}
 //
-//		if (fractionalDigits_ == 1) {
-//			process_digit(ones_digit, &output_[0], ordinal_, ordinalPlural_, special_flag);
-//		} else if (fractionalDigits_ >= 2 && (fractionalDigits_ <= (TRIADS_MAX * 3))) {
+//		// ORDINARY SEQUENTIAL PROCESSING
+//		// APPEND POSITIVE OR NEGATIVE IF INDICATED
+//		if (positive_) {
+//			strcat(&output_[0], POSITIVE);
+//		} else if (negative_) {
+//			strcat(&output_[0], NEGATIVE);
+//		}
+//
+//		// PROCESS SINGLE INTEGER DIGIT
+//		if (integerDigits_ == 1) {
+//			if ((word_[integerDigitsPos_[0]] == '0') && dollar_) {
+//				;
+//			} else {
+//				process_digit(word_[integerDigitsPos_[0]], &output_[0], ordinal_, NO, NO);
+//			}
+//			ordinalPlural_ = (word_[integerDigitsPos_[0]] == '1') ? NO : YES;
+//		} else if ((integerDigits_ >= 2) && (integerDigits_ <= (TRIADS_MAX * 3))) {
+//			// PROCESS INTEGERS AS TRIADS, UP TO MAX LENGTH
+//
 //			int digit_index = 0, num_digits, triad_index, index, pause_flag = NO;
 //			for (int i = 0; i < 3; i++) {
 //				triad_[i] = '0';
 //			}
-//			index = (int) ((fractionalDigits_ - 1) / 3.0);
-//			num_digits = fractionalDigits_ - (index * 3);
+//			index = (int) ((integerDigits_ - 1) / 3.0);
+//			num_digits = integerDigits_ - (index * 3);
 //			triad_index = 3 - num_digits;
 //
 //			for (int i = index; i >= 0; i--) {
 //				while (num_digits--) {
-//					triad_[triad_index++] = word_[fractionalDigitsPos_[digit_index++]];
+//					triad_[triad_index++] = word_[integerDigitsPos_[digit_index++]];
 //				}
 //
 //				if (process_triad(&triad_[0], &output_[0], pause_flag,
-//						(ordinal_ && (fracOrdinalTriad_ == i)),
-//						fracRightZeroPad_,
-//						(ordinalPlural_ && (fracOrdinalTriad_ == i)),
-//						(special_flag && (fracOrdinalTriad_ == i))) == NONZERO) {
-//					if (ordinalPlural_ && (fracOrdinalTriad_ == i)) {
-//						strcat(&output_[0], triad_name[2][i]);
-//					} else if (ordinal_ && (fracOrdinalTriad_ == i)) {
+//						(ordinal_ && (ordinalTriad_ == i)),
+//						rightZeroPad_, NO, NO) == NONZERO) {
+//					if (ordinal_ && (ordinalTriad_ == i)) {
 //						strcat(&output_[0], triad_name[1][i]);
 //					} else {
 //						strcat(&output_[0], triad_name[0][i]);
 //					}
 //					pause_flag = YES;
 //				}
-//				if ((i == 1) &&
-//						(word_[fractionalDigitsPos_[digit_index]] == '0') &&
-//						((word_[fractionalDigitsPos_[digit_index + 1]] != '0') ||
-//						(word_[fractionalDigitsPos_[digit_index + 2]] != '0'))) {
+//				if ((i == 1) && (word_[integerDigitsPos_[digit_index]] == '0') &&
+//						((word_[integerDigitsPos_[digit_index + 1]] != '0') ||
+//						(word_[integerDigitsPos_[digit_index + 2]] != '0'))) {
 //					strcat(&output_[0], AND);
 //					pause_flag = NO;
 //				}
 //				triad_index = 0;
 //				num_digits = 3;
 //			}
-//		}
-//	} else if (dollar_ && centsNonzero_ && (fractionalDigits_ == 2)) {
-//		// APPEND CENTS
+//		} else if ((integerDigits_ > (TRIADS_MAX * 3)) && (!commas_) && (!ordinal_)) {
+//			// PROCESS EXTREMELY LARGE NUMBERS AS STREAM OF SINGLE DIGITS
 //
-//		triad_[0] = '0';
-//		triad_[1] = word_[fractionalDigitsPos_[0]];
-//		triad_[2] = word_[fractionalDigitsPos_[1]];
-//		if (process_triad(&triad_[0], &output_[0], NO, NO, NO, NO, NO) == NONZERO) {
-//			if (centsPlural_) {
-//				strcat(&output_[0], CENTS);
-//			} else {
-//				strcat(&output_[0], CENT);
+//			for (int i = 0; i < integerDigits_; i++) {
+//				process_digit(*(word_ + integerDigitsPos_[i]), &output_[0], NO, NO, NO);
 //			}
 //		}
+//
+//		// APPEND DOLLAR OR DOLLARS IF NEEDED
+//		if (dollar_ && dollarNonzero_) {
+//			if (fractionalDigits_ && (fractionalDigits_ != 2)) {
+//				;
+//			} else if (dollarPlural_) {
+//				strcat(&output_[0], DOLLARS);
+//			} else if (!dollarPlural_) {
+//				strcat(&output_[0], DOLLAR);
+//			}
+//			if (centsNonzero_ && (fractionalDigits_ == 2)) {
+//				strcat(&output_[0], AND);
+//			}
+//		}
+//
+//		// APPEND POINT IF FRACTIONAL DIGITS, NO SLASH,
+//			AND IF NOT .00 DOLLAR FORMAT
+//		if (fractionalDigits_ && (!slash_) &&
+//				((!dollar_) || (dollar_ && (fractionalDigits_ != 2)))) {
+//			strcat(&output_[0], POINT);
+//			for (int i = 0; i < fractionalDigits_; i++) {
+//				process_digit(word_[fractionalDigitsPos_[i]], &output_[0], NO, NO, NO);
+//			}
+//		} else if (slash_) {
+//			// PROCESS DENOMINATOR OF FRACTIONS
+//
+//			char ones_digit = '\0', tens_digit = '\0';
+//
+//			if (((integerDigits_ >= 3) && (fractionalDigits_ >= 3)) ||
+//					(word_[integerDigitsPos_[integerDigits_ - 1]] == '0')) {
+//				strcat(&output_[0], PAUSE);
+//			}
+//
+//			ones_digit = word_[fractionalDigitsPos_[fractionalDigits_ - 1]];
+//			if (fractionalDigits_ >= 2) {
+//				tens_digit = word_[fractionalDigitsPos_[fractionalDigits_ - 2]];
+//			}
+//
+//			ordinal_ = YES;
+//			int special_flag = NO;
+//			if ((ones_digit == '0' && tens_digit == '\0') ||
+//					(ones_digit == '1' && tens_digit != '1')) {
+//				strcat(&output_[0], OVER);
+//				ordinal_ = ordinalPlural_ = NO;
+//			} else if (ones_digit == '2') {
+//				if (tens_digit == '\0') {
+//					special_flag = HalfFlag;
+//				} else if (tens_digit != '1') {
+//					special_flag = SecondthFlag;
+//				}
+//			} else if (ones_digit == '4' && tens_digit == '\0') {
+//				special_flag = QuarterFlag;
+//			}
+//
+//			if (fractionalDigits_ == 1) {
+//				process_digit(ones_digit, &output_[0], ordinal_, ordinalPlural_, special_flag);
+//			} else if (fractionalDigits_ >= 2 && (fractionalDigits_ <= (TRIADS_MAX * 3))) {
+//				int digit_index = 0, num_digits, triad_index, index, pause_flag = NO;
+//				for (int i = 0; i < 3; i++) {
+//					triad_[i] = '0';
+//				}
+//				index = (int) ((fractionalDigits_ - 1) / 3.0);
+//				num_digits = fractionalDigits_ - (index * 3);
+//				triad_index = 3 - num_digits;
+//
+//				for (int i = index; i >= 0; i--) {
+//					while (num_digits--) {
+//						triad_[triad_index++] = word_[fractionalDigitsPos_[digit_index++]];
+//					}
+//
+//					if (process_triad(&triad_[0], &output_[0], pause_flag,
+//							(ordinal_ && (fracOrdinalTriad_ == i)),
+//							fracRightZeroPad_,
+//							(ordinalPlural_ && (fracOrdinalTriad_ == i)),
+//							(special_flag && (fracOrdinalTriad_ == i))) == NONZERO) {
+//						if (ordinalPlural_ && (fracOrdinalTriad_ == i)) {
+//							strcat(&output_[0], triad_name[2][i]);
+//						} else if (ordinal_ && (fracOrdinalTriad_ == i)) {
+//							strcat(&output_[0], triad_name[1][i]);
+//						} else {
+//							strcat(&output_[0], triad_name[0][i]);
+//						}
+//						pause_flag = YES;
+//					}
+//					if ((i == 1) &&
+//							(word_[fractionalDigitsPos_[digit_index]] == '0') &&
+//							((word_[fractionalDigitsPos_[digit_index + 1]] != '0') ||
+//							(word_[fractionalDigitsPos_[digit_index + 2]] != '0'))) {
+//						strcat(&output_[0], AND);
+//						pause_flag = NO;
+//					}
+//					triad_index = 0;
+//					num_digits = 3;
+//				}
+//			}
+//		} else if (dollar_ && centsNonzero_ && (fractionalDigits_ == 2)) {
+//			// APPEND CENTS
+//
+//			triad_[0] = '0';
+//			triad_[1] = word_[fractionalDigitsPos_[0]];
+//			triad_[2] = word_[fractionalDigitsPos_[1]];
+//			if (process_triad(&triad_[0], &output_[0], NO, NO, NO, NO, NO) == NONZERO) {
+//				if (centsPlural_) {
+//					strcat(&output_[0], CENTS);
+//				} else {
+//					strcat(&output_[0], CENT);
+//				}
+//			}
+//		}
+//
+//		// APPEND DOLLARS IF NOT $.00 FORMAT
+//		if (dollar_ && fractionalDigits_ && (fractionalDigits_ != 2)) {
+//			strcat(&output_[0], DOLLARS);
+//		}
+//
+//		// APPEND PERCENT IF NECESSARY
+//		if (percent_) {
+//			strcat(&output_[0], PERCENT);
+//		}
+//
+//		// RETURN OUTPUT TO CALLER
+//		return &output_[0];
 //	}
 //
-//	// APPEND DOLLARS IF NOT $.00 FORMAT
-//	if (dollar_ && fractionalDigits_ && (fractionalDigits_ != 2)) {
-//		strcat(&output_[0], DOLLARS);
-//	}
-//
-//	// APPEND PERCENT IF NECESSARY
-//	if (percent_) {
-//		strcat(&output_[0], PERCENT);
-//	}
-//
-//	// RETURN OUTPUT TO CALLER
-//	return &output_[0];
-//}
-//
-///******************************************************************************
-//*
-//*	function:	number_parser
-//*
-//*	purpose:	Returns a pointer to a NULL terminated character string
-///                      which contains the pronunciation for the string pointed
-///                      at by the argument word_ptr.
-//*
-//******************************************************************************/
-//const char*
+// /******************************************************************************
+// *
+// *	function:	number_parser
+// *
+// *	purpose:	Returns a pointer to a NULL terminated character string
+// /                      which contains the pronunciation for the string pointed
+// /                      at by the argument word_ptr.
+// *
+// ******************************************************************************/
+// const char*
 // ParseNum returns the pronounciation
 func (np *NumParser) ParseNum(word string, mode NumParseMode) string {
 	return ""

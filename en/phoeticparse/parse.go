@@ -30,13 +30,14 @@ package phoneticparse
 import (
 	"bufio"
 	"fmt"
-	"github.com/emer/gospeech/v2"
 	"io"
 	"log"
 	"os"
 	"strconv"
 	"strings"
 	"unicode"
+
+	v2 "github.com/emer/gospeech/v2"
 )
 
 type RewriterData struct {

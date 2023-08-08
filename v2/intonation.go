@@ -28,10 +28,20 @@
 package v2
 
 type IntonationPt struct {
-	SemiTone float64   `desc:"value of the intonation in semitones"`
-	Offset   float64   `desc:"points are timed wrt a beat + this offset"`
-	Slope    float64   `desc:"Slope of point"`
-	RuleIdx  int       `desc:"Index of posture which is the focus of this point"`
+
+	// value of the intonation in semitones
+	SemiTone float64 `desc:"value of the intonation in semitones"`
+
+	// points are timed wrt a beat + this offset
+	Offset float64 `desc:"points are timed wrt a beat + this offset"`
+
+	// Slope of point
+	Slope float64 `desc:"Slope of point"`
+
+	// Index of posture which is the focus of this point
+	RuleIdx int `desc:"Index of posture which is the focus of this point"`
+
+	// Current events
 	Sequence *Sequence `desc:"Current events"`
 }
 

@@ -6,9 +6,10 @@ package main
 
 import (
 	"fmt"
-	v1 "github.com/emer/gospeech/v1"
 	"log"
 	"strconv"
+
+	v1 "github.com/emer/gospeech/v1"
 
 	"github.com/emer/etable/eplot"
 	"github.com/emer/etable/etable"
@@ -30,14 +31,28 @@ func main() {
 
 // Synth encapsulates
 type Synth struct {
-	vt         v1.VocalTract `view:"noinline"`
-	win        *gi.Window
-	ToolBar    *gi.ToolBar   `view:"-" desc:"the master toolbar"`
+
+	// [view: noinline]
+	vt  v1.VocalTract `view:"noinline"`
+	win *gi.Window
+
+	// [view: -] the master toolbar
+	ToolBar *gi.ToolBar `view:"-" desc:"the master toolbar"`
+
+	// waveform data
 	SignalData *etable.Table `desc:"waveform data"`
-	WavePlot   *eplot.Plot2D `view:"-" desc:"waveform plot"`
-	Text       string        `desc:"the text to be synthesized"`
-	Save       bool          `desc:"if true write the synthesized values to .wav file"`
-	Play       bool          `desc:"if true play the sound"`
+
+	// [view: -] waveform plot
+	WavePlot *eplot.Plot2D `view:"-" desc:"waveform plot"`
+
+	// the text to be synthesized
+	Text string `desc:"the text to be synthesized"`
+
+	// if true write the synthesized values to .wav file
+	Save bool `desc:"if true write the synthesized values to .wav file"`
+
+	// if true play the sound
+	Play bool `desc:"if true play the sound"`
 }
 
 func (syn *Synth) Defaults() {

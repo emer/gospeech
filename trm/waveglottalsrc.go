@@ -38,7 +38,7 @@ const OversamplingOscillator = true
 const TableLength = 512.0
 const TableModulus = TableLength - 1
 
-//  oversampling fir filter characteristics
+// oversampling fir filter characteristics
 const FirBeta = .2
 const FirGamma = .1
 const FirCutoff = .00000001

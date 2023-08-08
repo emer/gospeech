@@ -1596,17 +1596,15 @@ func ConvertSecondaryStress(rs []rune) bool {
 //*stream_length = static_cast<long>(stream.tellg())
 //}
 
-//
-///******************************************************************************
+// /******************************************************************************
 // *
 // *       function:       insert_chunk_marker
 // *
 // *       purpose:        Insert chunk markers and associated markers in the
-//stream at the insert point.  Use the tone group type
-//passed in as an argument.
+// stream at the insert point.  Use the tone group type
+// passed in as an argument.
 // *
 // ******************************************************************************/
-//
 //
 // InsertChunkMarker inserts chunk markers and associated markers in the stream at the insert point.
 // Use the tone group type passed in as an argument.

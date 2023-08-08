@@ -71,8 +71,10 @@ type Point struct {
 	Type      TransitionType `xml:"type,attr"`
 	Value     float64        `xml:"value,attr"`
 	IsPhantom bool           `xml:"is-phantom,attr"`
-	FreeTime  float64        `xml:"free-time,attr" desc:"milliseconds"`
-	TimeExpr  *Equation      `xml:"time-expression,attr"`
+
+	// milliseconds
+	FreeTime float64   `xml:"free-time,attr" desc:"milliseconds"`
+	TimeExpr *Equation `xml:"time-expression,attr"`
 }
 
 // NewPoint

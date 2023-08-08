@@ -11,9 +11,9 @@ import (
 	"github.com/emer/etable/eplot"
 	"github.com/emer/etable/etable"
 	"github.com/emer/etable/etensor"
-	"github.com/emer/gospeech/en/phoeticparse"
+	phoneticparse "github.com/emer/gospeech/en/phoeticparse"
 	"github.com/emer/gospeech/en/textparse"
-	"github.com/emer/gospeech/v2"
+	v2 "github.com/emer/gospeech/v2"
 	"github.com/goki/gi/gi"
 	"github.com/goki/gi/gimain"
 	"github.com/goki/gi/giv"
@@ -34,19 +34,45 @@ func main() {
 
 // Synth encapsulates
 type Synth struct {
-	win            *gi.Window                    `view:"-" desc:"main window"`
-	StructView     *giv.StructView               `view:"-" desc:"the params viewer"`
-	ToolBar        *gi.ToolBar                   `view:"-" desc:"the master toolbar"`
-	Text           string                        `desc:"the text to be synthesized"`
-	Phonetic       string                        `desc:"the phonetic version of Text"`
-	TextParser     *textparse.TextParser         `view:"-" desc:"parses text, returns phonetic string"`
+
+	// [view: -] main window
+	win *gi.Window `view:"-" desc:"main window"`
+
+	// [view: -] the params viewer
+	StructView *giv.StructView `view:"-" desc:"the params viewer"`
+
+	// [view: -] the master toolbar
+	ToolBar *gi.ToolBar `view:"-" desc:"the master toolbar"`
+
+	// the text to be synthesized
+	Text string `desc:"the text to be synthesized"`
+
+	// the phonetic version of Text
+	Phonetic string `desc:"the phonetic version of Text"`
+
+	// [view: -] parses text, returns phonetic string
+	TextParser *textparse.TextParser `view:"-" desc:"parses text, returns phonetic string"`
+
+	// [view: -] parses the phonetic string
 	PhoneticParser *phoneticparse.PhoneticParser `view:"-" desc:"parses the phonetic string"`
-	Model          *v2.Model                     `view:"" desc:"the master toolbar"`
-	Control        *v2.Control                   `view:"+" desc:"the master toolbar"`
-	SignalData     *etable.Table                 `desc:"waveform data"`
-	WavePlot       *eplot.Plot2D                 `view:"-" desc:"waveform plot"`
-	Save           bool                          `desc:"if true write the synthesized values to .wav file"`
-	Play           bool                          `desc:"if true play the sound"`
+
+	// [view: ] the master toolbar
+	Model *v2.Model `view:"" desc:"the master toolbar"`
+
+	// [view: +] the master toolbar
+	Control *v2.Control `view:"+" desc:"the master toolbar"`
+
+	// waveform data
+	SignalData *etable.Table `desc:"waveform data"`
+
+	// [view: -] waveform plot
+	WavePlot *eplot.Plot2D `view:"-" desc:"waveform plot"`
+
+	// if true write the synthesized values to .wav file
+	Save bool `desc:"if true write the synthesized values to .wav file"`
+
+	// if true play the sound
+	Play bool `desc:"if true play the sound"`
 }
 
 func NewSynth() *Synth {

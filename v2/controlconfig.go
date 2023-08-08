@@ -64,20 +64,34 @@ const (
 var Kit_Intonation = kit.Enums.AddEnum(IntonationFlagsN, kit.BitFlag, nil)
 
 type ModelConfig struct {
-	Name             string
-	Desc             string
-	Voice            string
-	ControlRate      float64 `desc:"1.0-1000.0 input tables/second (Hz)"`
-	Tempo            float64
-	PitchOffset      float64
-	DriftDeviation   float64
-	DriftLowCutoff   float64
-	Intonation       int64 `desc:"Holds IntonationFlags"`
-	MicroIntonation  int   `desc:"One of 5 types of intonation"`
-	MacroIntonation  int   `desc:"One of 5 types of intonation"`
-	SmoothIntonation int   `desc:"One of 5 types of intonation"`
-	DriftIntonation  int   `desc:"One of 5 types of intonation"`
-	RandomIntonation int   `desc:"One of 5 types of intonation"`
+	Name  string
+	Desc  string
+	Voice string
+
+	// 1.0-1000.0 input tables/second (Hz)
+	ControlRate    float64 `desc:"1.0-1000.0 input tables/second (Hz)"`
+	Tempo          float64
+	PitchOffset    float64
+	DriftDeviation float64
+	DriftLowCutoff float64
+
+	// Holds IntonationFlags
+	Intonation int64 `desc:"Holds IntonationFlags"`
+
+	// One of 5 types of intonation
+	MicroIntonation int `desc:"One of 5 types of intonation"`
+
+	// One of 5 types of intonation
+	MacroIntonation int `desc:"One of 5 types of intonation"`
+
+	// One of 5 types of intonation
+	SmoothIntonation int `desc:"One of 5 types of intonation"`
+
+	// One of 5 types of intonation
+	DriftIntonation int `desc:"One of 5 types of intonation"`
+
+	// One of 5 types of intonation
+	RandomIntonation int `desc:"One of 5 types of intonation"`
 
 	// Intonation parameters.
 	NotionalPitch float64

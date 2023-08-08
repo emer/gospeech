@@ -91,11 +91,15 @@ const (
 var Kit_NodeType = kit.Enums.AddEnum(NodeTypeN, kit.NotBitFlag, nil)
 
 type FormulaNode struct { // Parser returns the pi.Parser for this language
-	Type     NodeType
-	Child1   *FormulaNode
-	Child2   *FormulaNode
-	Symbol   FormulaSymbolType `desc:"These are dynamic variables looked up from a map"`
-	ConstVal float64           `desc:"Constants in some formulas"`
+	Type   NodeType
+	Child1 *FormulaNode
+	Child2 *FormulaNode
+
+	// These are dynamic variables looked up from a map
+	Symbol FormulaSymbolType `desc:"These are dynamic variables looked up from a map"`
+
+	// Constants in some formulas
+	ConstVal float64 `desc:"Constants in some formulas"`
 }
 
 func (fn *FormulaNode) Eval(sl *FormulaValueList) float64 {

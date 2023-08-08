@@ -43,11 +43,12 @@ package v2
 import (
 	"bufio"
 	"fmt"
-	"github.com/emer/gospeech/trm"
 	"log"
 	"math"
 	"os"
 	"strconv"
+
+	"github.com/emer/gospeech/trm"
 
 	"github.com/emer/auditory/sound"
 	"github.com/emer/etable/etable"
@@ -97,16 +98,32 @@ func (vtc *TractParams) Defaults() {
 
 // VoiceParams are the parameters that control the quality of the voice
 type VoiceParams struct {
-	TractLength      float64    `desc:"length of vocal tract - shortest for baby voice, longest for male voice"`
-	GlotPulseFallMin float64    `desc:"glottal pulse is the rate at which the vocal folds of the glottis open and close - not sure about FallMin/FallMax"`
-	GlotPulseFallMax float64    `desc:"glottal pulse is the rate at which the vocal folds of the glottis open and close - not sure about FallMin/FallMax"`
-	GlotPitchRef     float64    `desc:"the pitch of the voice is usually set by the frequency of glottal pulses during vowels or voiced consonants"`
-	Breath           float64    `desc:"how much air escapes on each glottal pulse, more for female voices"`
-	GlotPulseRise    float64    `desc:"glottal pulse is the rate at which the vocal folds of the glottis open and close - not sure about rise"`
-	ApertureRadius   float64    `desc:""`
-	NoseRadii        [6]float64 `desc:"fixed nose radii (0 - 3 cm)"`
-	NoseRadiusCoef   float64    `desc:"global nose radius coefficient"`
-	RadiusCoef       float64    `desc:""`
+
+	// length of vocal tract - shortest for baby voice, longest for male voice
+	TractLength float64 `desc:"length of vocal tract - shortest for baby voice, longest for male voice"`
+
+	// glottal pulse is the rate at which the vocal folds of the glottis open and close - not sure about FallMin/FallMax
+	GlotPulseFallMin float64 `desc:"glottal pulse is the rate at which the vocal folds of the glottis open and close - not sure about FallMin/FallMax"`
+
+	// glottal pulse is the rate at which the vocal folds of the glottis open and close - not sure about FallMin/FallMax
+	GlotPulseFallMax float64 `desc:"glottal pulse is the rate at which the vocal folds of the glottis open and close - not sure about FallMin/FallMax"`
+
+	// the pitch of the voice is usually set by the frequency of glottal pulses during vowels or voiced consonants
+	GlotPitchRef float64 `desc:"the pitch of the voice is usually set by the frequency of glottal pulses during vowels or voiced consonants"`
+
+	// how much air escapes on each glottal pulse, more for female voices
+	Breath float64 `desc:"how much air escapes on each glottal pulse, more for female voices"`
+
+	// glottal pulse is the rate at which the vocal folds of the glottis open and close - not sure about rise
+	GlotPulseRise  float64 `desc:"glottal pulse is the rate at which the vocal folds of the glottis open and close - not sure about rise"`
+	ApertureRadius float64 `desc:""`
+
+	// fixed nose radii (0 - 3 cm)
+	NoseRadii [6]float64 `desc:"fixed nose radii (0 - 3 cm)"`
+
+	// global nose radius coefficient
+	NoseRadiusCoef float64 `desc:"global nose radius coefficient"`
+	RadiusCoef     float64 `desc:""`
 }
 
 // DefaultParams are the defaults, some of which don't change
@@ -126,15 +143,33 @@ func (vp *VoiceParams) Defaults() {
 
 // ToDo: desc for all Radii
 type TractCtrl struct {
-	GlotPitch float64                   `min:"-10" max:"0" desc:"ranges from -10 for phoneme k to 0 for most, with some being -2 or -1 -- called microInt in gnuspeech data files"`
-	GlotVol   float64                   `min:"0" max:"60" desc:"glottal volume (DB?) typically 60 when present and 0 when not, and sometimes 54, 43.5, 42, "`
-	AspVol    float64                   `min:"0" max:"10" desc:"aspiration volume -- typically 0 when not present and 10 when present"`
-	FricVol   float64                   `min:"0" max:"24" desc:"fricative volume -- typically 0 or .25 .4, .5, .8 but 24 for ph"`
-	FricPos   float64                   `min:"1" max:"7" desc:"ficative position -- varies continuously between 1-7"`
-	FricCf    float64                   `min:"864" max:"5500" desc:"fricative center frequency ranges between 864 to 5500 with values around 1770, 2000, 2500, 4500 being common"`
-	FricBw    float64                   `min:"500" max:"4500" desc:"fricative bw seems like a frequency -- common intermediate values are 600, 900, 2000, 2600"`
-	Radii     [OroPharynxRegCnt]float64 `desc:"Radii 2-8 radius of pharynx vocal tract segment as determined by tongue etc -- typically around 1, ranging .5 - 1.7"`
-	Velum     float64                   `min:".1" max:"1.5" desc:"velum opening -- 1.5 when fully open, .1 when closed, and .25, .5 intermediates used"`
+
+	// [min: -10] [max: 0] ranges from -10 for phoneme k to 0 for most, with some being -2 or -1 -- called microInt in gnuspeech data files
+	GlotPitch float64 `min:"-10" max:"0" desc:"ranges from -10 for phoneme k to 0 for most, with some being -2 or -1 -- called microInt in gnuspeech data files"`
+
+	// [min: 0] [max: 60] glottal volume (DB?) typically 60 when present and 0 when not, and sometimes 54, 43.5, 42,
+	GlotVol float64 `min:"0" max:"60" desc:"glottal volume (DB?) typically 60 when present and 0 when not, and sometimes 54, 43.5, 42, "`
+
+	// [min: 0] [max: 10] aspiration volume -- typically 0 when not present and 10 when present
+	AspVol float64 `min:"0" max:"10" desc:"aspiration volume -- typically 0 when not present and 10 when present"`
+
+	// [min: 0] [max: 24] fricative volume -- typically 0 or .25 .4, .5, .8 but 24 for ph
+	FricVol float64 `min:"0" max:"24" desc:"fricative volume -- typically 0 or .25 .4, .5, .8 but 24 for ph"`
+
+	// [min: 1] [max: 7] ficative position -- varies continuously between 1-7
+	FricPos float64 `min:"1" max:"7" desc:"ficative position -- varies continuously between 1-7"`
+
+	// [min: 864] [max: 5500] fricative center frequency ranges between 864 to 5500 with values around 1770, 2000, 2500, 4500 being common
+	FricCf float64 `min:"864" max:"5500" desc:"fricative center frequency ranges between 864 to 5500 with values around 1770, 2000, 2500, 4500 being common"`
+
+	// [min: 500] [max: 4500] fricative bw seems like a frequency -- common intermediate values are 600, 900, 2000, 2600
+	FricBw float64 `min:"500" max:"4500" desc:"fricative bw seems like a frequency -- common intermediate values are 600, 900, 2000, 2600"`
+
+	// Radii 2-8 radius of pharynx vocal tract segment as determined by tongue etc -- typically around 1, ranging .5 - 1.7
+	Radii [OroPharynxRegCnt]float64 `desc:"Radii 2-8 radius of pharynx vocal tract segment as determined by tongue etc -- typically around 1, ranging .5 - 1.7"`
+
+	// [min: .1] [max: 1.5] velum opening -- 1.5 when fully open, .1 when closed, and .25, .5 intermediates used
+	Velum float64 `min:".1" max:"1.5" desc:"velum opening -- 1.5 when fully open, .1 when closed, and .25, .5 intermediates used"`
 }
 
 // UpdateFromDeltas updates values in this set of params from deltas
@@ -303,7 +338,9 @@ type Tube struct {
 	Params     TractParams  `desc:""`
 	Voice      VoiceParams  `desc:""`
 	Dictionary etable.Table `desc:""`
-	TrmParams  []TractCtrl  `desc:"all of the trm params read from the trmParamFile"`
+
+	// all of the trm params read from the trmParamFile
+	TrmParams []TractCtrl `desc:"all of the trm params read from the trmParamFile"`
 
 	// derived values
 	CtrlRate   float64 `desc:""` // 1.0-1000.0 input tables/second (Hz)

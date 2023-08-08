@@ -31,7 +31,11 @@ const InitialSeed = 0.7892347
 const Factor = 377.0
 
 type Drift struct {
+
+	// the amount of drift in semitones above and below the median.  A value around 1 or so should give good results.
 	Deviation float64 `desc:"the amount of drift in semitones above and below the median.  A value around 1 or so should give good results."`
+
+	// pitch offset
 	Offset    float64 `desc:"pitch offset"`
 	Seed      float64 `desc:""`
 	A0        float64 `desc:""`

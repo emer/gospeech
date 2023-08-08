@@ -546,7 +546,7 @@ func (mdl *Model) ParamIdx(nm string) int {
 	return -1
 }
 
-//CategoryTry returns the address of the named Category or nil if not found
+// CategoryTry returns the address of the named Category or nil if not found
 func (mdl *Model) CategoryTry(nm string) *Category {
 	for _, c := range mdl.Categories {
 		if c.Name == nm {

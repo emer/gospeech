@@ -172,35 +172,37 @@ type Sequence struct {
 	Model  *Model
 	Events []Event
 
-	ZeroRef               int
-	ZeroIdx               int
-	Duration              int
-	TimeQuant             int
-	MacroFlag             bool
-	MicroFlag             bool
-	DriftFlag             bool
-	SmoothInton           bool
-	PitchMean             float64
-	GlobalTempo           float64
-	Multiplier            float64
-	PostureDatum          []*PostureData
-	PostureTempos         []float64
-	CurPosture            int
-	Feet                  []*Foot
-	CurFoot               int
-	ToneGroups            []*ToneGroup
-	CurToneGroup          ToneType
-	RuleDatum             []*RuleData
-	CurRule               int
-	Min                   [16]float64
-	Max                   [16]float64
-	IntonationPts         []IntonationPt
-	Drift                 *Drift
-	TgUseRandom           bool
-	IntonRandom           float64
-	TgParams              [][]float64
-	TgCount               []int
-	UseFixedIntonation    bool
+	ZeroRef            int
+	ZeroIdx            int
+	Duration           int
+	TimeQuant          int
+	MacroFlag          bool
+	MicroFlag          bool
+	DriftFlag          bool
+	SmoothInton        bool
+	PitchMean          float64
+	GlobalTempo        float64
+	Multiplier         float64
+	PostureDatum       []*PostureData
+	PostureTempos      []float64
+	CurPosture         int
+	Feet               []*Foot
+	CurFoot            int
+	ToneGroups         []*ToneGroup
+	CurToneGroup       ToneType
+	RuleDatum          []*RuleData
+	CurRule            int
+	Min                [16]float64
+	Max                [16]float64
+	IntonationPts      []IntonationPt
+	Drift              *Drift
+	TgUseRandom        bool
+	IntonRandom        float64
+	TgParams           [][]float64
+	TgCount            []int
+	UseFixedIntonation bool
+
+	// these will be the random intonation values or the fixed if useFixed is true
 	IntonationParams      []float64 `desc:"these will be the random intonation values or the fixed if useFixed is true"`
 	IntonationParamsFixed []float64
 	RadiusCoef            []float64 // TRM::Tube::TOTAL_REGIONS
