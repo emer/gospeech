@@ -119,8 +119,8 @@ func (syn *Synth) Synthesize() {
 ////////////////////////////////////////////////////////////////////////////////////////////
 // 		Gui
 
-// ConfigGui configures the GoGi gui interface for this Aud
-func (syn *Synth) ConfigGui() *gi.Window {
+// ConfigGUI configures the Cogent Core gui interface for this Aud
+func (syn *Synth) ConfigGUI() *gi.Window {
 	width := 1600
 	height := 1200
 
@@ -184,6 +184,6 @@ var Synther Synth
 func mainrun() {
 	Synther.Defaults()
 	Synther.vt.Init()
-	Synther.win = Synther.ConfigGui()
+	Synther.win = Synther.ConfigGUI()
 	Synther.win.StartEventLoop()
 }
